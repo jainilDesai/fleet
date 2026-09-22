@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { liveSessions } from './sessions.js';
 import { inventory, usage, recentProjects, refreshMcp, limits } from './inventory.js';
 import { launch, focus } from './terminal.js';
+import { summarize } from './summarize.js';
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
@@ -63,6 +64,11 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
         if (url.pathname === '/api/focus') {
           if (!liveSessions().some((s) => s.pid === Number(body.pid))) return send(res, 404, { error: 'no such session' });
           return send(res, 200, await focus(body.pid));
+        }
+        if (url.pathname === '/api/summarize') {
+          const session = liveSessions().find((s) => s.sessionId === body.sessionId);
+          if (!session) return send(res, 404, { error: 'no such session' });
+          return send(res, 200, await summarize({ ...body, project: session.project }));
         }
         if (url.pathname === '/api/mcp/refresh') {
           refreshMcp();

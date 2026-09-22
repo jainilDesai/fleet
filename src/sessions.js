@@ -47,13 +47,32 @@ function findTranscript(sessionId, cwd) {
   return found;
 }
 
+// Transcript for a session, a subagent, or a workflow agent. Used by the summarizer.
+export function transcriptFor({ sessionId, agentId, runId }) {
+  const main = transcriptPath.get(sessionId);
+  if (!main) return null;
+  if (!agentId) return main;
+  const dir = main.replace(/\.jsonl$/, '');
+  const safe = (v) => /^[\w-]+$/.test(v); // ids come from the browser; keep them out of path tricks
+  if (!safe(agentId) || (runId && !safe(runId))) return null;
+  return runId
+    ? path.join(dir, 'subagents', 'workflows', runId, `agent-${agentId}.jsonl`)
+    : path.join(dir, 'subagents', `agent-${agentId}.jsonl`);
+}
+
+// Sessions Fleet itself spawned (the summarizer) are hidden from the board.
+export const hiddenPids = new Set();
+const lastRegistry = new Map(); // registry file name -> last parsed contents
+
 export function liveSessions() {
   const dir = path.join(CLAUDE, 'sessions');
   const out = [];
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith('.json')) continue;
-    const reg = readJson(path.join(dir, f));
-    if (!reg?.pid || !alive(reg.pid)) continue;
+    // Claude Code rewrites these files in place; a read can land mid-write. Keep the last good copy.
+    const reg = readJson(path.join(dir, f)) ?? lastRegistry.get(f);
+    if (reg) lastRegistry.set(f, reg);
+    if (!reg?.pid || hiddenPids.has(reg.pid) || !alive(reg.pid)) continue;
     out.push(buildSession(reg));
   }
   return out.sort((a, b) => a.project.localeCompare(b.project) || b.startedAt - a.startedAt);

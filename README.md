@@ -33,7 +33,7 @@ terminal or Node) may control Terminal/iTerm. Allow it once.
 
 **Agents.** Every live Claude Code session on the machine, grouped by repo:
 
-- Status (working or idle), model, git branch, the latest prompt, and the tool call it's running now.
+- Status (working, idle, or waiting on you), model, git branch, the latest prompt, and the tool call it's running now.
 - API-equivalent cost and tokens, including all of its subagents, plus how full its context window is.
 - Click a session to see its cost breakdown, the full prompt, a timeline of recent tool calls,
   and a tree of the **subagents** it spawned (nested ones included), with each subagent's model,
@@ -42,6 +42,14 @@ terminal or Node) may control Terminal/iTerm. Allow it once.
   with every workflow agent's label, state and cost under its phase.
 - **Show terminal** brings that session's window forward. For Terminal.app and iTerm it selects
   the exact tab. Sessions inside an editor (Zed, VS Code, Cursor) bring the editor to the front.
+
+**Summaries.** Click the ✦ icon on any session card, subagent or workflow agent. You get a two
+or three line summary of what it's working on, where it's at, and whether it's waiting on you,
+blocked or looping. It's written by Claude Haiku through your own `claude` login. Each summary
+takes about 3 seconds and is cached until the agent does more work; outdated ones are flagged.
+The summarizer runs with no tools, no MCP servers, no settings files, hooks or plugins, and no
+saved transcript, and it never appears on the board. It only runs when you click, so the
+dashboard itself stays free.
 
 **New agent.** Pick a repo, a model (Haiku, Sonnet, Opus, Fable), effort, permission mode, an
 optional name and first prompt, and optionally its own git worktree. Fleet opens a new terminal
@@ -91,6 +99,7 @@ Everything comes from files and commands Claude Code already provides:
 | Workflows | `<session>/workflows/*.json` (phases, per-agent state) + `<session>/subagents/workflows/<run>/` |
 | Daily history | `~/.claude/stats-cache.json` |
 | Plan limits | `bin/statusline.js` → `~/.fleet/limits.json` |
+| Summaries (on click) | `claude -p --model haiku` over the tail of the agent's transcript |
 | MCP, plugins, account | `claude mcp list`, `claude plugin list --json`, `claude auth status` |
 | Skills, agents, commands | `~/.claude/skills`, `~/.claude/agents`, `~/.claude/commands`, plugin install dirs |
 

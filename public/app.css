@@ -130,6 +130,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .dot.busy, .dot.running { background: var(--busy); box-shadow: 0 0 0 0 color-mix(in srgb, var(--busy) 60%, transparent); animation: pulse 1.8s infinite; }
 .dot.done { background: var(--faint); }
 .dot.failed { background: var(--bad); }
+.dot.waiting { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 25%, transparent); }
 .dot.queued { background: transparent; border: 1.5px solid var(--faint); }
 @keyframes pulse { 70% { box-shadow: 0 0 0 6px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
 
@@ -148,6 +149,30 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .empty { padding: 60px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line-2); border-radius: 12px; }
 .empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
+
+/* ---------- summaries ---------- */
+.icon-btn {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; flex: none;
+  border: 1px solid transparent; border-radius: 6px; background: none; color: var(--faint); cursor: pointer;
+}
+.icon-btn:hover { color: var(--accent); background: var(--panel-2); border-color: var(--line-2); }
+.icon-btn svg { width: 14px; height: 14px; }
+.card-title .icon-btn { margin-left: auto; }
+.icon-btn.spinning { color: var(--accent); }
+.icon-btn.spinning svg { animation: spin 1.1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.summary {
+  grid-column: 1 / -1; margin: 2px 0 2px; padding: 8px 10px; border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  font-size: 12.5px; color: var(--text);
+}
+.summary p { margin: 0 0 3px; }
+.summary small { display: block; margin-top: 4px; color: var(--faint); font-size: 11px; }
+.summary.loading { color: var(--muted); font-style: italic; }
+.summary.error { color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--panel)); border-color: color-mix(in srgb, var(--bad) 25%, var(--line)); }
+.card .summary { grid-column: 1; }
+.phase .summary { margin: 2px 0 8px; font-size: 11.5px; padding: 6px 8px; }
+.pa .icon-btn { width: 20px; height: 20px; }
 
 /* ---------- drawer ---------- */
 .shell.with-drawer { grid-template-columns: 220px 1fr 520px; }

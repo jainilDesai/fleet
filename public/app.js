@@ -13,6 +13,7 @@ const state = {
   usage: null,
   extTab: 'plugins',
   query: '',
+  summaries: new Map(), // sumKey -> { summary, at, loading, error }
 };
 
 // ---------- helpers ----------
@@ -28,12 +29,49 @@ const ago = (t) => {
   if (s < 86400) return `${Math.round(s / 3600)}h`;
   return `${Math.round(s / 86400)}d`;
 };
+const agoText = (t) => (ago(t) === 'now' ? 'just now' : `${ago(t)} ago`);
 const clock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
 const modelName = (m) =>
   !m ? '—' : m.replace(/^claude-/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/-(\d+)$/, ' $1').replace(/^\w/, (c) => c.toUpperCase());
 const chip = (family, model) => (model ? `<span class="chip m-${esc(family)}">${esc(modelName(model))}</span>` : '');
 const FAMILY_COLORS = { opus: 'var(--opus)', sonnet: 'var(--sonnet)', haiku: 'var(--haiku)', fable: 'var(--fable)', mythos: 'var(--fable)' };
 const famColor = (f) => FAMILY_COLORS[f] ?? 'var(--faint)';
+
+// ---------- summaries ----------
+const SPARK = '<svg viewBox="0 0 16 16"><path d="M8 2.5l1.3 3.2 3.2 1.3-3.2 1.3L8 11.5 6.7 8.3 3.5 7l3.2-1.3zM12.5 11l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6z"/></svg>';
+const sumKey = (sid, agentId, runId) => [sid, runId ?? '', agentId ?? ''].join('|');
+
+function sumButton(sid, agentId, runId, status) {
+  const entry = state.summaries.get(sumKey(sid, agentId, runId));
+  return `<button class="icon-btn${entry?.loading ? ' spinning' : ''}" data-act="summarize" data-session="${esc(sid)}"${agentId ? ` data-agent="${esc(agentId)}"` : ''}${runId ? ` data-run="${esc(runId)}"` : ''} data-state="${esc(status)}" title="Summarize what this agent is doing">${SPARK}</button>`;
+}
+
+// lastActive: when the agent last wrote to its transcript, to flag summaries it has outgrown.
+function sumBlock(sid, agentId, runId, lastActive) {
+  const e = state.summaries.get(sumKey(sid, agentId, runId));
+  if (!e) return '';
+  if (e.loading && !e.summary) return '<div class="summary loading">Summarizing…</div>';
+  if (e.error) return `<div class="summary error">${esc(e.error)}</div>`;
+  const text = e.summary.replace(/\*\*|^#+\s*/gm, '').replace(/\n\s*\n+/g, '\n').trim();
+  const stale = lastActive && lastActive > e.at + 2000;
+  return `<div class="summary">${text.split('\n').map((l) => `<p>${esc(l)}</p>`).join('')}<small>${e.loading ? 'Updating…' : `${agoText(e.at)}${stale ? ' · agent has moved on, click ✦ to refresh' : ''}`}</small></div>`;
+}
+
+async function runSummary(el) {
+  const { session, agent, run, state: status } = el.dataset;
+  const key = sumKey(session, agent, run);
+  const prev = state.summaries.get(key);
+  if (prev?.loading) return;
+  state.summaries.set(key, { ...prev, loading: true, error: null });
+  render();
+  try {
+    const r = await post('/api/summarize', { sessionId: session, agentId: agent, runId: run, state: status });
+    state.summaries.set(key, { summary: r.summary, at: r.at, loading: false });
+  } catch (err) {
+    state.summaries.set(key, { ...prev, loading: false, error: err.message });
+  }
+  render();
+}
 
 function toast(msg, bad = false) {
   const t = $('#toast');
@@ -145,7 +183,9 @@ function card(s) {
         ${s.branch ? `<span class="chip ghost">${esc(s.branch)}</span>` : ''}
         ${subs.length ? `<span class="chip agents">${subs.length} agent${subs.length > 1 ? 's' : ''}${running ? ` · ${running} running` : ''}</span>` : ''}
         ${s.workflows.length ? `<span class="chip">${s.workflows.length} workflow${s.workflows.length > 1 ? 's' : ''}</span>` : ''}
+        ${sumButton(s.sessionId, null, null, s.status)}
       </div>
+      ${sumBlock(s.sessionId, null, null, Date.parse(s.lastTs))}
       <div class="card-task" title="${esc(s.lastPrompt)}">${esc(s.lastPrompt ?? s.task ?? 'Waiting for the first prompt')}</div>
       <div class="card-now">${now}</div>
       <div class="card-side">
@@ -157,6 +197,8 @@ function card(s) {
 }
 
 view.addEventListener('click', (e) => {
+  const sum = e.target.closest('[data-act=summarize]');
+  if (sum) return runSummary(sum);
   const c = e.target.closest('.card');
   if (c) openDrawer(c.dataset.session);
 });
@@ -191,10 +233,12 @@ function renderDrawer() {
       <div class="d-path">${esc(s.cwd)}${s.branch ? ` · ${esc(s.branch)}` : ''} · pid ${s.pid} · ${esc(s.status)} ${ago(s.statusSince)}</div>
       <div class="d-actions">
         <button class="btn small" data-act="focus" data-pid="${s.pid}"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M5 7l2 1.5L5 10M8.5 10H11"/></svg>Show terminal</button>
+        <button class="btn small" data-act="summarize" data-session="${esc(s.sessionId)}" data-state="${esc(s.status)}">${SPARK}Summarize</button>
         <button class="btn small" data-act="copy" data-text="claude --resume ${esc(s.sessionId)}">Copy resume command</button>
       </div>
     </div>
     <div class="d-body">
+      ${state.summaries.has(sumKey(s.sessionId)) ? `<div class="d-section"><h4>What it's doing</h4>${sumBlock(s.sessionId, null, null, Date.parse(s.lastTs))}</div>` : ''}
       <div class="d-section">
         <h4>Cost & tokens</h4>
         <div class="grid4">
@@ -223,19 +267,20 @@ function renderDrawer() {
   drawer.scrollTop = scroll;
 }
 
-function agentRow(a, children) {
+function agentRow(a, children, sid) {
   const kids = children.get(a.id) ?? [];
   return `
     <div class="agent-row">
       <span class="dot ${esc(a.state)}" title="${esc(a.state)}"></span>
       <span class="label" title="${esc(a.description)}">${esc(a.description ?? a.id)}</span>
-      <span class="right">${chip(a.family, a.model)}<span class="num">${money(a.cost)}</span></span>
+      <span class="right">${chip(a.family, a.model)}<span class="num">${money(a.cost)}</span>${sumButton(sid, a.id, null, a.state)}</span>
       <div class="meta">
         <span>${esc(a.type)}${a.background ? ' · background' : ''}</span>
         ${a.now ? `<span class="detail">${esc(a.now.tool)} ${esc(a.now.detail)}</span>` : ''}
       </div>
+      ${sumBlock(sid, a.id, null, a.mtime)}
     </div>
-    ${kids.length ? `<div class="nested">${kids.map((k) => agentRow(k, children)).join('')}</div>` : ''}`;
+    ${kids.length ? `<div class="nested">${kids.map((k) => agentRow(k, children, sid)).join('')}</div>` : ''}`;
 }
 
 function subagentsSection(s) {
@@ -250,7 +295,7 @@ function subagentsSection(s) {
   const running = s.subagents.filter((a) => a.state === 'running').length;
   return `<div class="d-section">
     <h4>Subagents <span>${s.subagents.length}${running ? ` · ${running} running` : ''}</span></h4>
-    ${roots.map((a) => agentRow(a, children)).join('')}
+    ${roots.map((a) => agentRow(a, children, s.sessionId)).join('')}
   </div>`;
 }
 
@@ -258,11 +303,11 @@ function workflowsSection(s) {
   const list = [...s.workflows].sort((a, b) => (b.startedAt ?? 0) - (a.startedAt ?? 0));
   return `<div class="d-section">
     <h4>Workflows <span>${list.length}</span></h4>
-    ${list.map(workflowCard).join('')}
+    ${list.map((w) => workflowCard(w, s.sessionId)).join('')}
   </div>`;
 }
 
-function workflowCard(w) {
+function workflowCard(w, sid) {
   // Order columns by the script's declared phases; agents without one go in a trailing column.
   const cols = w.phases.map((p) => ({ ...p, agents: w.agents.filter((a) => a.phase === p.title) }));
   const loose = w.agents.filter((a) => !w.phases.some((p) => p.title === a.phase));
@@ -290,7 +335,8 @@ function workflowCard(w) {
               ${c.agents
                 .map(
                   (a) => `<div class="pa" title="${esc(a.label)}${a.now ? `\n${esc(a.now.tool)}: ${esc(a.now.detail)}` : ''}">
-                    <span class="dot ${esc(a.state)}"></span><span class="label">${esc(a.label)}</span><span class="num">${money(a.cost)}</span></div>`
+                    <span class="dot ${esc(a.state)}"></span><span class="label">${esc(a.label)}</span><span class="num">${money(a.cost)}</span>${sumButton(sid, a.id, w.runId, a.state)}</div>
+                    ${sumBlock(sid, a.id, w.runId)}`
                 )
                 .join('') || '<p>No agents</p>'}
             </div>`;
@@ -305,6 +351,7 @@ drawer.addEventListener('click', async (e) => {
   if (!el) return;
   const act = el.dataset.act;
   if (act === 'close') return closeDrawer(), render();
+  if (act === 'summarize') return runSummary(el);
   if (act === 'fold') {
     const id = el.dataset.run;
     state.collapsed.has(id) ? state.collapsed.delete(id) : state.collapsed.add(id);
@@ -419,7 +466,7 @@ function limitsPanel(l) {
   const rows = Object.entries(l.data?.rateLimits ?? {}).filter(([, v]) => v && v.used_percentage != null);
   if (rows.length)
     return `<div class="panel">
-      <div class="panel-head"><h2>Plan limits</h2><span class="sub">same numbers as /usage · updated ${ago(l.data.at)} ago, after each Claude turn</span></div>
+      <div class="panel-head"><h2>Plan limits</h2><span class="sub">same numbers as /usage · updated ${agoText(l.data.at)}, after each Claude turn</span></div>
       ${rows
         .map(([k, v]) => {
           const pct = Math.round(v.used_percentage);
@@ -476,7 +523,7 @@ function renderMcp() {
     s.status === 'connected' ? '<span class="pill ok">Connected</span>' : s.status === 'needs-auth' ? '<span class="pill warn">Needs auth</span>' : `<span class="pill bad">${esc(s.statusText || 'Failed')}</span>`;
   const ok = inv.mcp.servers.filter((s) => s.status === 'connected').length;
   view.innerHTML = `
-    <p class="note" style="margin-top:0">${ok} of ${inv.mcp.servers.length} connected · checked ${ago(inv.mcpCheckedAt)} ago
+    <p class="note" style="margin-top:0">${ok} of ${inv.mcp.servers.length} connected · checked ${agoText(inv.mcpCheckedAt)}
       <button class="btn small" data-act="mcp-refresh" style="margin-left:8px" ${inv.mcpLoading ? 'disabled' : ''}>${inv.mcpLoading ? 'Checking…' : 'Recheck'}</button></p>
     ${groups
       .map(([scope, title, sub]) => {
