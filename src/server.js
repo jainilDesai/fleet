@@ -89,13 +89,21 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
   return server;
 }
 
+// Loaded once at startup, like the server code, so the page always matches the API it talks to.
+// (Reading from disk per request let a git pull serve a new UI to an old server.)
+const STATIC = new Map(
+  fs.readdirSync(PUBLIC).map((f) => {
+    let body = fs.readFileSync(path.join(PUBLIC, f));
+    if (f === 'index.html') body = Buffer.from(body.toString().replace('__FLEET_TOKEN__', TOKEN));
+    return [f, body];
+  })
+);
+
 function serveStatic(pathname, res) {
   const rel = pathname === '/' ? 'index.html' : pathname.slice(1);
-  const file = path.join(PUBLIC, rel);
-  if (!file.startsWith(PUBLIC + path.sep) || !fs.existsSync(file)) return send(res, 404, { error: 'not found' });
-  let body = fs.readFileSync(file);
-  if (rel === 'index.html') body = body.toString().replace('__FLEET_TOKEN__', TOKEN);
-  res.writeHead(200, { 'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
+  const body = STATIC.get(rel);
+  if (!body) return send(res, 404, { error: 'not found' });
+  res.writeHead(200, { 'content-type': TYPES[path.extname(rel)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
   res.end(body);
 }
 
