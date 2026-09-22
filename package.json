@@ -1,0 +1,12 @@
+{
+  "name": "claude-fleet",
+  "version": "0.1.0",
+  "description": "A local dashboard for every Claude Code session on your machine: see what each agent, subagent and workflow is doing, what it costs, and launch new agents into real terminal windows.",
+  "type": "module",
+  "bin": { "fleet": "bin/fleet.js" },
+  "scripts": { "start": "node bin/fleet.js" },
+  "engines": { "node": ">=20" },
+  "os": ["darwin"],
+  "license": "MIT",
+  "files": ["bin", "src", "public"]
+}

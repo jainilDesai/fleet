@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="fleet-token" content="__FLEET_TOKEN__" />
+  <title>Fleet</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6' fill='%23d97757'/></svg>" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="shell">
+    <nav class="rail">
+      <div class="brand"><span class="brand-mark"></span>Fleet</div>
+      <a class="nav" data-view="agents" href="#agents">
+        <svg viewBox="0 0 16 16"><path d="M2 3.5h12M2 8h12M2 12.5h8" /></svg>Agents<span class="nav-count" id="nav-live"></span>
+      </a>
+      <a class="nav" data-view="usage" href="#usage">
+        <svg viewBox="0 0 16 16"><path d="M3 13V8M8 13V3M13 13v-7" /></svg>Usage
+      </a>
+      <a class="nav" data-view="mcp" href="#mcp">
+        <svg viewBox="0 0 16 16"><circle cx="4" cy="8" r="2" /><circle cx="12" cy="4" r="2" /><circle cx="12" cy="12" r="2" /><path d="M6 7.2 10 5M6 8.8l4 2.2" /></svg>MCP servers
+      </a>
+      <a class="nav" data-view="extensions" href="#extensions">
+        <svg viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1" /><rect x="9" y="2" width="5" height="5" rx="1" /><rect x="2" y="9" width="5" height="5" rx="1" /><rect x="9" y="9" width="5" height="5" rx="1" /></svg>Plugins &amp; skills
+      </a>
+      <div class="rail-foot" id="account"></div>
+    </nav>
+
+    <main class="main">
+      <header class="top">
+        <h1 id="title">Agents</h1>
+        <div class="top-meta" id="top-meta"></div>
+        <button class="btn primary" id="new-agent">
+          <svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" /></svg>New agent
+        </button>
+      </header>
+      <section class="view" id="view"></section>
+    </main>
+
+    <aside class="drawer" id="drawer" aria-hidden="true"></aside>
+  </div>
+
+  <dialog class="modal" id="launch">
+    <form method="dialog" id="launch-form">
+      <header class="modal-head">
+        <h2>New agent</h2>
+        <p>Opens a real terminal window running Claude Code in the repo you pick.</p>
+      </header>
+
+      <label class="field">
+        <span>Project</span>
+        <input list="project-list" name="cwd" id="cwd" placeholder="/path/to/repo" autocomplete="off" required />
+        <datalist id="project-list"></datalist>
+      </label>
+
+      <div class="field">
+        <span>Model</span>
+        <div class="seg" id="model-seg">
+          <label><input type="radio" name="model" value="haiku" /><b>Haiku</b><small>Lookups, renames, quick fixes</small></label>
+          <label><input type="radio" name="model" value="sonnet" checked /><b>Sonnet</b><small>Most everyday coding</small></label>
+          <label><input type="radio" name="model" value="opus" /><b>Opus</b><small>Hard bugs, big refactors</small></label>
+          <label><input type="radio" name="model" value="fable" /><b>Fable</b><small>Hardest, long-horizon work</small></label>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Task <em>optional: sent as the first prompt</em></span>
+        <textarea name="prompt" rows="4" placeholder="Fix the failing checkout test in server/tests…"></textarea>
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span>Name</span>
+          <input name="name" placeholder="checkout-fix" maxlength="60" />
+        </label>
+        <label class="field">
+          <span>Effort</span>
+          <select name="effort">
+            <option value="">Default</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="xhigh">Extra high</option>
+            <option value="max">Max</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Permissions</span>
+          <select name="permissionMode">
+            <option value="default">Ask</option>
+            <option value="acceptEdits">Accept edits</option>
+            <option value="auto">Auto</option>
+            <option value="plan">Plan first</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="check">
+          <input type="checkbox" name="worktree" />
+          <span><b>Own git worktree</b><small>Isolates edits from other agents in this repo</small></span>
+        </label>
+        <label class="field narrow">
+          <span>Open in</span>
+          <select name="terminal" id="terminal-app">
+            <option value="terminal">Terminal</option>
+            <option value="iterm">iTerm</option>
+          </select>
+        </label>
+      </div>
+
+      <p class="cmd" id="cmd-preview"></p>
+      <p class="form-error" id="launch-error"></p>
+
+      <footer class="modal-foot">
+        <button class="btn" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn primary" id="launch-go" value="go">Launch</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+  <script src="app.js" type="module"></script>
+</body>
+</html>
