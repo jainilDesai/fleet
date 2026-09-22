@@ -31,6 +31,13 @@
       <header class="top">
         <h1 id="title">Agents</h1>
         <div class="top-meta" id="top-meta"></div>
+        <div class="bell-wrap">
+          <button class="bell" id="bell" title="Notifications">
+            <svg viewBox="0 0 16 16"><path d="M4 11V7a4 4 0 0 1 8 0v4l1 1.5H3L4 11zM6.5 14a1.5 1.5 0 0 0 3 0"/></svg>
+            <span class="badge" id="bell-count" hidden></span>
+          </button>
+          <div class="inbox" id="inbox" hidden></div>
+        </div>
         <button class="btn primary" id="new-agent">
           <svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" /></svg>New agent
         </button>

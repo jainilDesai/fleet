@@ -43,6 +43,19 @@ terminal or Node) may control Terminal/iTerm. Allow it once.
 - **Show terminal** brings that session's window forward. For Terminal.app and iTerm it selects
   the exact tab. Sessions inside an editor (Zed, VS Code, Cursor) bring the editor to the front.
 
+**Notifications.** Fleet watches every session and tells you when:
+
+- an agent **needs you**: it asked a question (the question is shown), wants a permission, or
+  has a plan ready for review;
+- an agent **finished** a turn that took over 20 seconds, so quick replies don't ping you;
+- a background subagent is done, a workflow completes, or a workflow agent fails.
+
+These show in the bell's inbox and as a count in the tab title. They also appear as **macOS
+notification banners**, even with the dashboard closed, as long as Fleet is running. Turn banners
+off in the inbox; subagent completions only go to the inbox. History lives in
+`~/.fleet/events.jsonl`. Detection is plain code that diffs session states every 1.5 seconds,
+with no hooks and no AI calls.
+
 **Summaries.** Click the ✦ icon on any session card, subagent or workflow agent. You get a two
 or three line summary of what it's working on, where it's at, and whether it's waiting on you,
 blocked or looping. It's written by Claude Haiku through your own `claude` login. Each summary

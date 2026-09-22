@@ -113,6 +113,7 @@ function notePrompt(s, text, d) {
 
 function describe(tool, input = {}) {
   const v =
+    input.questions?.[0]?.question ??
     input.description ??
     input.file_path ??
     input.command ??

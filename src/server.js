@@ -7,6 +7,7 @@ import { liveSessions } from './sessions.js';
 import { inventory, usage, recentProjects, refreshMcp, limits } from './inventory.js';
 import { launch, focus } from './terminal.js';
 import { summarize } from './summarize.js';
+import { observe, recentEvents, config, setConfig } from './events.js';
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
@@ -19,21 +20,20 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
   const clients = new Set();
   let last = '';
 
-  const snapshot = () => {
-    const sessions = liveSessions();
-    return { at: Date.now(), sessions };
-  };
+  const snapshot = () => ({ at: Date.now(), sessions: liveSessions(), events: recentEvents(), config: config() });
 
+  // Runs even with no browser open: attention events and banners must not depend on a tab.
   setInterval(() => {
-    if (!clients.size) return;
     let body;
     try {
-      body = JSON.stringify(snapshot());
+      const snap = snapshot();
+      if (observe(snap.sessions).length) snap.events = recentEvents();
+      body = JSON.stringify(snap);
     } catch (e) {
       console.error('snapshot failed:', e);
       return;
     }
-    if (body === last) return;
+    if (!clients.size || body === last) return;
     last = body;
     for (const res of clients) res.write(`data: ${body}\n\n`);
   }, 1500);
@@ -70,6 +70,7 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
           if (!session) return send(res, 404, { error: 'no such session' });
           return send(res, 200, await summarize({ ...body, project: session.project }));
         }
+        if (url.pathname === '/api/config') return send(res, 200, setConfig(body));
         if (url.pathname === '/api/mcp/refresh') {
           refreshMcp();
           return send(res, 200, { ok: true });

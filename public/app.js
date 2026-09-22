@@ -14,7 +14,18 @@ const state = {
   extTab: 'plugins',
   query: '',
   summaries: new Map(), // sumKey -> { summary, at, loading, error }
+  events: [],
+  config: { banners: true },
+  lastSeen: Number(safeGet('fleet.lastSeenEvent') ?? 0), // highest event id the user has seen
 };
+
+function safeGet(k) {
+  try {
+    return localStorage.getItem(k);
+  } catch {
+    return null;
+  }
+}
 
 // ---------- helpers ----------
 const esc = (v) =>
@@ -32,7 +43,7 @@ const ago = (t) => {
 const agoText = (t) => (ago(t) === 'now' ? 'just now' : `${ago(t)} ago`);
 const clock = (t) => (t ? new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
 const modelName = (m) =>
-  !m ? '—' : m.replace(/^claude-/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/-(\d+)$/, ' $1').replace(/^\w/, (c) => c.toUpperCase());
+  !m ? '—' : m.replace(/^claude-/, '').replace(/-\d{8}$/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/-(\d+)$/, ' $1').replace(/^\w/, (c) => c.toUpperCase());
 const chip = (family, model) => (model ? `<span class="chip m-${esc(family)}">${esc(modelName(model))}</span>` : '');
 const FAMILY_COLORS = { opus: 'var(--opus)', sonnet: 'var(--sonnet)', haiku: 'var(--haiku)', fable: 'var(--fable)', mythos: 'var(--fable)' };
 const famColor = (f) => FAMILY_COLORS[f] ?? 'var(--faint)';
@@ -118,7 +129,14 @@ function render() {
 function connect() {
   const es = new EventSource('/api/stream');
   es.onmessage = (e) => {
-    state.sessions = JSON.parse(e.data).sessions;
+    const snap = JSON.parse(e.data);
+    state.sessions = snap.sessions;
+    state.config = snap.config ?? state.config;
+    const newest = snap.events?.[0]?.id ?? 0;
+    const fresh = newest > (state.events[0]?.id ?? Infinity); // no ring for history loaded on first connect
+    state.events = snap.events ?? [];
+    if (fresh) $('#bell').classList.add('ring'), setTimeout(() => $('#bell').classList.remove('ring'), 1300);
+    renderBell();
     $('#nav-live').textContent = state.sessions.length || '';
     if (state.view === 'agents') render();
   };
@@ -372,6 +390,87 @@ drawer.addEventListener('click', async (e) => {
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && state.selected && !$('#launch').open) closeDrawer(), render();
+});
+
+// ---------- notifications ----------
+const KIND_LABEL = {
+  'needs-input': 'Needs you',
+  finished: 'Finished',
+  'subagent-done': 'Subagent done',
+  'workflow-done': 'Workflow done',
+  'workflow-failed': 'Failed',
+};
+
+function renderBell() {
+  const unread = state.events.filter((e) => e.id > state.lastSeen).length;
+  const badge = $('#bell-count');
+  badge.hidden = !unread;
+  badge.textContent = unread > 99 ? '99+' : unread;
+  document.title = unread ? `(${unread}) Fleet` : 'Fleet';
+  if (!$('#inbox').hidden) renderInbox();
+}
+
+function renderInbox() {
+  const box = $('#inbox');
+  box.innerHTML = `
+    <div class="inbox-head">
+      <h3>Notifications</h3><span class="spacer"></span>
+      <label class="toggle" title="macOS notification banners, even when this tab is closed"><input type="checkbox" id="banners" ${state.config.banners ? 'checked' : ''} />Banners</label>
+      <button class="linkish" data-act="read-all">Mark all read</button>
+    </div>
+    ${
+      state.events.length
+        ? state.events
+            .map(
+              (e) => `<div class="ev${e.id > state.lastSeen ? ' unread' : ''}" data-ev="${e.id}" data-session="${esc(e.sessionId)}">
+                <span class="dot k-${esc(e.kind)}"></span><span class="t">${esc(e.title)}</span>
+                ${e.detail ? `<span class="d">${esc(e.detail)}</span>` : ''}
+                <span class="m">${esc(KIND_LABEL[e.kind] ?? e.kind)} · ${esc(e.project)} · ${agoText(e.at)}</span>
+              </div>`
+            )
+            .join('')
+        : '<div class="none">Nothing yet. You\'ll be told here when an agent asks you something or finishes a task.</div>'
+    }`;
+}
+
+function markRead(id) {
+  state.lastSeen = Math.max(state.lastSeen, id);
+  try {
+    localStorage.setItem('fleet.lastSeenEvent', String(state.lastSeen));
+  } catch {}
+  renderBell();
+}
+
+$('#bell').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const box = $('#inbox');
+  box.hidden = !box.hidden;
+  $('#bell').classList.toggle('open', !box.hidden);
+  if (!box.hidden) renderInbox();
+});
+
+$('#inbox').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (e.target.id === 'banners') {
+    state.config = await post('/api/config', { banners: e.target.checked });
+    return toast(state.config.banners ? 'Banners on' : 'Banners off');
+  }
+  if (e.target.closest('[data-act=read-all]')) return markRead(state.events[0]?.id ?? 0);
+  const ev = e.target.closest('.ev');
+  if (!ev) return;
+  markRead(Number(ev.dataset.ev));
+  $('#inbox').hidden = true;
+  $('#bell').classList.remove('open');
+  if (!state.sessions.some((s) => s.sessionId === ev.dataset.session)) return toast('That session has ended', true);
+  if (location.hash !== '#agents') location.hash = '#agents';
+  state.selected = ev.dataset.session;
+  render();
+});
+
+document.addEventListener('click', () => {
+  if ($('#inbox').hidden) return;
+  $('#inbox').hidden = true;
+  $('#bell').classList.remove('open');
 });
 
 // ---------- usage ----------
