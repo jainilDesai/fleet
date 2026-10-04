@@ -12,7 +12,11 @@ function emptyState() {
     model: null,
     firstPrompt: null,
     lastPrompt: null,
+    firstTs: null,
     lastTs: null,
+    aiTitle: null,
+    customTitle: null,
+    edited: new Set(), // files written by Edit / Write / NotebookEdit
     lastUsage: null,
     branch: null,
     activity: [], // recent tool calls, newest last
@@ -49,6 +53,14 @@ export function readTranscript(file, since = null) {
   return summarize(entry.state, stat.mtimeMs, since);
 }
 
+// For one-off reads of old transcripts: keeps the live cache from holding every file ever read.
+export function readTranscriptOnce(file) {
+  const had = cache.has(file);
+  const t = readTranscript(file);
+  if (!had) cache.delete(file);
+  return t;
+}
+
 function apply(s, line) {
   let d;
   try {
@@ -56,7 +68,12 @@ function apply(s, line) {
   } catch {
     return;
   }
-  if (d.timestamp) s.lastTs = d.timestamp;
+  if (d.timestamp) {
+    s.firstTs ??= d.timestamp;
+    s.lastTs = d.timestamp;
+  }
+  if (d.type === 'ai-title') s.aiTitle = d.aiTitle;
+  if (d.type === 'custom-title') s.customTitle = d.customTitle;
   if (d.gitBranch) s.branch = d.gitBranch;
   if (d.cwd && !s.cwd) s.cwd = d.cwd;
   const msg = d.message;
@@ -73,6 +90,8 @@ function apply(s, line) {
       if (b.type !== 'tool_use') continue;
       s.activity.push({ tool: b.name, detail: describe(b.name, b.input), ts: d.timestamp });
       if (s.activity.length > 40) s.activity.shift();
+      if (/^(Edit|MultiEdit|Write|NotebookEdit)$/.test(b.name) && (b.input?.file_path ?? b.input?.notebook_path))
+        s.edited.add(b.input.file_path ?? b.input.notebook_path);
       if (b.name === 'Agent' || b.name === 'Task' || b.name === 'Workflow')
         s.agentLaunches.set(b.id, { name: b.name, input: b.input ?? {} });
     }
@@ -156,7 +175,10 @@ function summarize(s, mtime, since) {
     branch: s.branch,
     firstPrompt: s.firstPrompt,
     lastPrompt: s.lastPrompt,
+    firstTs: s.firstTs,
     lastTs: s.lastTs,
+    title: s.customTitle ?? s.aiTitle,
+    edited: [...s.edited],
     mtime,
     tokens,
     total: tokens.input + tokens.output + tokens.cacheRead + tokens.cacheWrite,

@@ -13,6 +13,10 @@ const state = {
   usage: null,
   extTab: 'plugins',
   query: '',
+  history: null, // { scanning, records }
+  histQuery: '',
+  histOpen: null, // sessionId expanded in the history list
+  histBusy: new Set(), // sessionIds being summarized
   summaries: new Map(), // sumKey -> { summary, at, loading, error }
   events: [],
   config: { banners: true },
@@ -104,13 +108,14 @@ async function post(url, body) {
 }
 
 // ---------- routing ----------
-const TITLES = { agents: 'Agents', usage: 'Usage', mcp: 'MCP servers', extensions: 'Plugins & skills' };
+const TITLES = { agents: 'Agents', history: 'History', usage: 'Usage', mcp: 'MCP servers', extensions: 'Plugins & skills' };
 function route() {
   state.view = TITLES[location.hash.slice(1)] ? location.hash.slice(1) : 'agents';
   document.querySelectorAll('.nav').forEach((a) => a.classList.toggle('active', a.dataset.view === state.view));
   $('#title').textContent = TITLES[state.view];
   if (state.view !== 'agents') closeDrawer();
   if (state.view === 'usage') loadUsage();
+  if (state.view === 'history') loadHistory();
   if (state.view === 'mcp' || state.view === 'extensions') loadInventory();
   render();
 }
@@ -120,6 +125,7 @@ function render() {
   renderTopMeta();
   if (state.view === 'agents') renderAgents();
   if (state.view === 'usage') renderUsage();
+  if (state.view === 'history') renderHistory();
   if (state.view === 'mcp') renderMcp();
   if (state.view === 'extensions') renderExtensions();
   renderDrawer();
@@ -130,6 +136,7 @@ function connect() {
   const es = new EventSource('/api/stream');
   es.onmessage = (e) => {
     const snap = JSON.parse(e.data);
+    const liveBefore = state.sessions.map((s) => s.sessionId).join();
     state.sessions = snap.sessions;
     state.config = snap.config ?? state.config;
     const newest = snap.events?.[0]?.id ?? 0;
@@ -139,6 +146,7 @@ function connect() {
     renderBell();
     $('#nav-live').textContent = state.sessions.length || '';
     if (state.view === 'agents') render();
+    if (state.view === 'history' && state.history && liveBefore !== state.sessions.map((s) => s.sessionId).join()) renderHistory();
   };
   es.onerror = () => {
     es.close();
@@ -473,6 +481,109 @@ document.addEventListener('click', () => {
   $('#bell').classList.remove('open');
 });
 
+// ---------- history ----------
+const HIST_MAX = 200; // rows rendered at once; search narrows the rest
+
+async function loadHistory() {
+  state.history = await (await fetch('/api/history')).json();
+  if (state.view === 'history') render();
+  if (state.history.scanning) setTimeout(() => state.view === 'history' && loadHistory(), 3000);
+}
+
+function dayLabel(t) {
+  const d = new Date(t);
+  const today = new Date();
+  const yesterday = new Date(Date.now() - 864e5);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+}
+
+const span = (ms) => (ms < 60e3 ? '<1m' : ms < 3600e3 ? `${Math.round(ms / 60e3)}m` : `${(ms / 3600e3).toFixed(1)}h`);
+
+function renderHistory() {
+  const h = state.history;
+  if (!h) return (view.innerHTML = '<p class="note">Reading transcripts…</p>');
+  const q = state.histQuery.toLowerCase();
+  const hits = h.records.filter(
+    (r) => !q || [r.title, r.project, r.branch, r.firstPrompt, r.lastPrompt, r.summary, r.sessionId, ...r.edited].some((x) => String(x ?? '').toLowerCase().includes(q))
+  );
+  const days = new Map();
+  for (const r of hits.slice(0, HIST_MAX)) {
+    const k = dayLabel(r.endedAt ?? 0);
+    if (!days.has(k)) days.set(k, []);
+    days.get(k).push(r);
+  }
+  const live = new Set(state.sessions.map((s) => s.sessionId));
+  view.innerHTML = `
+    <div class="tabs">
+      <span class="hist-count">${hits.length.toLocaleString()} of ${h.records.length.toLocaleString()} sessions${h.scanning ? ' · scanning transcripts…' : ''}</span>
+      <input class="search" id="hist-search" placeholder="Search prompts, files, projects…" value="${esc(state.histQuery)}" />
+    </div>
+    ${
+      [...days.entries()]
+        .map(
+          ([day, rows]) => `<div class="group">
+            <div class="group-head"><h2>${esc(day)}</h2><span>${rows.length} · ${money(rows.reduce((n, r) => n + r.cost, 0))}</span></div>
+            <div class="panel">${rows.map((r) => histRow(r, live.has(r.sessionId))).join('')}</div>
+          </div>`
+        )
+        .join('') || `<div class="empty"><b>${h.records.length ? 'No matches' : 'No sessions yet'}</b>${h.records.length ? 'Try another word.' : 'Fleet is reading your transcripts.'}</div>`
+    }
+    ${hits.length > HIST_MAX ? `<p class="note">Showing the latest ${HIST_MAX}. Search to find older sessions.</p>` : ''}`;
+  const input = $('#hist-search');
+  if (document.activeElement?.id !== 'hist-search' && state.histQuery) input.focus(), input.setSelectionRange(99, 99);
+}
+
+function histRow(r, isLive) {
+  const open = state.histOpen === r.sessionId;
+  return `<div class="hist${open ? ' open' : ''}">
+    <button class="hist-row" data-hist="${esc(r.sessionId)}">
+      <span class="hist-time">${clock(r.endedAt)}<small>${dayLabel(r.startedAt) === dayLabel(r.endedAt) ? span(r.endedAt - r.startedAt) : `from ${new Date(r.startedAt).toLocaleDateString([], { day: 'numeric', month: 'short' })}`}</small></span>
+      <span class="hist-main"><b>${esc(r.title ?? r.firstPrompt)}</b><small>${esc(r.project)}${r.branch ? ` · ${esc(r.branch)}` : ''}${r.edited.length ? ` · ${r.edited.length} file${r.edited.length > 1 ? 's' : ''} edited` : ''}${r.agents ? ` · ${r.agents} agent${r.agents > 1 ? 's' : ''}` : ''}</small></span>
+      ${isLive ? '<span class="pill ok">Live</span>' : r.gone ? '<span class="pill off" title="Claude Code deleted the transcript; this record is all that is left">Archived</span>' : '<span></span>'}
+      ${chip(r.family, r.model)}
+      <span class="num">${money(r.cost)}</span>
+    </button>
+    ${open ? histDetail(r) : ''}
+  </div>`;
+}
+
+function histDetail(r) {
+  const busy = state.histBusy.has(r.sessionId);
+  const summary = r.summary
+    ? `<div class="summary">${r.summary.replace(/\n\s*\n+/g, '\n').trim().split('\n').map((l) => `<p>${esc(l)}</p>`).join('')}<small>${agoText(r.summaryAt)}${r.size > r.summarySize ? ' · session continued after this, summarize again to update' : ''}</small></div>`
+    : '';
+  const resume = r.cwd ? `cd ${r.cwd} && claude --resume ${r.sessionId}` : '';
+  return `<div class="hist-detail">
+    ${summary}
+    <div class="hist-actions">
+      ${r.gone ? '' : `<button class="btn small" data-act="hist-sum" data-session="${esc(r.sessionId)}" ${busy ? 'disabled' : ''}>${SPARK}${busy ? 'Summarizing…' : r.summary ? 'Summarize again' : 'Summarize what it did'}</button>`}
+      ${r.gone ? '' : `<button class="btn small" data-act="hist-resume" data-cmd="${esc(resume)}">Copy resume command</button>`}
+      <span class="hist-meta">${new Date(r.startedAt).toLocaleString()} → ${clock(r.endedAt)} · ${tokens(r.total)} tokens · <code>${esc(r.sessionId)}</code></span>
+    </div>
+    <dl>
+      <dt>Asked</dt><dd>${esc(r.firstPrompt)}</dd>
+      ${r.lastPrompt && r.lastPrompt !== r.firstPrompt ? `<dt>Last asked</dt><dd>${esc(r.lastPrompt)}</dd>` : ''}
+      ${r.edited.length ? `<dt>Edited</dt><dd class="files">${r.edited.map((f) => `<code>${esc(r.cwd && f.startsWith(r.cwd + '/') ? f.slice(r.cwd.length + 1) : f)}</code>`).join('')}</dd>` : ''}
+    </dl>
+  </div>`;
+}
+
+async function summarizeHistory(sessionId) {
+  state.histBusy.add(sessionId);
+  render();
+  try {
+    const rec = await post('/api/history/summarize', { sessionId });
+    const i = state.history.records.findIndex((r) => r.sessionId === sessionId);
+    if (i >= 0) state.history.records[i] = rec;
+  } catch (err) {
+    toast(err.message, true);
+  }
+  state.histBusy.delete(sessionId);
+  render();
+}
+
 // ---------- usage ----------
 async function loadUsage() {
   state.usage = await (await fetch('/api/usage')).json();
@@ -701,6 +812,12 @@ function renderExtensions() {
 view.addEventListener('click', async (e) => {
   const tab = e.target.closest('[data-tab]');
   if (tab) return (state.extTab = tab.dataset.tab), renderExtensions();
+  const hist = e.target.closest('[data-hist]');
+  if (hist) return (state.histOpen = state.histOpen === hist.dataset.hist ? null : hist.dataset.hist), renderHistory();
+  const histSum = e.target.closest('[data-act=hist-sum]');
+  if (histSum) return summarizeHistory(histSum.dataset.session);
+  const resume = e.target.closest('[data-act=hist-resume]');
+  if (resume) return navigator.clipboard.writeText(resume.dataset.cmd).then(() => toast('Copied. Paste it in a terminal to pick this session back up'));
   if (e.target.closest('[data-act=copy-snippet]')) {
     await navigator.clipboard.writeText(JSON.stringify(state.usage.limits.snippet.statusLine, null, 2));
     return toast('Copied. Paste it as "statusLine" in ~/.claude/settings.json');
@@ -711,6 +828,11 @@ view.addEventListener('click', async (e) => {
   }
 });
 view.addEventListener('input', (e) => {
+  if (e.target.id === 'hist-search') {
+    state.histQuery = e.target.value;
+    renderHistory();
+    return $('#hist-search').setSelectionRange(state.histQuery.length, state.histQuery.length);
+  }
   if (e.target.id !== 'ext-search') return;
   state.query = e.target.value;
   renderExtensions();
@@ -799,4 +921,4 @@ form.addEventListener('submit', async (e) => {
 route();
 connect();
 loadInventory();
-setInterval(() => (state.view === 'agents' ? render() : state.view === 'usage' && loadUsage()), 30_000); // fresh "ago" labels, limits
+setInterval(() => (state.view === 'agents' ? render() : state.view === 'usage' ? loadUsage() : state.view === 'history' && loadHistory()), 30_000); // fresh "ago" labels, limits

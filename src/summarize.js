@@ -21,7 +21,7 @@ You are also given the agent's status as the dashboard sees it. Trust it over th
 const STATES = new Set(['busy', 'idle', 'waiting', 'running', 'done', 'failed', 'queued']);
 
 export async function summarize(target) {
-  const file = transcriptFor(target);
+  const file = target.file ?? transcriptFor(target);
   if (!file || !fs.existsSync(file)) throw new Error('No transcript for this agent yet');
   const size = fs.statSync(file).size;
   // A finished agent's transcript stops growing, but its status can still flip to done.

@@ -8,6 +8,7 @@ import { inventory, usage, recentProjects, refreshMcp, limits } from './inventor
 import { launch, focus } from './terminal.js';
 import { summarize } from './summarize.js';
 import { observe, recentEvents, config, setConfig } from './events.js';
+import { scan, history, summarizeSession } from './history.js';
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
@@ -55,6 +56,7 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
       if (req.method === 'GET' && url.pathname === '/api/inventory')
         return send(res, 200, await inventory(url.searchParams.has('refresh')));
       if (req.method === 'GET' && url.pathname === '/api/usage') return send(res, 200, { ...usage(), limits: limits() });
+      if (req.method === 'GET' && url.pathname === '/api/history') return send(res, 200, history());
       if (req.method === 'GET' && url.pathname === '/api/projects') return send(res, 200, recentProjects(liveSessions()));
 
       if (req.method === 'POST') {
@@ -69,6 +71,10 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
           const session = liveSessions().find((s) => s.sessionId === body.sessionId);
           if (!session) return send(res, 404, { error: 'no such session' });
           return send(res, 200, await summarize({ ...body, project: session.project }));
+        }
+        if (url.pathname === '/api/history/summarize') {
+          const live = liveSessions().find((s) => s.sessionId === body.sessionId);
+          return send(res, 200, await summarizeSession(String(body.sessionId), live?.status ?? 'done'));
         }
         if (url.pathname === '/api/config') return send(res, 200, setConfig(body));
         if (url.pathname === '/api/mcp/refresh') {
@@ -86,6 +92,8 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
 
   server.listen(port, host);
   refreshMcp(); // warm the slow MCP health check
+  scan();
+  setInterval(scan, 60_000);
   return server;
 }
 
