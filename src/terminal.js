@@ -45,7 +45,8 @@ export async function launch(opts) {
     `#!/bin/zsh -l\nrm -f ${sh(file)}\ncd ${sh(cwd)} || exit 1\nprintf '\\e]0;%s\\a' ${sh(opts.name || path.basename(cwd))}\nexec claude ${args.map(sh).join(' ')}\n`,
     { mode: 0o700 }
   );
-  const command = `zsh ${sh(file)}`;
+  // -il: iTerm runs the command with a bare environment; .zshrc is where PATH gets ~/.local/bin (claude).
+  const command = `zsh -il ${sh(file)}`;
   const q = JSON.stringify(command); // AppleScript string literal: same escaping rules as JSON for our input
   if (opts.terminal === 'iterm')
     await osa(`tell application "iTerm"
