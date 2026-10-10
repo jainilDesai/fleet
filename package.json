@@ -1,21 +1,47 @@
 {
   "name": "@jainil_desai/fleet",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A local dashboard for every Claude Code session on your Mac: live agents, subagents, workflows, cost, plan limits, session history, and a launcher that opens real terminals.",
   "type": "module",
-  "bin": { "fleet": "bin/fleet.js" },
+  "bin": {
+    "fleet": "bin/fleet.js"
+  },
   "scripts": {
     "start": "node bin/fleet.js",
     "test": "node --test test/*.test.js"
   },
-  "engines": { "node": ">=20" },
-  "os": ["darwin"],
-  "files": ["bin", "src", "public"],
-  "keywords": ["claude-code", "claude", "agents", "dashboard", "subagents", "cost", "macos", "iterm"],
-  "repository": { "type": "git", "url": "git+https://github.com/jainilDesai/fleet.git" },
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin"
+  ],
+  "files": [
+    "bin",
+    "src",
+    "public"
+  ],
+  "keywords": [
+    "claude-code",
+    "claude",
+    "agents",
+    "dashboard",
+    "subagents",
+    "cost",
+    "macos",
+    "iterm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jainilDesai/fleet.git"
+  },
   "homepage": "https://fleet.jainildesai.com",
-  "bugs": { "url": "https://github.com/jainilDesai/fleet/issues" },
+  "bugs": {
+    "url": "https://github.com/jainilDesai/fleet/issues"
+  },
   "author": "Jainil Desai",
   "license": "MIT",
-  "publishConfig": { "access": "public" }
+  "publishConfig": {
+    "access": "public"
+  }
 }
