@@ -7,6 +7,8 @@ started in an editor's terminal. It tracks what each one costs, the subagents it
 the workflow agents working in phases. You can launch new agents with the right model into
 real terminal windows.
 
+![Fleet's Agents view: live sessions grouped by repo, with model, branch, current tool call, cost and context](docs/agents.png)
+
 It was built to replace one habit: running a single max-model session per task, loading it
 with too much context. Fleet makes it cheap to run several small agents instead, each on the
 model the task deserves.
@@ -16,18 +18,26 @@ model the task deserves.
   no hooks and does not change your settings.
 - **Real terminals.** Agents run in Terminal.app or iTerm, not in a browser emulator.
 
-## Run it
+## Install
+
+Needs macOS, Node 20 or later, and Claude Code (`claude`) signed in.
 
 ```bash
-git clone https://github.com/jainilDesai/fleet.git
-cd fleet
-node bin/fleet.js          # opens http://localhost:7788
+npm install -g @jainildesai/fleet
+fleet                      # opens http://localhost:7788
 ```
 
-Options: `--port 8000`, `--no-open`. To install it as a command: `npm link`, then run `fleet`.
+Options: `--port 8000`, `--no-open`. To try it without installing: `npx @jainildesai/fleet`.
+Install it globally if you want plan limits: the statusline setup below points at Fleet's
+install folder, which `npx` doesn't keep.
+
+**Optional:** `brew install terminal-notifier` makes notification banners clickable. A click
+opens the exact terminal tab of the session the banner is about.
 
 The first time you launch an agent or click **Show terminal**, macOS asks whether Fleet (your
 terminal or Node) may control Terminal/iTerm. Allow it once.
+
+From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && node bin/fleet.js`.
 
 ## What you get
 
@@ -43,6 +53,22 @@ terminal or Node) may control Terminal/iTerm. Allow it once.
 - **Show terminal** brings that session's window forward. For Terminal.app and iTerm it selects
   the exact tab. Sessions inside an editor (Zed, VS Code, Cursor) bring the editor to the front.
 
+![A session's detail panel: cost split between the session and its subagents, latest prompt, subagent tree and recent tool calls](docs/session.png)
+
+**History.** Every session you've run, kept after Claude Code deletes its transcript (Claude
+Code removes transcripts older than `cleanupPeriodDays`, 30 by default). Sessions are grouped
+by day with their title, project, branch, model, cost including subagents, how long they ran,
+the first and last thing you asked, and the files they edited. Search across all of it. A
+session can be summarized on demand ("what did it do"), and the summary is kept with it.
+Copy a resume command to pick a session back up while its transcript still exists.
+
+On first run Fleet reads every transcript on disk (about 1,000 sessions take ~12 seconds),
+then only re-reads transcripts that grew. Records live in `~/.fleet/history.json`; delete
+that file to start over. Files edited counts edits made with Claude's Edit and Write tools,
+not changes made through shell commands.
+
+![History: past sessions grouped by day, one expanded to show what was asked and which files were edited](docs/history.png)
+
 **Notifications.** Fleet watches every session and tells you when:
 
 - an agent **needs you**: it asked a question (the question is shown), wants a permission, or
@@ -52,7 +78,9 @@ terminal or Node) may control Terminal/iTerm. Allow it once.
 
 These show in the bell's inbox and as a count in the tab title. They also appear as **macOS
 notification banners**, even with the dashboard closed, as long as Fleet is running. Turn banners
-off in the inbox; subagent completions only go to the inbox. History lives in
+off in the inbox; subagent completions only go to the inbox. With `terminal-notifier` installed,
+clicking a banner opens that session's terminal tab; without it, banners are informational
+(macOS gives Fleet's plain banners no way to act on a click). History lives in
 `~/.fleet/events.jsonl`. Detection is plain code that diffs session states every 1.5 seconds,
 with no hooks and no AI calls.
 
@@ -66,7 +94,9 @@ dashboard itself stays free.
 
 **New agent.** Pick a repo, a model (Haiku, Sonnet, Opus, Fable), effort, permission mode, an
 optional name and first prompt, and optionally its own git worktree. Fleet opens a new terminal
-window running that `claude` command. The command it will run is previewed before you launch.
+window running that `claude` command through your own login shell (`$SHELL`), so it
+gets the same `PATH` and environment as a terminal you open yourself. The command it will run
+is previewed before you launch.
 
 **Usage.**
 
@@ -112,6 +142,7 @@ Everything comes from files and commands Claude Code already provides:
 | Workflows | `<session>/workflows/*.json` (phases, per-agent state) + `<session>/subagents/workflows/<run>/` |
 | Daily history | `~/.claude/stats-cache.json` |
 | Plan limits | `bin/statusline.js` → `~/.fleet/limits.json` |
+| History | Every transcript on disk, distilled into `~/.fleet/history.json` and kept after Claude Code deletes it |
 | Summaries (on click) | `claude -p --model haiku` over the tail of the agent's transcript |
 | MCP, plugins, account | `claude mcp list`, `claude plugin list --json`, `claude auth status` |
 | Skills, agents, commands | `~/.claude/skills`, `~/.claude/agents`, `~/.claude/commands`, plugin install dirs |
@@ -119,6 +150,18 @@ Everything comes from files and commands Claude Code already provides:
 **Costs are estimates.** Fleet multiplies token counts by API list prices (see
 `src/pricing.js`). A Pro or Max subscription is not billed per token, so read the numbers as
 "what this would cost on the API". They're useful for comparing sessions and models, not as a bill.
+
+## Privacy
+
+- **Read:** Fleet reads what Claude Code writes under `~/.claude` (session registry,
+  transcripts, settings, stats) and runs `claude mcp list`, `claude plugin list` and
+  `claude auth status`.
+- **Stored:** everything Fleet keeps is in `~/.fleet`: `history.json` (one record per session,
+  including your first and last prompt), `events.jsonl` (the last 200 notifications),
+  `limits.json` (plan limits) and `config.json`.
+- **Sent anywhere:** only summaries, and only when you click ✦ or "Summarize". Fleet then sends
+  the tail of that transcript to Claude Haiku through your own `claude` login, the same account
+  and provider your sessions already use. There is no telemetry and no other network call.
 
 ## Security
 
@@ -128,6 +171,13 @@ request whose `Host` header isn't localhost, which blocks DNS-rebinding attacks 
 websites. The prompt you type is written to a private temp script (mode 700) that deletes
 itself, so it never passes through AppleScript string quoting.
 
+## Compatibility
+
+Fleet reads Claude Code's own files, which Claude Code doesn't document as a stable format.
+It's tested with Claude Code 2.1.28x. If an update changes the transcript format, the Agents
+page says so instead of showing empty numbers; please [open an
+issue](https://github.com/jainilDesai/fleet/issues) with your `claude --version`.
+
 ## Limits
 
 - macOS only (terminal control uses AppleScript).
@@ -135,6 +185,17 @@ itself, so it never passes through AppleScript string quoting.
 - A running workflow's phase layout appears once Claude Code writes the run file. Until then its
   agents are listed without phases.
 
+## Development
+
+```bash
+npm test                   # node --test, against fake transcripts in a temp folder
+node bin/fleet.js --port 7799 --no-open
+```
+
+No build step and no dependencies. UI files are loaded when the server starts, so restart it
+after editing `public/`. Issues and pull requests are welcome.
+
 ## License
 
-MIT
+MIT. Fleet is an independent project, not made by or affiliated with Anthropic. Claude and
+Claude Code are trademarks of Anthropic.
