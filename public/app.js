@@ -426,6 +426,7 @@ function renderInbox() {
       <label class="toggle" title="macOS notification banners, even when this tab is closed"><input type="checkbox" id="banners" ${state.config.banners ? 'checked' : ''} />Banners</label>
       <button class="linkish" data-act="read-all">Mark all read</button>
     </div>
+    ${state.config.banners && !state.config.clickable ? '<div class="inbox-tip">Run <code>brew install terminal-notifier</code> to make a banner open its terminal when clicked.</div>' : ''}
     ${
       state.events.length
         ? state.events

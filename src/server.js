@@ -7,7 +7,7 @@ import { liveSessions } from './sessions.js';
 import { inventory, usage, recentProjects, refreshMcp, limits } from './inventory.js';
 import { launch, focus } from './terminal.js';
 import { summarize } from './summarize.js';
-import { observe, recentEvents, config, setConfig } from './events.js';
+import { observe, recentEvents, config, setConfig, setDashboardUrl } from './events.js';
 import { scan, history, summarizeSession } from './history.js';
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -91,6 +91,7 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
   });
 
   server.listen(port, host);
+  setDashboardUrl(`http://localhost:${port}`);
   refreshMcp(); // warm the slow MCP health check
   scan();
   setInterval(scan, 60_000);

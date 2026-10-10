@@ -118,6 +118,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ev .dot.k-finished { background: var(--busy); }
 .ev .dot.k-workflow-done { background: var(--busy); }
 .ev .dot.k-workflow-failed { background: var(--bad); }
+.inbox-tip { padding: 8px 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.inbox-tip code { font: 11.5px var(--mono); }
 .inbox .none { padding: 30px 16px; text-align: center; color: var(--muted); }
 .view { padding: 22px 28px 60px; max-width: 1280px; }
 

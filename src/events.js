@@ -1,6 +1,8 @@
 // Attention events: an agent asked something, finished a turn, or a subagent/workflow ended.
 // Derived by diffing consecutive snapshots of live sessions - no hooks. Kept in
 // ~/.fleet/events.jsonl and optionally raised as macOS notification banners.
+// With terminal-notifier installed, clicking a banner opens that session's terminal tab;
+// osascript banners can't run anything on click, so macOS opens an unrelated app instead.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -10,6 +12,15 @@ const DIR = path.join(os.homedir(), '.fleet');
 const LOG = path.join(DIR, 'events.jsonl');
 const CONFIG = path.join(DIR, 'config.json');
 const KEEP = 200;
+const FOCUS = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'bin', 'focus.js');
+const NOTIFIER = ['/opt/homebrew/bin', '/usr/local/bin', ...(process.env.PATH ?? '').split(':')]
+  .map((d) => path.join(d, 'terminal-notifier'))
+  .find((p) => fs.existsSync(p));
+let dashboardUrl = null;
+
+export function setDashboardUrl(url) {
+  dashboardUrl = url;
+}
 const MIN_BUSY_MS = 20_000; // shorter turns are back-and-forth chat, not "finished a task"
 
 const events = load();
@@ -31,17 +42,17 @@ function load() {
 
 export function config() {
   try {
-    return { banners: true, ...JSON.parse(fs.readFileSync(CONFIG, 'utf8')) };
+    return { banners: true, ...JSON.parse(fs.readFileSync(CONFIG, 'utf8')), clickable: !!NOTIFIER };
   } catch {
-    return { banners: true };
+    return { banners: true, clickable: !!NOTIFIER };
   }
 }
 
 export function setConfig(patch) {
-  const next = { ...config(), banners: !!patch.banners };
+  const next = { banners: !!patch.banners };
   fs.mkdirSync(DIR, { recursive: true });
   fs.writeFileSync(CONFIG, JSON.stringify(next, null, 2));
-  return next;
+  return config();
 }
 
 export function recentEvents() {
@@ -137,8 +148,8 @@ function record(list) {
   if (!config().banners) return;
   // Subagent completions are too frequent for banners; they stay in the inbox.
   const loud = list.filter((e) => e.kind !== 'subagent-done');
-  if (loud.length > 3) banner(`${loud.length} agents need attention`, 'Open Fleet to see them', '', 'Glass');
-  else for (const e of loud) banner(e.title, e.detail, e.project, e.kind === 'needs-input' ? 'Glass' : 'Tink');
+  if (loud.length > 3) banner(`${loud.length} agents need attention`, 'Open Fleet to see them', '', 'Glass', null);
+  else for (const e of loud) banner(e.title, e.detail, e.project, e.kind === 'needs-input' ? 'Glass' : 'Tink', e);
 }
 
 // Keep the log file from growing forever: rewrite it once it is well past KEEP lines.
@@ -149,8 +160,27 @@ function trimLog() {
   } catch {}
 }
 
-// Arguments go through argv, never spliced into the AppleScript source.
-function banner(title, message, subtitle, sound) {
+const sh = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+
+// event: the session the banner is about (its terminal opens on click), or null for the dashboard.
+function banner(title, message, subtitle, sound, event) {
+  if (NOTIFIER) {
+    const click = event?.pid
+      ? `${sh(process.execPath)} ${sh(FOCUS)} ${Number(event.pid)}`
+      : dashboardUrl && `open ${sh(dashboardUrl)}`;
+    // A leading "-" or "[" would be read as an option; a zero-width space keeps it text.
+    const text = (v, n) => String(v || ' ').slice(0, n).replace(/^[-[]/, '\u200b$&');
+    execFile(NOTIFIER, [
+      '-title', text(title, 120),
+      '-message', text(message, 240),
+      ...(subtitle ? ['-subtitle', text(subtitle, 120)] : []),
+      '-sound', sound,
+      '-group', `fleet-${event?.sessionId ?? 'all'}`, // a session's newer banner replaces its older one
+      ...(click ? ['-execute', click] : []),
+    ], () => {});
+    return;
+  }
+  // Arguments go through argv, never spliced into the AppleScript source.
   execFile('osascript', [
     '-e', 'on run argv',
     '-e', 'display notification (item 2 of argv) with title (item 1 of argv) subtitle (item 3 of argv) sound name (item 4 of argv)',
