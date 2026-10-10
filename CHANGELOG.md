@@ -2,7 +2,7 @@
 
 ## 0.1.0
 
-First public release, on npm as `@jainildesai/fleet`.
+First public release, on npm as `@jainil_desai/fleet`.
 
 - **Agents:** every live Claude Code session on the Mac, grouped by repo, with status, model,
   branch, current tool call, cost including subagents, and context use. Subagent trees and

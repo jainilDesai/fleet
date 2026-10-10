@@ -23,11 +23,11 @@ model the task deserves.
 Needs macOS, Node 20 or later, and Claude Code (`claude`) signed in.
 
 ```bash
-npm install -g @jainildesai/fleet
+npm install -g @jainil_desai/fleet
 fleet                      # opens http://localhost:7788
 ```
 
-Options: `--port 8000`, `--no-open`. To try it without installing: `npx @jainildesai/fleet`.
+Options: `--port 8000`, `--no-open`. To try it without installing: `npx @jainil_desai/fleet`.
 Install it globally if you want plan limits: the statusline setup below points at Fleet's
 install folder, which `npx` doesn't keep.
 
