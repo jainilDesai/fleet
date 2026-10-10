@@ -182,7 +182,11 @@ function renderAgents() {
     if (!groups.has(s.cwd)) groups.set(s.cwd, []);
     groups.get(s.cwd).push(s);
   }
-  view.innerHTML = [...groups.entries()]
+  const unread = state.sessions.filter((s) => !s.formatOk);
+  const warning = unread.length
+    ? `<div class="format-warn"><b>Fleet can't read ${unread.length === 1 ? 'one session' : `${unread.length} sessions`} (Claude Code ${esc(unread[0].version ?? '')}).</b> Claude Code may have changed its transcript format, so cost, prompts and activity are missing. Update Fleet, or <a href="https://github.com/jainilDesai/fleet/issues" target="_blank" rel="noopener">report it</a>.</div>`
+    : '';
+  view.innerHTML = warning + [...groups.entries()]
     .map(
       ([cwd, list]) => `
       <section class="group">

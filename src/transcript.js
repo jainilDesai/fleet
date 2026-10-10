@@ -24,6 +24,8 @@ function emptyState() {
     agentLaunches: new Map(), // tool_use id -> { name, input } for Agent / Workflow calls
     lastStop: null,
     cwd: null,
+    lines: 0,
+    known: 0, // user/assistant messages: if a long transcript has none, the format changed
   };
 }
 
@@ -62,12 +64,14 @@ export function readTranscriptOnce(file) {
 }
 
 function apply(s, line) {
+  s.lines++;
   let d;
   try {
     d = JSON.parse(line);
   } catch {
     return;
   }
+  if ((d.type === 'user' || d.type === 'assistant') && d.message && typeof d.message === 'object') s.known++;
   if (d.timestamp) {
     s.firstTs ??= d.timestamp;
     s.lastTs = d.timestamp;
@@ -188,6 +192,7 @@ function summarize(s, mtime, since) {
     cwd: s.cwd,
     context,
     lastStop: s.lastStop,
+    formatOk: s.lines < 20 || s.known > 0,
     activity: s.activity,
     finishedToolUses: s.finishedToolUses,
     agentLaunches: s.agentLaunches,

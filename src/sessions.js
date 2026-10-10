@@ -117,6 +117,7 @@ function buildSession(reg) {
     subagents,
     workflows,
     combined: { cost: (t?.cost ?? 0) + subTotals.cost, total: (t?.total ?? 0) + subTotals.total },
+    formatOk: t?.formatOk ?? true,
   };
 }
 

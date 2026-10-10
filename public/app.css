@@ -180,6 +180,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ctx.full i { background: var(--bad); }
 
 .empty { padding: 60px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line-2); border-radius: 12px; }
+.format-warn { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; font-size: 12.5px; color: var(--text); background: color-mix(in srgb, var(--bad) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line)); }
+.format-warn a { color: inherit; }
 .empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
 
 /* ---------- summaries ---------- */
