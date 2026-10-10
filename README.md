@@ -9,7 +9,7 @@ started in an editor's terminal. It tracks what each one costs, the subagents it
 the workflow agents working in phases. You can launch new agents with the right model into
 real terminal windows.
 
-![Fleet's Agents view: live sessions grouped by repo, with model, branch, current tool call, cost and context](docs/agents.png)
+![Fleet in action: agents updating live, a notification arriving, a session's subagents, and a History search](docs/demo.gif)
 
 It was built to replace one habit: running a single max-model session per task, loading it
 with too much context. Fleet makes it cheap to run several small agents instead, each on the
@@ -42,6 +42,8 @@ terminal or Node) may control Terminal/iTerm. Allow it once.
 From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && node bin/fleet.js`.
 
 ## What you get
+
+![Fleet's Agents view: live sessions grouped by repo, with model, branch, current tool call, cost and context](docs/agents.png)
 
 **Agents.** Every live Claude Code session on the machine, grouped by repo:
 
