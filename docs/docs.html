@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Docs: Fleet</title>
+  <meta name="description" content="Install Fleet, read the board, set up plan limits and clickable notifications, and see exactly what Fleet reads, stores and sends." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="site.css" />
+  <meta property="og:title" content="Fleet docs" />
+  <meta property="og:description" content="Install, features, plan limits, privacy and troubleshooting for Fleet, a dashboard for every Claude Code session on your Mac." />
+  <meta property="og:image" content="https://fleet.jainildesai.com/agents.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href="https://fleet.jainildesai.com/docs.html" />
+</head>
+<body>
+  <header class="bar">
+    <div class="wrap">
+      <a class="mark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2b59c3"/><circle cx="10" cy="11" r="3" fill="#4ade80"/><rect x="15" y="9.5" width="10" height="3" rx="1.5" fill="#fff"/><circle cx="10" cy="21" r="3" fill="#fbbf24"/><rect x="15" y="19.5" width="7" height="3" rx="1.5" fill="#fff"/></svg>Fleet</a>
+      <nav class="tabs" aria-label="Site">
+        <a href="./">Home</a>
+        <a href="docs.html" aria-current="page">Docs</a>
+        <a href="changelog.html">Changelog</a>
+        <a class="gh" href="https://github.com/jainilDesai/fleet">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="wrap docs">
+    <nav class="toc" aria-label="On this page">
+      <p>Getting started</p>
+      <a href="#install">Install</a>
+      <a href="#first-run">First run</a>
+      <a href="#update">Update and uninstall</a>
+      <p>Using Fleet</p>
+      <a href="#agents">Agents</a>
+      <a href="#session">A session's panel</a>
+      <a href="#summaries">Summaries</a>
+      <a href="#history">History</a>
+      <a href="#notifications">Notifications</a>
+      <a href="#new-agent">New agent</a>
+      <a href="#usage">Usage</a>
+      <a href="#plan-limits">Plan limits</a>
+      <a href="#mcp">MCP, plugins and skills</a>
+      <p>Reference</p>
+      <a href="#how">How it works</a>
+      <a href="#costs">About costs</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#security">Security</a>
+      <a href="#compatibility">Compatibility</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="#contributing">Contributing</a>
+    </nav>
+
+    <article class="doc">
+      <h1>Fleet docs</h1>
+      <p class="lede">Fleet is a local dashboard for every Claude Code session on your Mac. It runs on your machine, reads what Claude Code already writes, and opens in your browser.</p>
+
+      <h2 id="install">Install</h2>
+      <p>You need macOS, Node 20 or later, and Claude Code (<code>claude</code>) signed in.</p>
+      <pre><code>npm install -g @jainil_desai/fleet
+fleet</code></pre>
+      <p>Fleet starts a server on <code>http://localhost:7788</code> and opens it. Options:</p>
+      <table>
+        <tr><th>Option</th><th>What it does</th></tr>
+        <tr><td><code>--port 8000</code></td><td>Use another port. <code>FLEET_PORT</code> works too.</td></tr>
+        <tr><td><code>--no-open</code></td><td>Start the server without opening a browser tab.</td></tr>
+      </table>
+      <p>To try it without installing, run <code>npx @jainil_desai/fleet</code>. Install it globally if you want <a href="#plan-limits">plan limits</a>, because that setup points at Fleet's install folder, which <code>npx</code> doesn't keep.</p>
+      <p>From source: <code>git clone https://github.com/jainilDesai/fleet.git</code>, then <code>node bin/fleet.js</code> in that folder. There is nothing to build or install.</p>
+
+      <h2 id="first-run">First run</h2>
+      <p>Running sessions show up within a couple of seconds, wherever you started them: Terminal, iTerm, or an editor's built-in terminal. Fleet starts reading your past sessions for <a href="#history">History</a> in the background; about 1,000 sessions take around 12 seconds.</p>
+      <p>The first time you launch an agent or click <b>Show terminal</b>, macOS asks whether your terminal (or Node) may control Terminal or iTerm. Allow it once.</p>
+      <div class="note">Optional: <code>brew install terminal-notifier</code> makes notification banners clickable. See <a href="#notifications">Notifications</a>.</div>
+
+      <h2 id="update">Update and uninstall</h2>
+      <pre><code>npm install -g @jainil_desai/fleet@latest    # update
+npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
+      <p>Fleet keeps its own files in <code>~/.fleet</code>; delete that folder to remove its history and settings. If you set up <a href="#plan-limits">plan limits</a>, also remove the <code>statusLine</code> block from <code>~/.claude/settings.json</code>, or put back the one Fleet wrapped.</p>
+
+      <h2 id="agents">Agents</h2>
+      <p>Every live Claude Code session, grouped by repo. Each card shows:</p>
+      <ul>
+        <li>Its status: working (green), waiting on you (amber) or idle (grey).</li>
+        <li>Its model, git branch, the latest prompt, and the tool call it's running now.</li>
+        <li>Its cost and tokens, including all of its subagents, and how full its context window is.</li>
+      </ul>
+      <p>The bar at the top counts live sessions, how many are working, running subagents, and the total cost of live sessions.</p>
+      <div class="shot"><img src="agents.png" width="1500" height="860" alt="The Agents page with five sessions in three repos" loading="lazy" /></div>
+
+      <h2 id="session">A session's panel</h2>
+      <p>Click a session to open its panel:</p>
+      <ul>
+        <li><b>Cost and tokens</b>, split between the session and its subagents, with input, cache and output detail.</li>
+        <li><b>Latest prompt</b>, in full.</li>
+        <li><b>Subagents</b>, as a tree (nested ones included), each with its type, model, state, cost and current action.</li>
+        <li><b>Workflows</b>, as phase columns (for example Foundation, Build, Integrate, Review) with every workflow agent under its phase.</li>
+        <li><b>Recent activity</b>, a timeline of the last tool calls.</li>
+      </ul>
+      <p><b>Show terminal</b> brings the session's window forward and, for Terminal and iTerm, selects its exact tab. Sessions inside an editor (VS Code, Cursor, Zed) bring the editor forward. <b>Copy resume command</b> gives you the <code>claude --resume</code> line for that session.</p>
+      <div class="shot"><img src="session.png" width="1500" height="860" alt="A session's panel with its cost split, latest prompt, subagents and recent activity" loading="lazy" /></div>
+
+      <h2 id="summaries">Summaries</h2>
+      <p>Click ✦ on a session, subagent or workflow agent for a two or three line summary: what it's working on, where it's at, and whether it's waiting on you, blocked or going in circles.</p>
+      <p>Summaries are written by Claude Haiku through your own <code>claude</code> login and take about 3 seconds. Each one is cached until the agent does more work, and an outdated one is flagged. The summarizer runs with no tools, MCP servers, settings files, hooks or plugins, saves no transcript, and never appears on the board. It only runs when you click.</p>
+
+      <h2 id="history">History</h2>
+      <p>Claude Code deletes transcripts older than <code>cleanupPeriodDays</code>, 30 days by default. Fleet keeps a record of every session anyway: its title, project, branch, model, start and end time, cost including subagents, the first and last thing you asked, and the files it edited.</p>
+      <ul>
+        <li>Sessions are grouped by day. Search covers titles, prompts, files, projects and session ids.</li>
+        <li>Open a session to see its details, copy its resume command, or summarize what it did. Summaries are saved with the record.</li>
+        <li>Sessions whose transcript Claude Code has deleted are marked <b>Archived</b>. Their record stays; resuming and new summaries need the transcript.</li>
+      </ul>
+      <p>Fleet re-reads only transcripts that grew, once a minute. Records live in <code>~/.fleet/history.json</code>; delete it to start over. "Files edited" counts edits made with Claude's Edit and Write tools, not changes made by shell commands.</p>
+      <div class="shot"><img src="history.png" width="1500" height="860" alt="History grouped by day, with one session expanded" loading="lazy" /></div>
+
+      <h2 id="notifications">Notifications</h2>
+      <p>Fleet tells you when:</p>
+      <ul>
+        <li>an agent <b>needs you</b>: it asked a question (the question is shown), wants a permission, or has a plan ready for review;</li>
+        <li>an agent <b>finished</b> a turn that took over 20 seconds, so quick replies don't ping you;</li>
+        <li>a background subagent is done, a workflow completes, or a workflow agent fails.</li>
+      </ul>
+      <p>These appear in the bell's inbox, as a count in the tab title, and as macOS notification banners while Fleet is running, even with the dashboard closed. Turn banners off in the inbox. Subagent completions only go to the inbox. The last 200 events are kept in <code>~/.fleet/events.jsonl</code>.</p>
+      <h3>Clickable banners</h3>
+      <p>Install <code>terminal-notifier</code> and clicking a banner brings that session's terminal window and tab forward. A banner that groups several agents opens the dashboard instead.</p>
+      <pre><code>brew install terminal-notifier</code></pre>
+      <p>Without it, banners are informational: macOS gives plain script banners no way to act on a click, so clicking one opens an unrelated app.</p>
+      <p>Detection is plain code that compares session states every 1.5 seconds. It uses no hooks and makes no AI calls.</p>
+
+      <h2 id="new-agent">New agent</h2>
+      <p>Pick a repo, a model (Haiku, Sonnet, Opus, Fable), effort, permission mode, an optional name and first prompt, and optionally its own git worktree. Fleet opens a new Terminal or iTerm window running that <code>claude</code> command, through your own login shell (<code>$SHELL</code>), so it gets the same <code>PATH</code> and environment as a terminal you open yourself. The command is previewed before you launch.</p>
+      <p>Your first prompt is written to a private, self-deleting script, so it never passes through AppleScript quoting.</p>
+
+      <h2 id="usage">Usage</h2>
+      <ul>
+        <li><b>Plan limits</b>: your 5-hour and weekly percentages, the same numbers <code>/usage</code> shows, with reset times.</li>
+        <li><b>Today</b>: cost by model and by project, and how much went to top-tier models.</li>
+        <li><b>Last 30 days</b>: tokens per day, split by model.</li>
+        <li><b>All time</b>: cost per model.</li>
+      </ul>
+
+      <h2 id="plan-limits">Plan limits</h2>
+      <p>Claude Code exposes plan-limit percentages in one place: the statusline command it runs after each turn. Fleet ships <code>bin/statusline.js</code>, which saves them to <code>~/.fleet/limits.json</code> and prints a short status line.</p>
+      <p>Fleet never edits <code>~/.claude/settings.json</code> itself. The Usage page shows the exact block to paste. If you already have a statusline, the block wraps it: your script gets the same input and its output is what your terminal shows, so nothing changes visually.</p>
+      <pre><code>"statusLine": {
+  "type": "command",
+  "command": "/path/to/node /path/to/fleet/bin/statusline.js ~/.claude/scripts/your-bar.sh"
+}</code></pre>
+      <p>With a global install, Fleet's folder is <code>$(npm root -g)/@jainil_desai/fleet</code>.</p>
+
+      <h2 id="mcp">MCP, plugins and skills</h2>
+      <p><b>MCP servers</b> lists every server with its health, split into claude.ai connectors, user servers, local (per-project) servers and project servers. Scope conflicts are flagged. The health check takes about 20 seconds because Claude Code connects to each server.</p>
+      <p><b>Plugins &amp; skills</b> lists installed plugins and what each ships, user and plugin skills, custom agents, commands and user-level hooks, all searchable.</p>
+
+      <h2 id="how">How it works</h2>
+      <p>Everything comes from files and commands Claude Code already provides.</p>
+      <table>
+        <tr><th>Data</th><th>Source</th></tr>
+        <tr><td>Live sessions</td><td><code>~/.claude/sessions/&lt;pid&gt;.json</code>, filtered to running processes</td></tr>
+        <tr><td>Prompts, tool calls, tokens</td><td>Session transcripts in <code>~/.claude/projects</code>, read from the last byte seen</td></tr>
+        <tr><td>Subagents</td><td><code>&lt;session&gt;/subagents/agent-*.jsonl</code> and their <code>.meta.json</code></td></tr>
+        <tr><td>Workflows</td><td><code>&lt;session&gt;/workflows/*.json</code> and their agents' transcripts</td></tr>
+        <tr><td>History</td><td>Every transcript on disk, kept in <code>~/.fleet/history.json</code></td></tr>
+        <tr><td>Daily usage</td><td><code>~/.claude/stats-cache.json</code></td></tr>
+        <tr><td>Plan limits</td><td><code>bin/statusline.js</code>, saved to <code>~/.fleet/limits.json</code></td></tr>
+        <tr><td>Summaries</td><td><code>claude -p --model haiku</code> over the end of a transcript</td></tr>
+        <tr><td>MCP, plugins, account</td><td><code>claude mcp list</code>, <code>claude plugin list</code>, <code>claude auth status</code></td></tr>
+      </table>
+
+      <h2 id="costs">About costs</h2>
+      <p>Fleet multiplies token counts by API list prices. A Pro or Max subscription isn't billed per token, so read the numbers as what the work would cost on the API. They're useful for comparing sessions and models, not as a bill.</p>
+
+      <h2 id="privacy">Privacy</h2>
+      <table>
+        <tr><th></th><th>What</th></tr>
+        <tr><td>Reads</td><td>What Claude Code writes under <code>~/.claude</code>, and the output of <code>claude mcp list</code>, <code>claude plugin list</code> and <code>claude auth status</code>.</td></tr>
+        <tr><td>Stores</td><td>Only in <code>~/.fleet</code>: <code>history.json</code> (a record per session, including your first and last prompt), <code>events.jsonl</code> (the last 200 notifications), <code>limits.json</code> and <code>config.json</code>.</td></tr>
+        <tr><td>Sends</td><td>Only summaries, and only when you ask for one: the end of that transcript goes to Claude Haiku through your own <code>claude</code> login. No telemetry, no other network calls.</td></tr>
+      </table>
+      <p>This website loads nothing from other servers either: no analytics, no web fonts.</p>
+
+      <h2 id="security">Security</h2>
+      <p>Fleet listens on <code>127.0.0.1</code> only. Launching agents and focusing windows start processes, so those requests need a token that changes every run and is only in the page Fleet serves. Requests whose <code>Host</code> isn't localhost are rejected, which blocks DNS-rebinding attacks from other websites.</p>
+
+      <h2 id="compatibility">Compatibility</h2>
+      <p>Fleet reads Claude Code's own files, which Claude Code doesn't document as a stable format. It's tested with Claude Code 2.1.28x. If an update changes the transcript format, the Agents page says it can't read those sessions instead of showing empty numbers. Please <a href="https://github.com/jainilDesai/fleet/issues">open an issue</a> with your <code>claude --version</code>.</p>
+      <p>Fleet runs on macOS only: opening and focusing terminals uses AppleScript.</p>
+
+      <h2 id="troubleshooting">Troubleshooting</h2>
+      <dl>
+        <dt>Show terminal or New agent does nothing</dt>
+        <dd>macOS blocked Fleet from controlling your terminal. Allow it in System Settings, Privacy &amp; Security, Automation, then try again.</dd>
+        <dt>A new agent's window opens and closes right away</dt>
+        <dd>Your login shell can't find <code>claude</code>. Check with <code>$SHELL -ilc 'command -v claude'</code>; if it prints nothing, add Claude Code's folder to <code>PATH</code> in your shell's startup file.</dd>
+        <dt>Clicking a banner opens Finder or another app</dt>
+        <dd>Install <code>terminal-notifier</code> (see <a href="#notifications">Notifications</a>), then restart Fleet.</dd>
+        <dt>"Port 7788 is in use"</dt>
+        <dd>Fleet is probably already running. Open <code>http://localhost:7788</code>, or start another copy with <code>--port</code>.</dd>
+        <dt>A session is missing</dt>
+        <dd>The board only lists running sessions. Ended ones are in History.</dd>
+        <dt>Plan limits show nothing</dt>
+        <dd>They arrive through the statusline. Set it up as in <a href="#plan-limits">Plan limits</a>, then send any message in a Claude Code session.</dd>
+        <dt>The costs look high for my Max plan</dt>
+        <dd>They're API-equivalent estimates, not what you pay. See <a href="#costs">About costs</a>.</dd>
+      </dl>
+
+      <h2 id="contributing">Contributing</h2>
+      <pre><code>git clone https://github.com/jainilDesai/fleet.git && cd fleet
+npm test                                  # runs against fake transcripts
+node bin/fleet.js --port 7799 --no-open</code></pre>
+      <p>No build step and no dependencies. UI files load when the server starts, so restart it after editing <code>public/</code>. This site lives in <code>docs/</code>. Issues and pull requests are welcome on <a href="https://github.com/jainilDesai/fleet">GitHub</a>.</p>
+    </article>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <span>Fleet is MIT licensed and not affiliated with Anthropic. Claude and Claude Code are trademarks of Anthropic.</span>
+      <span><a href="https://github.com/jainilDesai/fleet">GitHub</a> &nbsp; <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a> &nbsp; <a href="changelog.html">Changelog</a></span>
+    </div>
+  </footer>
+  <script src="site.js" defer></script>
+</body>
+</html>

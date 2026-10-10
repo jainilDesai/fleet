@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fleet: every Claude Code session on your Mac, on one board</title>
+  <meta name="description" content="Fleet is a free, open-source dashboard for every Claude Code session on your Mac: what each agent is doing, its subagents and cost, a history that outlives transcript cleanup, and new agents in real terminals." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="site.css" />
+  <meta property="og:title" content="Fleet: every Claude Code session on your Mac, on one board" />
+  <meta property="og:description" content="See what every agent is doing, what it costs, and what each session did, long after Claude Code deletes the transcript. Free and open source." />
+  <meta property="og:url" content="https://fleet.jainildesai.com/" />
+  <meta property="og:image" content="https://fleet.jainildesai.com/agents.png" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href="https://fleet.jainildesai.com/" />
+</head>
+<body>
+  <header class="bar">
+    <div class="wrap">
+      <a class="mark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2b59c3"/><circle cx="10" cy="11" r="3" fill="#4ade80"/><rect x="15" y="9.5" width="10" height="3" rx="1.5" fill="#fff"/><circle cx="10" cy="21" r="3" fill="#fbbf24"/><rect x="15" y="19.5" width="7" height="3" rx="1.5" fill="#fff"/></svg>Fleet</a>
+      <nav class="tabs" aria-label="Site">
+        <a href="./" aria-current="page">Home</a>
+        <a href="docs.html">Docs</a>
+        <a href="changelog.html">Changelog</a>
+        <a class="gh" href="https://github.com/jainilDesai/fleet">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <h1>Every Claude Code session on your Mac, on one board.</h1>
+      <p class="lede">Fleet shows what each agent is doing right now, the subagents it spawned and what it costs, across every repo and terminal. It keeps a record of every session after Claude Code deletes the transcript, and opens new agents in real terminal windows.</p>
+      <div class="actions">
+        <div class="install"><code>npm install -g @jainil_desai/fleet</code><button type="button" data-copy="npm install -g @jainil_desai/fleet">Copy</button></div>
+        <a class="ghost-btn" href="https://github.com/jainilDesai/fleet">Source on GitHub</a>
+      </div>
+      <p class="fine">Then run <code>fleet</code>. Free and open source, macOS, Node 20+.</p>
+
+      <div class="board" role="img" aria-label="Example board: five Claude Code sessions with their model, current action and cost">
+        <div class="board-head"><span></span><span>Session</span><span>Model</span><span class="h-now">Doing now</span><span class="cost">Cost</span></div>
+        <div class="row" data-name="checkout"><span class="dot busy"></span><span class="name">checkout</span><span class="model m-opus">Opus 5.5</span><span class="now"><b>Agent</b> Write tests for the one-click path</span><span class="cost">$0.74</span></div>
+        <div class="row" data-name="tax-rounding"><span class="dot wait"></span><span class="name">tax-rounding</span><span class="model m-sonnet">Sonnet 5</span><span class="now"><b>Waiting on you</b> Round half up or banker's rounding?</span><span class="cost">$0.10</span></div>
+        <div class="row" data-name="rate-limits"><span class="dot busy"></span><span class="name">rate-limits</span><span class="model m-sonnet">Sonnet 5</span><span class="now"><b>Write</b> src/middleware/rateLimit.ts</span><span class="cost">$0.15</span></div>
+        <div class="row" data-name="docs"><span class="dot busy"></span><span class="name">docs</span><span class="model m-sonnet">Sonnet 5</span><span class="now"><b>WebFetch</b> retry guidance for webhooks</span><span class="cost">$0.10</span></div>
+        <div class="row" data-name="deps"><span class="dot"></span><span class="name">deps</span><span class="model m-haiku">Haiku 4.5</span><span class="now"><b>Idle</b> Bumped minor versions, tests pass</span><span class="cost">$0.02</span></div>
+        <div class="board-foot">Five sessions in three repos. This board is a mock-up; Fleet updates its own every 1.5 seconds.</div>
+      </div>
+    </div>
+
+    <section class="part">
+      <div class="wrap">
+        <div class="feature">
+          <div class="text">
+            <h3>Every agent, live</h3>
+            <p>Sessions are grouped by repo, including ones you started in an editor's terminal. Each shows whether it's working, idle or waiting on you, its model and branch, the tool call it's running, its cost and how full its context is.</p>
+            <p>Run several small agents on the model each task deserves, instead of one big session doing everything.</p>
+          </div>
+          <div class="shot"><img src="agents.png" width="1500" height="860" alt="Fleet's Agents page: five sessions grouped under three repos" loading="lazy" /></div>
+        </div>
+
+        <div class="feature flip">
+          <div class="text">
+            <h3>Subagents and workflows, not just sessions</h3>
+            <p>Open a session to see its cost split between itself and its subagents, the latest prompt, the tree of subagents it spawned with each one's model and cost, and its recent tool calls.</p>
+            <p>Workflows show as phases with every workflow agent under its phase. The ✦ button asks Claude Haiku for a two or three line summary of what an agent is up to.</p>
+          </div>
+          <div class="shot"><img src="session.png" width="1500" height="860" alt="A session's panel: cost, latest prompt, two subagents and recent activity" loading="lazy" /></div>
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h3>A history that outlives cleanup</h3>
+            <p>Claude Code deletes transcripts after 30 days. Fleet keeps a record of every session: title, project, branch, model, cost, what you asked and which files it edited.</p>
+            <p>Search all of it, summarize what a session did, or copy the command to resume it.</p>
+          </div>
+          <div class="shot"><img src="history.png" width="1500" height="860" alt="History page: past sessions grouped by day, one expanded" loading="lazy" /></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="part">
+      <div class="wrap">
+        <h2>Small on purpose</h2>
+        <ul class="facts">
+          <li><b>Zero dependencies</b><span>Node 20 and the <code>claude</code> CLI. The whole package is 18 files.</span></li>
+          <li><b>Reads, doesn't change</b><span>Fleet reads what Claude Code already writes to <code>~/.claude</code>. No hooks, no edits to your settings.</span></li>
+          <li><b>Stays on your Mac</b><span>It listens on localhost only and has no telemetry. Summaries go through your own Claude login, only when you ask.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="part">
+      <div class="wrap">
+        <h2>Also in Fleet</h2>
+        <ul class="facts">
+          <li><b>Notifications</b><span>A banner when an agent needs you or finishes a long task. With terminal-notifier installed, a click lands on that session's terminal tab.</span></li>
+          <li><b>New agent</b><span>Pick a repo, model, effort and first prompt. Fleet opens it in Terminal or iTerm, optionally in its own git worktree.</span></li>
+          <li><b>Usage and limits</b><span>Your 5-hour and weekly plan limits, today's spend by model and project, and 30 days of tokens.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="part">
+      <div class="wrap">
+        <h2>Get started</h2>
+        <ol class="steps">
+          <li>Install Fleet with npm.<pre><code>npm install -g @jainil_desai/fleet</code></pre></li>
+          <li>Start it. Your browser opens <code>http://localhost:7788</code> with every running session.<pre><code>fleet</code></pre></li>
+          <li>Optional: make notification banners open the session's terminal when clicked.<pre><code>brew install terminal-notifier</code></pre></li>
+        </ol>
+        <p>Everything else, from plan limits to privacy, is in the <a href="docs.html">docs</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Fleet is MIT licensed and not affiliated with Anthropic. Claude and Claude Code are trademarks of Anthropic.</span>
+      <span><a href="https://github.com/jainilDesai/fleet">GitHub</a> &nbsp; <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a> &nbsp; <a href="changelog.html">Changelog</a></span>
+    </div>
+  </footer>
+  <script src="site.js" defer></script>
+</body>
+</html>

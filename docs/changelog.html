@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Changelog: Fleet</title>
+  <meta name="description" content="What changed in each release of Fleet." />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="site.css" />
+  <meta property="og:title" content="Fleet changelog" />
+  <meta property="og:image" content="https://fleet.jainildesai.com/agents.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="canonical" href="https://fleet.jainildesai.com/changelog.html" />
+</head>
+<body>
+  <header class="bar">
+    <div class="wrap">
+      <a class="mark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2b59c3"/><circle cx="10" cy="11" r="3" fill="#4ade80"/><rect x="15" y="9.5" width="10" height="3" rx="1.5" fill="#fff"/><circle cx="10" cy="21" r="3" fill="#fbbf24"/><rect x="15" y="19.5" width="7" height="3" rx="1.5" fill="#fff"/></svg>Fleet</a>
+      <nav class="tabs" aria-label="Site">
+        <a href="./">Home</a>
+        <a href="docs.html">Docs</a>
+        <a href="changelog.html" aria-current="page">Changelog</a>
+        <a class="gh" href="https://github.com/jainilDesai/fleet">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="hero">
+      <h1>Changelog</h1>
+      <p class="lede">Every release of Fleet. Update with <code>npm install -g @jainil_desai/fleet@latest</code>.</p>
+    </div>
+
+    <div class="release">
+      <div>
+        <h2>0.1.0</h2>
+        <time datetime="2026-10-10">10 October 2026</time>
+      </div>
+      <div>
+        <p>First public release.</p>
+        <ul>
+          <li><b>Agents:</b> every live Claude Code session on your Mac, grouped by repo, with status, model, branch, current tool call, cost including subagents, and context use. Each session's panel shows its subagent tree and workflow phases.</li>
+          <li><b>History:</b> a record of every session (title, project, branch, model, cost, prompts, files edited) that stays after Claude Code deletes the transcript, with search and saved summaries.</li>
+          <li><b>Notifications:</b> inbox, tab count and macOS banners when an agent needs you, finishes, or a subagent or workflow ends. With <code>terminal-notifier</code> installed, a banner opens the session's terminal tab when clicked.</li>
+          <li><b>New agent:</b> starts <code>claude</code> in Terminal or iTerm through your login shell, with model, effort, permission mode, name, first prompt and an optional worktree.</li>
+          <li><b>Usage, MCP servers, plugins and skills</b>, and plan limits through the statusline.</li>
+          <li>The Agents page warns when it can't read Claude Code's transcript format, instead of showing zeros.</li>
+          <li>Workflow journal files are no longer shown or counted as agents.</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>Fleet is MIT licensed and not affiliated with Anthropic. Claude and Claude Code are trademarks of Anthropic.</span>
+      <span><a href="https://github.com/jainilDesai/fleet">GitHub</a> &nbsp; <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a> &nbsp; <a href="docs.html">Docs</a></span>
+    </div>
+  </footer>
+  <script src="site.js" defer></script>
+</body>
+</html>

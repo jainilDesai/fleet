@@ -13,7 +13,7 @@
   "files": ["bin", "src", "public"],
   "keywords": ["claude-code", "claude", "agents", "dashboard", "subagents", "cost", "macos", "iterm"],
   "repository": { "type": "git", "url": "git+https://github.com/jainilDesai/fleet.git" },
-  "homepage": "https://github.com/jainilDesai/fleet#readme",
+  "homepage": "https://fleet.jainildesai.com",
   "bugs": { "url": "https://github.com/jainilDesai/fleet/issues" },
   "author": "Jainil Desai",
   "license": "MIT",

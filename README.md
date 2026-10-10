@@ -2,6 +2,8 @@
 
 A local dashboard for every Claude Code session on your Mac.
 
+**[fleet.jainildesai.com](https://fleet.jainildesai.com)**: overview, docs and changelog.
+
 Fleet shows what each agent is doing right now, across every repo, including sessions you
 started in an editor's terminal. It tracks what each one costs, the subagents it spawned and
 the workflow agents working in phases. You can launch new agents with the right model into
