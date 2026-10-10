@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Session names stay whole on narrow cards; the branch shortens instead. With the detail
+  panel open, names like "checkout" were cut to "checko…".
+- The npm page links to the new website, https://fleet.jainildesai.com.
+- The README's session screenshot now shows the session panel it describes.
+
 ## 0.1.0
 
 First public release, on npm as `@jainil_desai/fleet`.
