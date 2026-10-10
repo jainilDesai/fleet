@@ -42,11 +42,13 @@ export async function launch(opts) {
   // The script deletes itself; the prompt never goes through AppleScript string quoting.
   fs.writeFileSync(
     file,
-    `#!/bin/zsh -l\nrm -f ${sh(file)}\ncd ${sh(cwd)} || exit 1\nprintf '\\e]0;%s\\a' ${sh(opts.name || path.basename(cwd))}\nexec claude ${args.map(sh).join(' ')}\n`,
+    `#!/bin/sh\nrm -f ${sh(file)}\ncd ${sh(cwd)} || exit 1\nprintf '\\e]0;%s\\a' ${sh(opts.name || path.basename(cwd))}\nexec claude ${args.map(sh).join(' ')}\n`,
     { mode: 0o700 }
   );
-  // -il: iTerm runs the command with a bare environment; .zshrc is where PATH gets ~/.local/bin (claude).
-  const command = `zsh -il ${sh(file)}`;
+  // Terminals run the command with a bare environment, so go through the user's own shell as an
+  // interactive login shell: its rc files set PATH (often where claude lives). It then hands
+  // over to the POSIX script, which works the same whatever that shell's syntax is.
+  const command = `${sh(loginShell())} -ilc ${sh(`exec /bin/sh ${sh(file)}`)}`;
   const q = JSON.stringify(command); // AppleScript string literal: same escaping rules as JSON for our input
   if (opts.terminal === 'iterm')
     await osa(`tell application "iTerm"
@@ -59,6 +61,11 @@ end tell`);
   do script ${q}
 end tell`);
   return { cwd, args };
+}
+
+function loginShell() {
+  const shell = process.env.SHELL || os.userInfo().shell;
+  return shell && fs.existsSync(shell) ? shell : '/bin/zsh';
 }
 
 // Walk up the process tree to the .app that owns this session's terminal.
