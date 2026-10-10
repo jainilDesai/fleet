@@ -11,6 +11,7 @@ import { summarize } from './summarize.js';
 const PROJECTS = path.join(os.homedir(), '.claude', 'projects');
 const DIR = path.join(os.homedir(), '.fleet');
 const FILE = path.join(DIR, 'history.json');
+const VERSION = 2; // bump when build() changes: records whose transcript still exists are rebuilt
 
 const records = load(); // sessionId -> record
 const skipped = new Map(); // sessionId -> size, for transcripts with no user prompt
@@ -51,7 +52,8 @@ export async function scan() {
         } catch {
           continue;
         }
-        if (records.get(sessionId)?.size === size || skipped.get(sessionId) === size) continue;
+        const old = records.get(sessionId);
+        if ((old?.size === size && old.v === VERSION) || skipped.get(sessionId) === size) continue;
         const rec = build(sessionId, file, size, records.get(sessionId));
         if (rec) records.set(sessionId, rec);
         else skipped.set(sessionId, size);
@@ -81,6 +83,7 @@ function build(sessionId, file, size, old) {
     agentTotal += a.total;
   }
   return {
+    v: VERSION,
     sessionId,
     file,
     title: t.title,
@@ -115,7 +118,7 @@ function jsonlFiles(dir) {
   return entries.flatMap((e) => {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) return jsonlFiles(p);
-    return e.name.endsWith('.jsonl') ? [p] : [];
+    return e.name.startsWith('agent-') && e.name.endsWith('.jsonl') ? [p] : [];
   });
 }
 

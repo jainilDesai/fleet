@@ -130,7 +130,7 @@ function readSubagents(sessionDir, parent) {
   if (!fs.existsSync(dir)) return [];
   const agents = [];
   for (const f of fs.readdirSync(dir)) {
-    if (!f.endsWith('.jsonl')) continue;
+    if (!f.startsWith('agent-') || !f.endsWith('.jsonl')) continue;
     const id = f.slice('agent-'.length, -'.jsonl'.length);
     const meta = readJson(path.join(dir, `agent-${id}.meta.json`)) ?? {};
     const t = readTranscript(path.join(dir, f));
@@ -197,7 +197,7 @@ function readWorkflows(sessionDir) {
     const finished = d.status && d.status !== 'running';
     if (fs.existsSync(agentDir))
       for (const f of fs.readdirSync(agentDir)) {
-        if (!f.endsWith('.jsonl')) continue;
+        if (!f.startsWith('agent-') || !f.endsWith('.jsonl')) continue; // not journal.jsonl
         const id = f.slice('agent-'.length, -'.jsonl'.length);
         if (seen.has(id)) continue;
         const t = readTranscript(path.join(agentDir, f));
