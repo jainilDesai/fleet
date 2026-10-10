@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- The README opens with a short demo: agents updating live, a notification arriving, a
+  session's subagents, and a History search. No changes to Fleet itself.
+
 ## 0.1.1
 
 - Session names stay whole on narrow cards; the branch shortens instead. With the detail
