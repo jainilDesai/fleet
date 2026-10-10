@@ -148,7 +148,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .card:hover { border-color: var(--line-2); background: color-mix(in srgb, var(--panel) 70%, var(--panel-2)); }
 .card.selected { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
 .card-title { display: flex; align-items: center; gap: 9px; min-width: 0; }
-.card-title .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-title .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 6ch; }
+.card-title .chip.ghost { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 17px; }
 .card-task { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card-now { display: flex; align-items: center; gap: 8px; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--faint); }
 .card-now .tool { color: var(--text); flex: none; }
@@ -179,9 +180,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ctx.hot i { background: var(--warn); }
 .ctx.full i { background: var(--bad); }
 
-.empty { padding: 60px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line-2); border-radius: 12px; }
 .format-warn { margin: 0 0 18px; padding: 10px 14px; border-radius: 10px; font-size: 12.5px; color: var(--text); background: color-mix(in srgb, var(--bad) 8%, var(--panel)); border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--line)); }
 .format-warn a { color: inherit; }
+.empty { padding: 60px 20px; text-align: center; color: var(--muted); border: 1px dashed var(--line-2); border-radius: 12px; }
 .empty b { display: block; color: var(--text); font-size: 15px; margin-bottom: 6px; }
 
 /* ---------- summaries ---------- */
