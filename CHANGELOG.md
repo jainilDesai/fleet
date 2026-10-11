@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- `fleet --stop` also stops a copy run with `npx` or installed in a project folder
+  (`node_modules/.bin/fleet`). 0.2.1 only found global installs and the background copy.
+
 ## 0.2.1
 
 - `fleet --stop` stops Fleet for now, including the background copy, which otherwise macOS
