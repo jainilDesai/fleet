@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- **Start at login:** `fleet --autostart` sets Fleet up to run in the background from login
+  (no browser tab, restarted if it crashes, logged to `~/.fleet/fleet.log`), and
+  `fleet --no-autostart` turns it off. Fleet warns when the login item points at a Node
+  version that no longer exists.
+- `fleet --help` lists the options.
+
 ## 0.1.2
 
 - The README opens with a short demo: agents updating live, a notification arriving, a

@@ -31,6 +31,7 @@
       <p>Getting started</p>
       <a href="#install">Install</a>
       <a href="#first-run">First run</a>
+      <a href="#autostart">Start at login</a>
       <a href="#update">Update and uninstall</a>
       <p>Using Fleet</p>
       <a href="#agents">Agents</a>
@@ -65,6 +66,8 @@ fleet</code></pre>
         <tr><th>Option</th><th>What it does</th></tr>
         <tr><td><code>--port 8000</code></td><td>Use another port. <code>FLEET_PORT</code> works too.</td></tr>
         <tr><td><code>--no-open</code></td><td>Start the server without opening a browser tab.</td></tr>
+        <tr><td><code>--autostart</code></td><td>Start Fleet at login, in the background. See <a href="#autostart">Start at login</a>.</td></tr>
+        <tr><td><code>--help</code></td><td>List the options.</td></tr>
       </table>
       <p>To try it without installing, run <code>npx @jainil_desai/fleet</code>. Install it globally if you want <a href="#plan-limits">plan limits</a>, because that setup points at Fleet's install folder, which <code>npx</code> doesn't keep.</p>
       <p>From source: <code>git clone https://github.com/jainilDesai/fleet.git</code>, then <code>node bin/fleet.js</code> in that folder. There is nothing to build or install.</p>
@@ -74,10 +77,18 @@ fleet</code></pre>
       <p>The first time you launch an agent or click <b>Show terminal</b>, macOS asks whether your terminal (or Node) may control Terminal or iTerm. Allow it once.</p>
       <div class="note">Optional: <code>brew install terminal-notifier</code> makes notification banners clickable. See <a href="#notifications">Notifications</a>.</div>
 
+      <h2 id="autostart">Start at login</h2>
+      <p>Fleet can run in the background all the time, so notifications and History never miss a session.</p>
+      <pre><code>fleet --autostart       # start at login, in the background, and start it now
+fleet --no-autostart    # turn it off and stop the background copy</code></pre>
+      <p>The background copy doesn't open a browser tab; open <code>http://localhost:7788</code> whenever you want it. It restarts if it crashes and writes to <code>~/.fleet/fleet.log</code>. It uses about 100&nbsp;MB of memory and around 1% CPU.</p>
+      <p>Under the hood this is a standard macOS LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.plist</code>. Add <code>--port &lt;n&gt;</code> to <code>--autostart</code> to use another port.</p>
+      <div class="note">If you update Node with nvm, run <code>fleet --autostart</code> again: the login item records the Node it was set up with. Fleet reminds you when you start it by hand.</div>
+
       <h2 id="update">Update and uninstall</h2>
       <pre><code>npm install -g @jainil_desai/fleet@latest    # update
 npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
-      <p>Fleet keeps its own files in <code>~/.fleet</code>; delete that folder to remove its history and settings. If you set up <a href="#plan-limits">plan limits</a>, also remove the <code>statusLine</code> block from <code>~/.claude/settings.json</code>, or put back the one Fleet wrapped.</p>
+      <p>If you turned on <a href="#autostart">start at login</a>, run <code>fleet --no-autostart</code> before uninstalling. Fleet keeps its own files in <code>~/.fleet</code>; delete that folder to remove its history and settings. If you set up <a href="#plan-limits">plan limits</a>, also remove the <code>statusLine</code> block from <code>~/.claude/settings.json</code>, or put back the one Fleet wrapped.</p>
 
       <h2 id="agents">Agents</h2>
       <p>Every live Claude Code session, grouped by repo. Each card shows:</p>

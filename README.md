@@ -41,6 +41,19 @@ terminal or Node) may control Terminal/iTerm. Allow it once.
 
 From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && node bin/fleet.js`.
 
+### Start at login
+
+```bash
+fleet --autostart          # start Fleet at login, in the background, and start it now
+fleet --no-autostart       # turn it off and stop the background copy
+```
+
+Fleet then runs without opening a browser tab (open `http://localhost:7788` when you want
+it), restarts if it crashes, and logs to `~/.fleet/fleet.log`. It's a standard macOS
+LaunchAgent at `~/Library/LaunchAgents/com.jainildesai.fleet.plist`. Add `--port <n>` to
+`--autostart` to use another port. If you update Node through nvm, run `fleet --autostart`
+again; Fleet reminds you when you start it by hand.
+
 ## What you get
 
 ![Fleet's Agents view: live sessions grouped by repo, with model, branch, current tool call, cost and context](docs/agents.png)
