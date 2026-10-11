@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
-import { enable, disable, staleNode } from '../src/autostart.js';
+import { enable, disable, staleNode, isSetUp, startBackground, stopAll } from '../src/autostart.js';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(name);
@@ -16,6 +16,8 @@ if (has('--help') || has('-h')) {
   --no-open         Don't open a browser tab
   --autostart       Start Fleet at login, in the background, and start it now
   --no-autostart    Stop starting Fleet at login, and stop the background copy
+  --stop            Stop Fleet now; with auto-start it comes back at the next login
+  --start           Start the background copy now (needs --autostart)
   -h, --help        Show this help`);
   process.exit(0);
 }
@@ -35,6 +37,28 @@ Turn it off with: fleet --no-autostart`);
 
 if (has('--no-autostart')) {
   console.log(disable() ? 'Fleet no longer starts at login, and the background copy is stopped.' : 'Auto-start was not set up.');
+  process.exit(0);
+}
+
+if (has('--stop')) {
+  const { background, manual } = stopAll();
+  if (!background && !manual) console.log('Fleet is not running.');
+  else console.log(`Fleet stopped.${background ? ' Auto-start is still on, so it starts again at the next login (or run "fleet --start").' : ''}`);
+  process.exit(0);
+}
+
+if (has('--start')) {
+  if (!isSetUp()) {
+    console.log('Auto-start is not set up. Run "fleet" to start Fleet here, or "fleet --autostart" to run it in the background from login.');
+    process.exit(1);
+  }
+  try {
+    const state = startBackground();
+    console.log(state === 'running' ? 'Fleet is already running in the background.' : `Fleet is starting in the background on its usual port.`);
+  } catch (e) {
+    console.error(`Could not start Fleet: ${e.stderr?.toString().trim() || e.message}`);
+    process.exit(1);
+  }
   process.exit(0);
 }
 

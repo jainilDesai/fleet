@@ -7,7 +7,7 @@ import { tempHome } from './fixtures.js';
 
 const home = tempHome();
 process.env.HOME = home; // the LaunchAgent path is resolved from the home folder at import
-const { plist, staleNode, LABEL } = await import('../src/autostart.js');
+const { plist, staleNode, LABEL, isFleetCommand } = await import('../src/autostart.js');
 
 const sample = { node: '/opt/node & co/bin/node', script: '/lib/fleet/bin/fleet.js', port: 7788, pathEnv: '/usr/bin:/bin', log: '/tmp/fleet.log' };
 
@@ -32,4 +32,15 @@ test('notices when the recorded Node no longer exists', () => {
   assert.equal(staleNode(), null);
   fs.writeFileSync(agent, plist({ ...sample, node: '/nowhere/node-v1/bin/node' }));
   assert.equal(staleNode(), '/nowhere/node-v1/bin/node');
+});
+
+test('--stop only matches Fleet servers, not other processes', () => {
+  assert.ok(isFleetCommand('/Users/a/.nvm/versions/node/v22.23.0/bin/node /Users/a/.nvm/versions/node/v22.23.0/bin/fleet'));
+  assert.ok(isFleetCommand('/usr/local/bin/node /usr/local/lib/node_modules/@jainil_desai/fleet/bin/fleet.js --no-open --port 7788'));
+  assert.ok(isFleetCommand('node /Users/a/code/fleet/bin/fleet.js --port 7799'));
+  assert.ok(isFleetCommand('node bin/fleet.js --no-open'), 'started from the repo folder');
+  assert.ok(!isFleetCommand('node /Users/a/code/fleet/bin/statusline.js'), 'the statusline script is not the server');
+  assert.ok(!isFleetCommand('node /srv/app/bin/fleet-manager.js'));
+  assert.ok(!isFleetCommand('/bin/zsh -c grep bin/fleet.js notes.txt'), 'not node');
+  assert.ok(!isFleetCommand('vim /Users/a/code/fleet/bin/fleet.js'));
 });

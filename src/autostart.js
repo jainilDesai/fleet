@@ -65,6 +65,49 @@ export function disable() {
   return true;
 }
 
+export const isSetUp = () => fs.existsSync(PLIST);
+
+export function isLoaded() {
+  try {
+    launchctl('print', `${domain()}/${LABEL}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Starts the background copy now; it starts at login anyway.
+export function startBackground() {
+  if (isLoaded()) return 'running';
+  launchctl('bootstrap', domain(), PLIST);
+  return 'started';
+}
+
+// A process command line that is Fleet's server: node running bin/fleet (npm's link) or bin/fleet.js.
+export const isFleetCommand = (cmd) => /(^|\/)node\s(.*[\s/])?bin\/fleet(\.js)?(\s|$)/.test(cmd);
+
+// Stops every running Fleet. The background copy is unloaded rather than killed, because
+// launchd restarts a killed one; it comes back at the next login. Copies started by hand
+// get SIGTERM.
+export function stopAll() {
+  let background = false;
+  if (isLoaded()) {
+    launchctl('bootout', domain(), PLIST);
+    background = true;
+  }
+  const manual = execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8' })
+    .split('\n')
+    .map((line) => line.trim().match(/^(\d+)\s+(.*)$/))
+    .filter((m) => m && Number(m[1]) !== process.pid && isFleetCommand(m[2]))
+    .map((m) => Number(m[1]));
+  for (const pid of manual) {
+    try {
+      process.kill(pid, 'SIGTERM');
+    } catch {}
+  }
+  return { background, manual: manual.length };
+}
+
 // The Node path recorded at install time, when it no longer exists (e.g. nvm removed that
 // version). launchd then can't start Fleet at all, so this is checked on a manual start.
 export function staleNode() {
