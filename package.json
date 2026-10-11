@@ -1,6 +1,6 @@
 {
   "name": "@jainil_desai/fleet",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "A local dashboard for every Claude Code session on your Mac: live agents, subagents, workflows, cost, plan limits, session history, and a launcher that opens real terminals.",
   "type": "module",
   "bin": {
