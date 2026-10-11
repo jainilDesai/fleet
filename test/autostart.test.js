@@ -39,6 +39,8 @@ test('--stop only matches Fleet servers, not other processes', () => {
   assert.ok(isFleetCommand('/usr/local/bin/node /usr/local/lib/node_modules/@jainil_desai/fleet/bin/fleet.js --no-open --port 7788'));
   assert.ok(isFleetCommand('node /Users/a/code/fleet/bin/fleet.js --port 7799'));
   assert.ok(isFleetCommand('node bin/fleet.js --no-open'), 'started from the repo folder');
+  assert.ok(isFleetCommand('node node_modules/.bin/fleet --port 7814'), 'a local install or npx');
+  assert.ok(isFleetCommand('node /Users/a/.npm/_npx/9f2c/node_modules/.bin/fleet'), 'npx cache');
   assert.ok(!isFleetCommand('node /Users/a/code/fleet/bin/statusline.js'), 'the statusline script is not the server');
   assert.ok(!isFleetCommand('node /srv/app/bin/fleet-manager.js'));
   assert.ok(!isFleetCommand('/bin/zsh -c grep bin/fleet.js notes.txt'), 'not node');

@@ -83,8 +83,9 @@ export function startBackground() {
   return 'started';
 }
 
-// A process command line that is Fleet's server: node running bin/fleet (npm's link) or bin/fleet.js.
-export const isFleetCommand = (cmd) => /(^|\/)node\s(.*[\s/])?bin\/fleet(\.js)?(\s|$)/.test(cmd);
+// A process command line that is Fleet's server: node running bin/fleet.js, or npm's link to it
+// (bin/fleet for a global install, node_modules/.bin/fleet for a local install or npx).
+export const isFleetCommand = (cmd) => /(^|\/)node\s(.*[\s/])?\.?bin\/fleet(\.js)?(\s|$)/.test(cmd);
 
 // Stops every running Fleet. The background copy is unloaded rather than killed, because
 // launchd restarts a killed one; it comes back at the next login. Copies started by hand
