@@ -45,7 +45,9 @@ From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && 
 
 ```bash
 fleet --autostart          # start Fleet at login, in the background, and start it now
-fleet --no-autostart       # turn it off and stop the background copy
+fleet --stop               # stop it for now; it starts again at the next login
+fleet --start              # start the background copy again now
+fleet --no-autostart       # turn auto-start off and stop the background copy
 ```
 
 Fleet then runs without opening a browser tab (open `http://localhost:7788` when you want

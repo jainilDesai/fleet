@@ -67,6 +67,7 @@ fleet</code></pre>
         <tr><td><code>--port 8000</code></td><td>Use another port. <code>FLEET_PORT</code> works too.</td></tr>
         <tr><td><code>--no-open</code></td><td>Start the server without opening a browser tab.</td></tr>
         <tr><td><code>--autostart</code></td><td>Start Fleet at login, in the background. See <a href="#autostart">Start at login</a>.</td></tr>
+        <tr><td><code>--stop</code>, <code>--start</code></td><td>Stop Fleet for now, or start the background copy again. See <a href="#autostart">Start at login</a>.</td></tr>
         <tr><td><code>--help</code></td><td>List the options.</td></tr>
       </table>
       <p>To try it without installing, run <code>npx @jainil_desai/fleet</code>. Install it globally if you want <a href="#plan-limits">plan limits</a>, because that setup points at Fleet's install folder, which <code>npx</code> doesn't keep.</p>
@@ -80,7 +81,10 @@ fleet</code></pre>
       <h2 id="autostart">Start at login</h2>
       <p>Fleet can run in the background all the time, so notifications and History never miss a session.</p>
       <pre><code>fleet --autostart       # start at login, in the background, and start it now
-fleet --no-autostart    # turn it off and stop the background copy</code></pre>
+fleet --stop            # stop it for now; it starts again at the next login
+fleet --start           # start the background copy again now
+fleet --no-autostart    # turn auto-start off and stop the background copy</code></pre>
+      <p><code>fleet --stop</code> also stops a copy you started by hand. Stopping the background copy any other way doesn't stick: macOS restarts it, because it's set to come back after a crash.</p>
       <p>The background copy doesn't open a browser tab; open <code>http://localhost:7788</code> whenever you want it. It restarts if it crashes and writes to <code>~/.fleet/fleet.log</code>. It uses about 100&nbsp;MB of memory and around 1% CPU.</p>
       <p>Under the hood this is a standard macOS LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.plist</code>. Add <code>--port &lt;n&gt;</code> to <code>--autostart</code> to use another port.</p>
       <div class="note">If you update Node with nvm, run <code>fleet --autostart</code> again: the login item records the Node it was set up with. Fleet reminds you when you start it by hand.</div>

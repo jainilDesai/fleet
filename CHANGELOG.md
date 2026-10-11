@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1
+
+- `fleet --stop` stops Fleet for now, including the background copy, which otherwise macOS
+  would restart. Auto-start stays on, so Fleet comes back at the next login.
+- `fleet --start` starts the background copy again right away.
+
 ## 0.2.0
 
 - **Start at login:** `fleet --autostart` sets Fleet up to run in the background from login
