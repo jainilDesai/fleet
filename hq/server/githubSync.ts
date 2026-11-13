@@ -10,8 +10,8 @@ import type { Planner } from "./planner";
 const MERGE_CMD = (n: number | string) => `gh pr merge ${n} --squash --delete-branch`;
 
 /** What the lead is told when a PR passes review: merge it, or leave it to the user (Settings → Workflow → Merge). */
-export function passedNotice(pr: Pick<PullRequest, "number" | "title">, author: string, by: "human" | "lead"): string {
-  const head = `PR #${pr.number} (${pr.title}) by ${author} passed review.`;
+export function passedNotice(pr: Pick<PullRequest, "number">, author: string, by: "human" | "lead"): string {
+  const head = `PR #${pr.number} by ${author} passed review.`;
   return by === "lead"
     ? `${head} You merge PRs on this project: run \`${MERGE_CMD(pr.number)}\` now. If GitHub refuses (conflicts or failing checks), ask the author to fix it instead. Then assign the next task if anything is waiting.`
     : `${head} It's ready for the user to merge. Don't merge it yourself.`;
@@ -107,7 +107,8 @@ export class GitHubSync {
       this.pace(rate);
       const wf = this.hub.snap.config.workflow;
       const team = new Set(this.hub.snap.config.team.map((a) => a.id));
-      const next = [...open, ...merged].map((gh) => {
+      // Fork PRs are outside input: never shown to or acted on by the team.
+      const next = [...open, ...merged].filter((gh) => !gh.isCrossRepository).map((gh) => {
         const taskId = taskIdOf(gh);
         const task = taskId ? this.planner.task(taskId) : undefined;
         const fromBranch = branchAgent(gh.headRefName);
@@ -125,6 +126,8 @@ export class GitHubSync {
       for (const pr of next) {
         const old = this.prev.get(pr.number);
         if (JSON.stringify(old) !== JSON.stringify(pr)) this.hub.emit({ type: "pr.updated", pr: { ...pr } });
+        // Only the team's own PRs drive agents and the board (a PR title is anyone's text).
+        if (!pr.authorId) continue;
         if (!this.first) this.react(old, pr);
         this.syncTask(pr);
       }
@@ -172,7 +175,7 @@ export class GitHubSync {
 
     if (pr.merged && !old?.merged) {
       hub.activity("pr.merged", null, `PR ${ref} was merged`);
-      if (lead) this.planner.notify(lead.id, `PR #${pr.number} (${pr.title}) was merged${pr.taskId ? `; ${pr.taskId} is done` : ""}. Assign the next task if anything is waiting.`);
+      if (lead) this.planner.notify(lead.id, `PR #${pr.number} was merged${pr.taskId ? `; ${pr.taskId} is done` : ""}. Assign the next task if anything is waiting.`);
       return;
     }
     if (pr.merged) return;
@@ -186,7 +189,7 @@ export class GitHubSync {
       if (who)
         this.planner.notify(
           who,
-          `${tool} reviewed your PR #${pr.number} (${pr.title}) and left ${n || "new"} open comment${n === 1 ? "" : "s"}. ` +
+          `${tool} reviewed your PR #${pr.number} and left ${n || "new"} open comment${n === 1 ? "" : "s"}. ` +
             `Read them with \`gh pr view ${pr.number} --comments\` (or the GitHub API), fix them on the same branch, push, and resolve each thread you fixed.`,
         );
     }

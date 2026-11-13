@@ -9,7 +9,7 @@ import { run } from "./lib/exec";
 // GitHub charges GraphQL by how many nested items a query *could* return, from a
 // 5,000-point hourly budget shared with the agents' own `gh` commands. Keep the
 // nested lists small, and fetch only the basics for merged PRs.
-const BASE_FIELDS = "number title url headRefName createdAt mergedAt state mergeable isDraft reviewDecision";
+const BASE_FIELDS = "number title url headRefName isCrossRepository createdAt mergedAt state mergeable isDraft reviewDecision";
 const REVIEW_FIELDS = `
   reviews(last: 10) { nodes { author { login } state submittedAt } }
   reviewThreads(first: 30) { nodes { isResolved isOutdated comments(first: 1) { nodes { author { login } } } } }
@@ -61,6 +61,8 @@ export interface GhPr {
   title: string;
   url: string;
   headRefName: string;
+  /** From a fork: not the team's work. */
+  isCrossRepository: boolean;
   createdAt: string;
   mergedAt: string | null;
   state: "OPEN" | "MERGED" | "CLOSED";
@@ -169,9 +171,9 @@ export function taskIdOf(pr: Pick<GhPr, "title" | "headRefName">): string | null
   return inBranch ? inBranch[1].toUpperCase() : null;
 }
 
-/** `alice/UI-T11-redesign` → alice */
+/** `fleet/alice` (Fleet's worktree branch) or `alice/UI-T11-redesign` → alice */
 export function branchAgent(branch: string): string | null {
-  const m = branch.match(/^([a-z0-9][a-z0-9-]*)\//i);
+  const m = branch.match(/^fleet\/([a-z0-9][a-z0-9-]*)$/i) ?? branch.match(/^([a-z0-9][a-z0-9-]*)\//i);
   return m ? m[1].toLowerCase() : null;
 }
 

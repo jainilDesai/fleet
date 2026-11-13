@@ -92,3 +92,5 @@ export async function startHq(o: HqOptions): Promise<Hq> {
 // For Fleet's tests (test/hq.test.js).
 export { describePermission, lastAssistantText } from "./hooks";
 export { draftFromPromptLine } from "./backends/tmuxCli";
+export { branchAgent } from "./github";
+export { passedNotice } from "./githubSync";
