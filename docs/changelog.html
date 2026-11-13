@@ -33,6 +33,27 @@
 
     <div class="release">
       <div>
+        <h2>0.3.0</h2>
+        <time datetime="2026-11-14">14 November 2026</time>
+      </div>
+      <div>
+        <p>Fleet is now an office for a team of Claude Code agents, built on <a href="https://github.com/jsmastery-pro/jsm-hq">JSM HQ</a> by JavaScript Mastery (MIT).</p>
+        <ul>
+          <li><strong>Pixel office.</strong> HQ's office UI replaces the old dashboard. Each agent sits at a desk and shows what it's doing; tasks move on the plan wall; messages are rendered as Markdown.</li>
+          <li><strong>A CTO-led team.</strong> You talk to the CTO, which plans and assigns work to a Planner, Implementer, QA, Reviewer and Deployer. Agents start the first time they're needed.</li>
+          <li><strong>Real sessions.</strong> Every agent is <code>claude</code> in tmux, in its own git worktree under <code>~/.fleet/projects/&lt;repo&gt;/</code>. <strong>Open in iTerm</strong> attaches to it.</li>
+          <li><strong>Actions.</strong> Questions, plan and deploy approvals, and Claude Code permission prompts (Allow/Deny) in one list.</li>
+          <li><strong>Make it your flow.</strong> Every agent, the CTO included, has an editable role you can load from a file, and its own skills you can paste or upload. <code>~/.fleet/roles/&lt;role&gt;.md</code> sets your own defaults for every new repo.</li>
+          <li><strong>Pull requests.</strong> With <code>gh</code>, Fleet follows the team's PRs: review comments go to the author, passed reviews to the CTO, merges close the task. PRs from forks are ignored.</li>
+          <li><strong>Breaking:</strong> Fleet now needs tmux and works on one git repo per run: the current folder or <code>--repo &lt;path&gt;</code>.</li>
+          <li><strong>Breaking:</strong> the Agents, History, Usage, MCP and Plugins pages are gone. macOS banners still work, and history is still recorded.</li>
+          <li><strong>Auto-start</strong> now remembers the repo. If you set it up before 0.3.0, run <code>fleet --autostart</code> again from your repo.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="release">
+      <div>
         <h2>0.2.2</h2>
         <time datetime="2026-10-11">11 October 2026</time>
       </div>

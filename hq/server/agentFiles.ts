@@ -1,15 +1,19 @@
 // The files Fleet writes into each agent's worktree. All of them are listed in the repo's
 // shared git exclude (see workspace.ts), so they are never committed.
 
-import { agentRead, agentRemove, agentWrite } from "./lib/agentFs";
+import { readdirSync } from "node:fs";
+import { agentPath, agentRead, agentRemove, agentWrite } from "./lib/agentFs";
 import { run } from "./lib/exec";
-import type { AgentConfig, HqConfig } from "../src/data/types";
+import type { AgentConfig, HqConfig, SkillFile } from "../src/data/types";
 
 /** Team MCP config, passed with `claude --mcp-config` (so the project's own .mcp.json is untouched). */
 export const MCP_CONFIG = ".claude/fleet-mcp.json";
 /** Fleet's generated role file. Its own name, so a ROLE.md the project has is never overwritten. */
 export const ROLE_FILE = ".fleet-role.md";
-export const HQ_FILES = [ROLE_FILE, ".claude/settings.local.json", MCP_CONFIG];
+/** Skills you attach to one agent in Settings → Team. The prefix keeps the repo's own skills untouched. */
+const SKILLS_DIR = ".claude/skills";
+const SKILL_PREFIX = "fleet-";
+export const HQ_FILES = [ROLE_FILE, ".claude/settings.local.json", MCP_CONFIG, `${SKILLS_DIR}/${SKILL_PREFIX}*/`];
 
 /** Extra context for the generated role: the folder's own ROLE.md, and whether app variables are set. */
 export interface RoleExtras {
@@ -158,9 +162,37 @@ export function writeMcpConfig(dir: string, agent: AgentConfig, port: number, to
   agentWrite(dir, MCP_CONFIG, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
 }
 
-/** Claude Code's files: the role (loaded by the SessionStart hook), hooks, and the Team MCP config. */
+/** A skill name safe as one folder name: lowercase letters, digits and dashes. */
+export function skillSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "skill";
+}
+
+/** SKILL.md text: as given if it has frontmatter, else with the frontmatter Claude Code needs to load it. */
+export function skillText(name: string, content: string): string {
+  if (/^---\s*\n/.test(content)) return content;
+  const first = content.split("\n").map((l) => l.replace(/^#+\s*/, "").trim()).find(Boolean) ?? name;
+  return `---\nname: ${name}\ndescription: ${JSON.stringify(first.slice(0, 200))}\n---\n\n${content}`;
+}
+
+/** Writes the agent's attached skills to .claude/skills/fleet-<name>/SKILL.md and removes ones it no longer has. */
+export function writeSkills(dir: string, skills: SkillFile[] = []) {
+  const keep = new Set<string>();
+  for (const s of skills) {
+    const name = skillSlug(s.name);
+    keep.add(SKILL_PREFIX + name);
+    agentWrite(dir, `${SKILLS_DIR}/${SKILL_PREFIX}${name}/SKILL.md`, skillText(name, s.content));
+  }
+  let present: string[] = [];
+  try {
+    present = readdirSync(agentPath(dir, SKILLS_DIR));
+  } catch {}
+  for (const f of present) if (f.startsWith(SKILL_PREFIX) && !keep.has(f)) agentRemove(dir, `${SKILLS_DIR}/${f}`);
+}
+
+/** Claude Code's files: the role (loaded by the SessionStart hook), hooks, skills, and the Team MCP config. */
 export function writeClaudeFiles(dir: string, agent: AgentConfig, cfg: HqConfig, token: string, extras: RoleExtras = {}) {
   agentWrite(dir, ROLE_FILE, roleMd(agent, cfg, extras));
+  writeSkills(dir, agent.skillFiles);
   writeSettings(dir, agent, cfg.project.hqPort, token);
   writeMcpConfig(dir, agent, cfg.project.hqPort, token);
 }

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { nextAgentName } from "../../data/names";
-import type { AgentConfig, PermissionMode } from "../../data/types";
+import { SKILL_LIMITS, type AgentConfig, type PermissionMode, type SkillFile } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { agentPalette } from "../../theme/tokens";
 import { Field, Portrait, SectionTitle } from "../kit";
@@ -27,7 +27,10 @@ export function TeamSettings() {
       <section>
         <SectionTitle>Team · {team.length} agents</SectionTitle>
         <p className="mb-3 text-[14px] text-muted">
-          Changes to model or folder apply the next time the agent starts. One lead plans and assigns work. Every other agent gets its own desk and git worktree, and starts when the lead first gives it work. The office grows as you add agents.
+          Changes to model, folder, role or skills apply the next time the agent starts. One lead plans and assigns work. Every other agent gets its own desk and git worktree, and starts when the lead first gives it work. The office grows as you add agents.
+        </p>
+        <p className="mb-3 text-[14px] text-muted">
+          Make it your flow: open <b>More</b> on any agent, the CTO included, to rewrite its role or load one from a file, and attach skills. For your own defaults on every new repo, save role texts as <code>~/.fleet/roles/&lt;role&gt;.md</code> (<code>cto.md</code>, <code>planner.md</code>, <code>qa.md</code>…).
         </p>
         <div className="flex flex-col gap-2">
           {team.map((a) => (
@@ -117,9 +120,106 @@ function AgentRow({ agent, expanded, onToggle, onRemove }: { agent: AgentConfig;
             <Field label="ROLE.md" hint="Who this agent is and which skills it uses. Fleet adds the team, rules and tools, writes it to .fleet-role.md in the agent's folder (never committed) and loads it when the session starts. A ROLE.md the folder already has is included too, never overwritten.">
               <CommitInput multiline className="field h-[120px] resize-y font-term text-[17px] leading-tight" value={agent.roleMd} onCommit={(v) => set({ roleMd: v })} />
             </Field>
+            <FileButton label="Load role from file…" accept=".md,.txt,text/markdown,text/plain" onText={(text) => set({ roleMd: text })} />
+          </div>
+          <div className="col-span-2">
+            <SkillsField skills={agent.skillFiles ?? []} onChange={(skillFiles) => set({ skillFiles })} />
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** A button that reads a text file the user picks. */
+function FileButton({ label, accept, onText }: { label: string; accept: string; onText: (text: string, fileName: string) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button type="button" className="btn mt-1.5 px-2 text-[13px]" onClick={() => input.current?.click()}>
+        {label}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept={accept}
+        hidden
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = ""; // picking the same file again still fires
+          if (file) onText(await file.text(), file.name);
+        }}
+      />
+    </>
+  );
+}
+
+/** A skill's name: its frontmatter `name:`, else the file name (not a bare "SKILL"). */
+function skillName(text: string, fileName = ""): string {
+  const fm = text.match(/^---\s*\n([\s\S]*?)\n---/)?.[1];
+  const fromFm = fm?.match(/^name:\s*["']?([^"'\n]+)/m)?.[1]?.trim();
+  const fromFile = fileName.replace(/\.(md|markdown|txt)$/i, "");
+  return fromFm || (/^skill$/i.test(fromFile) ? "" : fromFile);
+}
+
+/** Skills for this agent only: paste a SKILL.md or load it from a file. */
+function SkillsField({ skills, onChange }: { skills: SkillFile[]; onChange: (next: SkillFile[]) => void }) {
+  const [name, setName] = useState("");
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const add = () => {
+    const n = name.trim();
+    if (!n || !text.trim()) return setError("Give the skill a name and its text.");
+    if (new Blob([text]).size > SKILL_LIMITS.bytes) return setError(`A skill can be at most ${SKILL_LIMITS.bytes / 1000} KB.`);
+    if (skills.length >= SKILL_LIMITS.count && !skills.some((s) => s.name === n)) return setError(`At most ${SKILL_LIMITS.count} skills per agent.`);
+    onChange([...skills.filter((s) => s.name !== n), { name: n, content: text }]);
+    setName("");
+    setText("");
+    setError(null);
+  };
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[14px] font-semibold">Skills for this agent</span>
+      {skills.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {skills.map((s) => (
+            <li key={s.name} className="flex items-center justify-between gap-2 border-2 border-ink bg-white px-2 py-0.5 text-[14px]">
+              <span className="font-term text-[17px]">{s.name}</span>
+              <button type="button" className="btn px-2 text-[12px] text-red" onClick={() => onChange(skills.filter((x) => x.name !== s.name))}>
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-col gap-1.5 border-2 border-dashed border-ink p-2">
+        <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder="Skill name, e.g. run-e2e-tests" aria-label="Skill name" />
+        <textarea
+          className="field h-[90px] resize-y font-term text-[16px] leading-tight"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Paste a SKILL.md here, or load it from a file"
+          aria-label="Skill text"
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <FileButton
+            label="Load SKILL.md…"
+            accept=".md,.markdown,.txt,text/markdown,text/plain"
+            onText={(t, file) => {
+              setText(t);
+              setName(skillName(t, file) || name);
+              setError(null);
+            }}
+          />
+          <button type="button" className="btn mt-1.5 px-2 text-[13px]" onClick={add}>
+            Add skill
+          </button>
+        </div>
+        {error && <span className="text-[12px] text-red">{error}</span>}
+      </div>
+      <span className="text-[12px] text-muted">
+        Skills in your ~/.claude/skills already work for every agent. Add one here to give it to this agent only. Fleet writes it to .claude/skills/fleet-&lt;name&gt;/ in the agent's folder (never committed).
+      </span>
     </div>
   );
 }

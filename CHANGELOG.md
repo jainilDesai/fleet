@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.3.0
+
+Fleet is now an office for a team of Claude Code agents, built on
+[JSM HQ](https://github.com/jsmastery-pro/jsm-hq) by JavaScript Mastery (MIT).
+
+- **Pixel office.** HQ's office UI replaces the old dashboard. Each agent sits at a desk and
+  shows what it's doing; tasks move on the plan wall; messages are rendered as Markdown.
+- **A CTO-led team.** You talk to the CTO, which plans and assigns work to a Planner,
+  Implementer, QA, Reviewer and Deployer. Agents start the first time they're needed.
+- **Real sessions.** Every agent is `claude` in tmux, in its own git worktree under
+  `~/.fleet/projects/<repo>/`. **Open in iTerm** attaches to it.
+- **Actions.** Questions, plan and deploy approvals, and Claude Code permission prompts
+  (Allow/Deny) in one list. A production deploy is labelled so it never looks routine.
+- **Make it your flow.** Every agent, the CTO included, has an editable role you can load from
+  a file, and its own skills you can paste or upload. `~/.fleet/roles/<role>.md` sets your
+  own defaults for every new repo.
+- **Pull requests.** With `gh`, Fleet follows the team's PRs: review comments go to the
+  author, passed reviews to the CTO, merges close the task. PRs from forks are ignored.
+- **Breaking:** Fleet now needs tmux and works on one git repo per run: the current folder
+  or `--repo <path>`. It exits with a clear message outside a git repo.
+- **Breaking:** the Agents, History, Usage, MCP and Plugins pages are gone. macOS
+  notification banners still work, and history is still recorded.
+- **Auto-start** now remembers the repo. If you set it up before 0.3.0, run
+  `fleet --autostart` again from your repo, or the background copy can't start.
+
 ## 0.2.2
 
 - `fleet --stop` also stops a copy run with `npx` or installed in a project folder

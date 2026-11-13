@@ -14,8 +14,8 @@ const xml = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 // node: the Node binary to run Fleet with. pathEnv: the PATH Fleet needs to find `claude`;
 // launchd starts agents with a bare PATH, so it is recorded at install time.
-export function plist({ node, script, port, pathEnv, log }) {
-  const args = [node, script, '--no-open', '--port', String(port)];
+export function plist({ node, script, port, repo, pathEnv, log }) {
+  const args = [node, script, '--no-open', '--port', String(port), ...(repo ? ['--repo', repo] : [])];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -45,15 +45,15 @@ ${args.map((a) => `    <string>${xml(a)}</string>`).join('\n')}
 const domain = () => `gui/${process.getuid()}`;
 const launchctl = (...args) => execFileSync('launchctl', args, { stdio: 'pipe' });
 
-export function enable(port) {
+export function enable(port, repo) {
   fs.mkdirSync(path.dirname(PLIST), { recursive: true });
   fs.mkdirSync(path.dirname(LOG), { recursive: true });
   try {
     launchctl('bootout', domain(), PLIST); // replace an older registration
   } catch {}
-  fs.writeFileSync(PLIST, plist({ node: process.execPath, script: SCRIPT, port, pathEnv: process.env.PATH ?? '/usr/bin:/bin', log: LOG }));
+  fs.writeFileSync(PLIST, plist({ node: process.execPath, script: SCRIPT, port, repo, pathEnv: process.env.PATH ?? '/usr/bin:/bin', log: LOG }));
   launchctl('bootstrap', domain(), PLIST);
-  return { plist: PLIST, log: LOG, port };
+  return { plist: PLIST, log: LOG, port, repo };
 }
 
 export function disable() {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +20,7 @@ if (has('--help') || has('-h')) {
   --repo <path>     The git repo the agent team works on (default: this folder, or FLEET_REPO)
   --port <n>        Serve on another port (default 7788, or FLEET_PORT)
   --no-open         Don't open a browser tab
-  --autostart       Start Fleet at login, in the background, and start it now
+  --autostart       Start Fleet at login for this repo, in the background, and start it now
   --no-autostart    Stop starting Fleet at login, and stop the background copy
   --stop            Stop Fleet now; with auto-start it comes back at the next login
   --start           Start the background copy now (needs --autostart)
@@ -28,10 +28,20 @@ if (has('--help') || has('-h')) {
   process.exit(0);
 }
 
+// The agent team needs a git repo. Check it up front: the background copy must not restart forever on a bad folder.
+const repoRoot = () => {
+  try {
+    return execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: repo, stdio: 'pipe' }).toString().trim();
+  } catch {
+    console.error(`${repo} is not inside a git repository. Run fleet from your project folder, or pass --repo <path>.`);
+    process.exit(1);
+  }
+};
+
 if (has('--autostart')) {
   try {
-    const r = enable(port);
-    console.log(`Fleet now starts at login on http://localhost:${r.port}, and is starting now.
+    const r = enable(port, repoRoot());
+    console.log(`Fleet now starts at login on http://localhost:${r.port} for ${r.repo}, and is starting now.
 Log: ${r.log}
 Turn it off with: fleet --no-autostart`);
   } catch (e) {
@@ -80,7 +90,7 @@ if (!fs.existsSync(path.join(root, 'public', 'index.html')) || !fs.existsSync(pa
 }
 
 const { start } = await import('../src/server.js');
-const server = start({ port, repo });
+const server = start({ port, repo: repoRoot() });
 server.hqReady.catch((e) => {
   console.error(`Could not start the agent team: ${e.message}`);
   process.exit(1);

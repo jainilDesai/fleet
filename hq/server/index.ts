@@ -94,3 +94,5 @@ export { describePermission, lastAssistantText } from "./hooks";
 export { draftFromPromptLine } from "./backends/tmuxCli";
 export { branchAgent } from "./github";
 export { passedNotice } from "./githubSync";
+export { rolePreset } from "./roles";
+export { skillText, writeSkills } from "./agentFiles";

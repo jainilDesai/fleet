@@ -20,10 +20,10 @@ export function describePermission(tool: string, input: Record<string, unknown> 
   if (tool === "Bash") {
     const cmd = s(input.command);
     const details = [cmd, s(input.description)].filter(Boolean).join("\n\n");
-    // Same match as the upsell repo's deploy-prod-guard.sh: never let a production deploy look routine.
-    if (/gh +workflow +run.*(Deploy +To +Production|deploy-prod\.ya?ml|166193513)/i.test(cmd)) {
+    // A workflow run that names production (e.g. "Deploy To Production", deploy-prod.yml): never let it look routine.
+    if (/gh +workflow +run\b.*\bprod(uction)?\b/i.test(cmd)) {
       const branch = cmd.match(/-f +branch=(\S+)/)?.[1] ?? "(no branch given)";
-      return { title: `⚠ PRODUCTION deploy: ${branch}`, details: `This reloads production for every live merchant.\n\n${details}` };
+      return { title: `⚠ PRODUCTION deploy: ${branch}`, details: `This deploys to production.\n\n${details}` };
     }
     return { title: `Run a command: ${cmd.split("\n")[0].slice(0, 100)}`, details };
   }

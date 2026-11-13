@@ -20,6 +20,8 @@ test('writes a valid LaunchAgent that starts Fleet without a browser tab', () =>
   assert.equal(json.Label, LABEL);
   assert.deepEqual(json.ProgramArguments, ['/opt/node & co/bin/node', '/lib/fleet/bin/fleet.js', '--no-open', '--port', '7788']);
   assert.equal(json.EnvironmentVariables.PATH, '/usr/bin:/bin');
+  const withRepo = JSON.parse(execFileSync('plutil', ['-convert', 'json', '-o', '-', '-'], { input: plist({ ...sample, repo: '/code/my app' }) }).toString());
+  assert.deepEqual(withRepo.ProgramArguments.slice(-2), ['--repo', '/code/my app']);
   assert.equal(json.RunAtLoad, true);
   assert.deepEqual(json.KeepAlive, { SuccessfulExit: false }, 'restart on crash only');
   assert.equal(json.StandardErrorPath, '/tmp/fleet.log');

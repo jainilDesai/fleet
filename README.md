@@ -1,50 +1,55 @@
 # Fleet
 
-A local dashboard for every Claude Code session on your Mac.
+A pixel-art office for a team of Claude Code agents on your Mac. You talk to one agent, the
+CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen.
 
 **[fleet.jainildesai.com](https://fleet.jainildesai.com)**: overview, docs and changelog.
 
-Fleet shows what each agent is doing right now, across every repo, including sessions you
-started in an editor's terminal. It tracks what each one costs, the subagents it spawned and
-the workflow agents working in phases. You can launch new agents with the right model into
-real terminal windows.
+Fleet's office UI and much of its agent-team server come from
+**[JSM HQ](https://github.com/jsmastery-pro/jsm-hq)** by JavaScript Mastery (MIT). Fleet
+takes HQ's office and team model and runs it without Docker or a browser terminal: every
+agent is a real Claude Code session in `tmux`, working in its own git worktree, and every
+decision or permission it needs from you lands in one Actions list.
 
-![Fleet in action: agents updating live, a notification arriving, a session's subagents, and a History search](docs/demo.gif)
-
-It was built to replace one habit: running a single max-model session per task, loading it
-with too much context. Fleet makes it cheap to run several small agents instead, each on the
-model the task deserves.
-
-- **Zero dependencies.** Node 20+ and the `claude` CLI. Nothing to `npm install`.
-- **Read-only by default.** Fleet reads what Claude Code already writes to `~/.claude`. It adds
-  no hooks and does not change your settings.
-- **Real terminals.** Agents run in Terminal.app or iTerm, not in a browser emulator.
+- **Visibility first.** Each agent sits at a desk and shows what it's doing now: working,
+  waiting on you, or done. Tasks move across the plan wall, messages fly between desks, and
+  every reply is readable Markdown.
+- **One person to talk to.** You message the CTO. It breaks the request into tasks and assigns
+  them to the Planner, Implementer, QA, Reviewer and Deployer, starting each agent only when
+  it's first needed.
+- **You decide.** Plan approvals, questions and Claude Code permission prompts (Allow/Deny)
+  all show up in Actions. Nothing is ever allowed automatically.
+- **Real sessions.** Agents run `claude` in tmux. **Open in iTerm** attaches to any of them, and
+  they keep running if you close Fleet.
+- **No runtime dependencies.** The UI and server are prebuilt into the package.
 
 ## Install
 
-Needs macOS, Node 20 or later, and Claude Code (`claude`) signed in.
+Needs macOS, Node 20 or later, Claude Code (`claude`) signed in, and tmux. The GitHub CLI
+(`gh`, signed in) is optional; with it, Fleet follows the team's pull requests and reviews.
 
 ```bash
+brew install tmux          # and optionally: brew install gh
 npm install -g @jainil_desai/fleet
+cd ~/code/my-app           # any git repo
 fleet                      # opens http://localhost:7788
 ```
 
-Options: `--port 8000`, `--no-open`. To try it without installing: `npx @jainil_desai/fleet`.
-Install it globally if you want plan limits: the statusline setup below points at Fleet's
-install folder, which `npx` doesn't keep.
+Fleet works on one git repo per run: the folder you start it in, or `--repo <path>`. Other
+options: `--port 8000`, `--no-open`. To try it without installing:
+`npx @jainil_desai/fleet --repo ~/code/my-app`.
 
-**Optional:** `brew install terminal-notifier` makes notification banners clickable. A click
-opens the exact terminal tab of the session the banner is about.
+**Optional:** `brew install terminal-notifier` makes notification banners clickable.
 
-The first time you launch an agent or click **Show terminal**, macOS asks whether Fleet (your
-terminal or Node) may control Terminal/iTerm. Allow it once.
+The first time you click **Open in iTerm**, macOS asks whether Fleet (your terminal or Node)
+may control iTerm or Terminal. Allow it once.
 
-From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && node bin/fleet.js`.
+From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && npm install && npm run build && node bin/fleet.js --repo <path>`.
 
 ### Start at login
 
 ```bash
-fleet --autostart          # start Fleet at login, in the background, and start it now
+fleet --autostart          # start Fleet at login for this repo, in the background, and start it now
 fleet --stop               # stop it for now; it starts again at the next login
 fleet --start              # start the background copy again now
 fleet --no-autostart       # turn auto-start off and stop the background copy
@@ -52,169 +57,178 @@ fleet --no-autostart       # turn auto-start off and stop the background copy
 
 Fleet then runs without opening a browser tab (open `http://localhost:7788` when you want
 it), restarts if it crashes, and logs to `~/.fleet/fleet.log`. It's a standard macOS
-LaunchAgent at `~/Library/LaunchAgents/com.jainildesai.fleet.plist`. Add `--port <n>` to
-`--autostart` to use another port. If you update Node through nvm, run `fleet --autostart`
+LaunchAgent at `~/Library/LaunchAgents/com.jainildesai.fleet.plist`. It runs on the repo you
+set it up from (or `--repo <path>`); run `fleet --autostart` again to switch repos. Add
+`--port <n>` to `--autostart` to use another port. If you update Node through nvm, run `fleet --autostart`
 again; Fleet reminds you when you start it by hand.
 
 ## What you get
 
-![Fleet's Agents view: live sessions grouped by repo, with model, branch, current tool call, cost and context](docs/agents.png)
+**The office.** Every team member is a character at a desk that shows its state: working,
+idle, needs you, in review. The top bar shows how many agents are running and how many
+things are waiting on you. Click an agent to open its drawer:
 
-**Agents.** Every live Claude Code session on the machine, grouped by repo:
+- **Task:** what it's working on, the task's notes, and its branch.
+- **Messages:** everything between you, the CTO and that agent, rendered as Markdown
+  (headings, lists, tables, code). Long replies start collapsed with **Show all**.
+- **Open in iTerm:** attaches to the agent's tmux session (`tmux attach -t fleet-<repo>-<agent>`),
+  so you can read or type into the real Claude Code session.
 
-- Status (working, idle, or waiting on you), model, git branch, the latest prompt, and the tool call it's running now.
-- API-equivalent cost and tokens, including all of its subagents, plus how full its context window is.
-- Click a session to see its cost breakdown, the full prompt, a timeline of recent tool calls,
-  and a tree of the **subagents** it spawned (nested ones included), with each subagent's model,
-  state and cost.
-- **Workflows** show as phase columns (for example Foundation → Build → Integrate → Review),
-  with every workflow agent's label, state and cost under its phase.
-- **Show terminal** brings that session's window forward. For Terminal.app and iTerm it selects
-  the exact tab. Sessions inside an editor (Zed, VS Code, Cursor) bring the editor to the front.
+**The team.** A new project starts with a CTO (the lead) and five roles. Each role has a
+short role text you can edit in **Settings → Team**, along with its model and Claude Code
+permission mode:
 
-![A session's detail panel: cost split between the session and its subagents, latest prompt, subagent tree and recent tool calls](docs/session.png)
+| Role | Does |
+| --- | --- |
+| CTO | Talks to you, plans the flow, creates and assigns tasks. Never writes app code or deploys. |
+| Planner | Turns a request into a plan that follows the repo's own rules. Doesn't change code. |
+| Implementer | Builds the approved plan on its branch and commits. |
+| QA | Checks out the branch, installs, tests, and reports pass/fail with evidence. |
+| Reviewer | Reviews the diff for bugs and simplicity, ranked by severity. |
+| Deployer | Deploys only when you asked, and asks you to approve each deploy first. Starts in `default` permission mode. |
 
-**History.** Every session you've run, kept after Claude Code deletes its transcript (Claude
-Code removes transcripts older than `cleanupPeriodDays`, 30 by default). Sessions are grouped
-by day with their title, project, branch, model, cost including subagents, how long they ran,
-the first and last thing you asked, and the files they edited. Search across all of it. A
-session can be summarized on demand ("what did it do"), and the summary is kept with it.
-Copy a resume command to pick a session back up while its transcript still exists.
+The default role texts are generic: they follow your repo's own instructions (`CLAUDE.md`)
+and use any skills you have. See [Customise your team](#customise-your-team) to make them
+your flow.
 
-On first run Fleet reads every transcript on disk (about 1,000 sessions take ~12 seconds),
-then only re-reads transcripts that grew. Records live in `~/.fleet/history.json`; delete
-that file to start over. Files edited counts edits made with Claude's Edit and Write tools,
-not changes made through shell commands.
+**The plan wall.** Boards and tasks the CTO creates, with status (to do, in progress, in
+review, done, blocked) and owner. Tasks update themselves as agents report back and as their
+pull requests are reviewed and merged.
 
-![History: past sessions grouped by day, one expanded to show what was asked and which files were edited](docs/history.png)
+**Actions.** One list of everything that needs you:
 
-**Notifications.** Fleet watches every session and tells you when:
+- **Questions and approvals** an agent asked with `ask_user` (for example "Approve plan: …" or
+  "Approve deploy to production: …"). Mark one **Done** or **Dismiss** it; a waiting agent
+  continues with your answer.
+- **Permission prompts.** When Claude Code asks to run a command or edit a file, the request
+  shows here with the full command. **Allow** or **Deny** it from the browser, or answer in the
+  terminal; either one closes the other. A production deploy is labelled
+  `⚠ PRODUCTION deploy: <branch>` so it never looks routine.
+- **Agents waiting in their terminal** (for example on Claude Code's folder-trust prompt),
+  with **Open in iTerm**.
 
-- an agent **needs you**: it asked a question (the question is shown), wants a permission, or
-  has a plan ready for review;
-- an agent **finished** a turn that took over 20 seconds, so quick replies don't ping you;
-- a background subagent is done, a workflow completes, or a workflow agent fails.
+**Pull requests.** With `gh` signed in and a GitHub `origin`, Fleet polls the repo's PRs. It
+links each one to its task and agent and reacts: review comments are passed to the author,
+a passed review goes to the CTO, and a merge marks the task done. Only PRs from the team's own
+branches do this; PRs from forks are ignored. In **Settings → Workflow** you choose the
+review tool (CodeRabbit, Greptile, Copilot, a human or a custom check) and whether you or the
+CTO merges.
 
-These show in the bell's inbox and as a count in the tab title. They also appear as **macOS
-notification banners**, even with the dashboard closed, as long as Fleet is running. Turn banners
-off in the inbox; subagent completions only go to the inbox. With `terminal-notifier` installed,
-clicking a banner opens that session's terminal tab; without it, banners are informational
-(macOS gives Fleet's plain banners no way to act on a click). History lives in
-`~/.fleet/events.jsonl`. Detection is plain code that diffs session states every 1.5 seconds,
-with no hooks and no AI calls.
+**Notifications.** Fleet still watches every Claude Code session on the Mac and sends a
+macOS banner when one needs you or finishes a long turn, even with the page closed.
 
-**Summaries.** Click the ✦ icon on any session card, subagent or workflow agent. You get a two
-or three line summary of what it's working on, where it's at, and whether it's waiting on you,
-blocked or looping. It's written by Claude Haiku through your own `claude` login. Each summary
-takes about 3 seconds and is cached until the agent does more work; outdated ones are flagged.
-The summarizer runs with no tools, no MCP servers, no settings files, hooks or plugins, and no
-saved transcript, and it never appears on the board. It only runs when you click, so the
-dashboard itself stays free.
+## Customise your team
 
-**New agent.** Pick a repo, a model (Haiku, Sonnet, Opus, Fable), effort, permission mode, an
-optional name and first prompt, and optionally its own git worktree. Fleet opens a new terminal
-window running that `claude` command through your own login shell (`$SHELL`), so it
-gets the same `PATH` and environment as a terminal you open yourself. The command it will run
-is previewed before you launch.
+Out of the box every agent is generic. Make it work the way you do in **Settings → Team →
+More**, for any agent, the CTO included:
 
-**Usage.**
+- **Role.** Rewrite what the agent does, or **Load role from file…** to use a Markdown file.
+  Fleet adds the team, the rules and the tools around it.
+- **Skills.** Paste a `SKILL.md` or **Load SKILL.md…**, give it a name, and **Add skill**.
+  Fleet writes it to `.claude/skills/fleet-<name>/SKILL.md` in that agent's folder, where
+  Claude Code loads it. It's never committed, and the repo's own skills are never touched.
+  A skill without frontmatter gets a `name` and `description` added.
 
-- **Plan limits.** The 5-hour and weekly percentages `/usage` shows, with reset times (see below).
-- **Today.** Cost by model and by project, and how much of today's spend went to top-tier models.
-- **Last 30 days.** Tokens per day, split by model.
-- **All time.** Cost per model.
+Changes apply the next time the agent starts.
 
-**MCP servers.** Every server with its health, split into claude.ai account connectors, user
-servers, local (per-project) servers and project servers. Scope conflicts are flagged.
+**Skills for every agent.** Skills in `~/.claude/skills` (or the repo's `.claude/skills`)
+already work for all agents. Point to them by name in a role, for example
+"Test UI changes with the `browser-test` skill."
 
-**Plugins & skills.** Installed plugins (with what each ships), user and plugin skills, custom
-agents, commands and user-level hooks, all searchable.
+**Your defaults for every repo.** Save role texts as `~/.fleet/roles/<role>.md`:
+`cto.md` for the lead, and `planner.md`, `implementer.md`, `qa.md`, `reviewer.md`,
+`deployer.md`, or any role name you use. A new team, or an agent you add, starts from
+your file in place of the built-in text. Teams you already have keep their saved text.
 
-## Plan limits (the `/usage` numbers)
+For example, a `~/.fleet/roles/qa.md`:
 
-Claude Code exposes plan-limit percentages to exactly one place: the **statusline** command it
-runs after each turn. Fleet ships `bin/statusline.js` for this. It saves the limits to
-`~/.fleet/limits.json` and prints a short status line.
+```markdown
+You are QA. You test the branch the lead names and report pass/fail with evidence.
 
-Fleet never edits `~/.claude/settings.json` itself. The Usage page shows the exact block to
-paste. If you already have a statusline, the block **wraps** it:
-
-```json
-"statusLine": {
-  "type": "command",
-  "command": "/path/to/node /path/to/fleet/bin/statusline.js ~/.claude/scripts/your-bar.sh"
-}
+- Run `npm ci && npm test`, then test the change in the browser with the `browser-test` skill.
+- Only use the staging store; never production.
+- Report what you ran, what passed, what failed (exact output), and what you couldn't test.
 ```
-
-Your existing script gets the same input, and its output is what your terminal shows, so
-nothing changes visually.
 
 ## How it works
 
-Everything comes from files and commands Claude Code already provides:
-
-| Data | Source |
-| --- | --- |
-| Live sessions, busy/idle | `~/.claude/sessions/<pid>.json` (the same registry `claude agents` uses), filtered to live pids |
-| Prompts, tool calls, tokens | Session transcripts `~/.claude/projects/<project>/<session>.jsonl`, read incrementally from the last byte offset |
-| Subagents | `<session>/subagents/agent-*.jsonl` + `.meta.json` (type, description, parent) |
-| Workflows | `<session>/workflows/*.json` (phases, per-agent state) + `<session>/subagents/workflows/<run>/` |
-| Daily history | `~/.claude/stats-cache.json` |
-| Plan limits | `bin/statusline.js` → `~/.fleet/limits.json` |
-| History | Every transcript on disk, distilled into `~/.fleet/history.json` and kept after Claude Code deletes it |
-| Summaries (on click) | `claude -p --model haiku` over the tail of the agent's transcript |
-| MCP, plugins, account | `claude mcp list`, `claude plugin list --json`, `claude auth status` |
-| Skills, agents, commands | `~/.claude/skills`, `~/.claude/agents`, `~/.claude/commands`, plugin install dirs |
-
-**Costs are estimates.** Fleet multiplies token counts by API list prices (see
-`src/pricing.js`). A Pro or Max subscription is not billed per token, so read the numbers as
-"what this would cost on the API". They're useful for comparing sessions and models, not as a bill.
+- **Agents.** Each one is `claude` running in a tmux session named
+  `fleet-<repo>-<agent>`, started through your login shell so it has your usual `PATH`. The CTO
+  starts with **Start team**; the others start the first time they get a task or a message.
+- **Worktrees.** Each agent works in its own git worktree at `~/.fleet/projects/<repo>/<agent>`,
+  on a branch `fleet/<agent>` taken from the default branch. Your own checkout is never
+  touched.
+- **Team tools.** Agents talk to Fleet through a small MCP server at
+  `http://127.0.0.1:<port>/mcp`: `list_workers`, `get_status`, `list_tasks`, `create_board`,
+  `create_task`, `update_task`, `assign_task` (lead only), `get_my_task`, `set_my_status`,
+  `ask_user` and `send_message`.
+- **Live state.** Claude Code hooks in each worktree post to Fleet when an agent starts a turn,
+  uses a tool, needs input or stops. A message for a busy agent is held and handed over when
+  its turn ends. Permission prompts reach the Actions list through Claude Code's
+  `PermissionRequest` hook, which Fleet holds open until you answer.
+- **Files in each worktree** (all excluded from git through the repo's `info/exclude`):
+  `.fleet-role.md` (the role text), `.claude/settings.local.json` (the hooks),
+  `.claude/fleet-mcp.json` (the MCP connection) and `.claude/skills/fleet-*/` (skills you
+  attached). The last two hold the agents' access token,
+  so they are written readable by you only.
+- **State** lives in `~/.fleet/projects/<repo>/`: team config, plan, action items, the inbox
+  and recent message history, so a restart picks up where it left off.
 
 ## Privacy
 
-- **Read:** Fleet reads what Claude Code writes under `~/.claude` (session registry,
-  transcripts, settings, stats) and runs `claude mcp list`, `claude plugin list` and
-  `claude auth status`.
-- **Stored:** everything Fleet keeps is in `~/.fleet`: `history.json` (one record per session,
-  including your first and last prompt), `events.jsonl` (the last 200 notifications),
-  `limits.json` (plan limits) and `config.json`.
-- **Sent anywhere:** only summaries, and only when you click ✦ or "Summarize". Fleet then sends
-  the tail of that transcript to Claude Haiku through your own `claude` login, the same account
-  and provider your sessions already use. There is no telemetry and no other network call.
+- **Read:** Fleet reads what Claude Code writes under `~/.claude` (session registry and
+  transcripts) and the agents' own transcripts to show their replies.
+- **Written:** everything Fleet keeps is in `~/.fleet`. In your repo, Fleet adds git worktrees
+  and the excluded files listed above; it doesn't change your own checkout or your Claude Code
+  settings.
+- **Sent anywhere:** Fleet itself only calls GitHub through your `gh` login, to read the
+  repo's pull requests. There is no telemetry. Your agents are ordinary Claude Code sessions
+  and use your own login.
 
 ## Security
 
-Fleet listens on `127.0.0.1` only. Launching agents and focusing windows start processes, so
-those endpoints need a per-run token embedded in the page Fleet serves. They also reject any
-request whose `Host` header isn't localhost, which blocks DNS-rebinding attacks from other
-websites. The prompt you type is written to a private temp script (mode 700) that deletes
-itself, so it never passes through AppleScript string quoting.
+Fleet listens on `127.0.0.1` only. Every action from the page (starting agents, sending
+messages, answering permissions) needs a per-run token embedded in the page Fleet serves, and
+any request whose `Host` header isn't localhost is rejected, which blocks DNS-rebinding
+attacks from other websites. Agents reach the hook and MCP endpoints with a separate agent
+token. Agents can do whatever their permission mode allows; prompts that need approval wait
+for you, and Fleet never approves one on its own.
 
 ## Compatibility
 
-Fleet reads Claude Code's own files, which Claude Code doesn't document as a stable format.
-It's tested with Claude Code 2.1.28x. If an update changes the transcript format, the Agents
-page says so instead of showing empty numbers; please [open an
+The team runs on Claude Code's documented hooks and MCP support. Fleet also reads agents'
+transcripts to show their replies, and detects prompts in the tmux pane; neither is a
+documented stable format. If an update breaks something, please [open an
 issue](https://github.com/jainilDesai/fleet/issues) with your `claude --version`.
 
 ## Limits
 
-- macOS only (terminal control uses AppleScript).
-- Editor terminals can't be focused to the exact tab; the editor is brought forward instead.
-- A running workflow's phase layout appears once Claude Code writes the run file. Until then its
-  agents are listed without phases.
+- macOS only (Open in iTerm uses AppleScript).
+- One repo per run. To work on two repos, run two copies on different ports.
+- Each agent's worktree starts without `node_modules`; QA installs before it tests.
+- 0.3.0 replaces the old dashboard pages (Agents, History, Usage, MCP, Plugins) with the
+  office. History is still recorded in `~/.fleet/history.json`, but isn't shown in the UI.
 
 ## Development
 
 ```bash
-npm test                   # node --test, against fake transcripts in a temp folder
-node bin/fleet.js --port 7799 --no-open
+npm install
+npm run build              # hq/ → public/ (the office UI) and dist/hq.mjs (the team server)
+npm test                   # node --test
+node bin/fleet.js --repo <path> --port 7799 --no-open
+npm run dev                # Vite dev server for the UI, proxied to Fleet on 7788
 ```
 
-No build step and no dependencies. UI files are loaded when the server starts, so restart it
-after editing `public/`. Issues and pull requests are welcome.
+The office UI (React, pixi.js) and the team server (TypeScript, MCP SDK) live in `hq/`.
+`npm run build` bundles both, so the published package has no runtime dependencies.
+`public/` and `dist/` are build output and aren't committed. Issues and pull requests are welcome.
 
 ## License
 
-MIT. Fleet is an independent project, not made by or affiliated with Anthropic. Claude and
-Claude Code are trademarks of Anthropic.
+MIT. The office UI and team server are adapted from
+[JSM HQ](https://github.com/jsmastery-pro/jsm-hq), © 2026 JavaScript Mastery, MIT; its license
+is in [`hq/LICENSE-jsm-hq`](hq/LICENSE-jsm-hq). JSM HQ's name and logo belong to JavaScript
+Mastery, and Fleet is not affiliated with or endorsed by them.
+
+Fleet is an independent project, not made by or affiliated with Anthropic. Claude and Claude
+Code are trademarks of Anthropic.

@@ -47,7 +47,18 @@ export interface AgentConfig {
   mcp?: string[];
   /** Claude Code's --permission-mode for this agent; unset = your own default. */
   permissionMode?: PermissionMode;
+  /** Skills attached to this agent only (pasted or uploaded); written to .claude/skills/fleet-<name>/. */
+  skillFiles?: SkillFile[];
 }
+
+/** A skill's SKILL.md text, attached to one agent in Settings → Team. */
+export interface SkillFile {
+  name: string;
+  content: string;
+}
+
+/** Limits on attached skills (checked by the server). */
+export const SKILL_LIMITS = { count: 20, bytes: 100_000 } as const;
 
 /** Claude Code permission modes Fleet can start an agent in. "default" asks before edits and commands. */
 export const PERMISSION_MODES = ["default", "acceptEdits", "auto", "plan"] as const;
@@ -389,7 +400,7 @@ export interface WelcomeInput {
 }
 
 export type AgentPatch = Partial<
-  Pick<AgentConfig, "name" | "role" | "cli" | "model" | "mode" | "color" | "skills" | "roleMd" | "workspacePath" | "permissionMode">
+  Pick<AgentConfig, "name" | "role" | "cli" | "model" | "mode" | "color" | "skills" | "roleMd" | "workspacePath" | "permissionMode" | "skillFiles">
 >;
 
 export interface WorkflowPatch {

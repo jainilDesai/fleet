@@ -1,7 +1,7 @@
 // Browser commands → server actions. Names match OfficeDataSource methods.
 
 import { existsSync } from "node:fs";
-import { PERMISSION_MODES, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type ProjectConfig, type RemoveAgentOptions, type WorkflowPatch } from "../src/data/types";
+import { PERMISSION_MODES, SKILL_LIMITS, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type ProjectConfig, type RemoveAgentOptions, type WorkflowPatch } from "../src/data/types";
 import { LEAD_NAME, OFFICE_NAME_MAX } from "../src/data/names";
 import { run } from "./lib/exec";
 import { agentPalette } from "../src/theme/tokens";
@@ -10,6 +10,7 @@ import type { Inbox } from "./inbox";
 import type { Planner } from "./planner";
 import type { Sessions } from "./sessions";
 import { newAgent } from "./store";
+import { skillSlug } from "./agentFiles";
 import { mergeByNotice } from "./githubSync";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "agent";
@@ -74,6 +75,14 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       const p = (patch ?? {}) as AgentPatch;
       for (const k of ["name", "role", "model", "color", "roleMd"] as const) if (typeof p[k] === "string") agent[k] = str(p[k], 8000);
       if (p.workspacePath !== undefined) agent.workspacePath = p.workspacePath ? str(p.workspacePath, 500).trim() || null : null;
+      if (Array.isArray(p.skillFiles)) {
+        const seen = new Set<string>();
+        agent.skillFiles = p.skillFiles
+          .filter((f) => f && typeof f.name === "string" && typeof f.content === "string" && f.content.trim() && Buffer.byteLength(f.content) <= SKILL_LIMITS.bytes)
+          .map((f) => ({ name: skillSlug(f.name), content: f.content }))
+          .filter((f) => !seen.has(f.name) && seen.add(f.name))
+          .slice(0, SKILL_LIMITS.count);
+      }
       if ("permissionMode" in p) {
         if ((PERMISSION_MODES as readonly unknown[]).includes(p.permissionMode)) agent.permissionMode = p.permissionMode;
         else delete agent.permissionMode;
