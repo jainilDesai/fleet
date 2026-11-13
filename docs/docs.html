@@ -3,20 +3,23 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Docs: Fleet</title>
-  <meta name="description" content="Install Fleet, read the board, set up plan limits and clickable notifications, and see exactly what Fleet reads, stores and sends." />
+  <title>Fleet docs</title>
+  <meta name="description" content="Install Fleet, set up a CTO-led team of Claude Code agents, answer their questions and permission prompts, and see exactly what Fleet reads, stores and sends." />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="site.css" />
   <meta property="og:title" content="Fleet docs" />
-  <meta property="og:description" content="Install, features, plan limits, privacy and troubleshooting for Fleet, a dashboard for every Claude Code session on your Mac." />
-  <meta property="og:image" content="https://fleet.jainildesai.com/agents.png" />
+  <meta property="og:description" content="Install, set up and customise Fleet: a pixel-art office for a CTO-led team of Claude Code agents on your Mac." />
+  <meta property="og:url" content="https://fleet.jainildesai.com/docs.html" />
+  <meta property="og:image" content="https://fleet.jainildesai.com/office.png" />
+  <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://fleet.jainildesai.com/docs.html" />
+  <script src="site.js" defer></script>
 </head>
 <body>
   <header class="bar">
     <div class="wrap">
-      <a class="mark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2b59c3"/><circle cx="10" cy="11" r="3" fill="#4ade80"/><rect x="15" y="9.5" width="10" height="3" rx="1.5" fill="#fff"/><circle cx="10" cy="21" r="3" fill="#fbbf24"/><rect x="15" y="19.5" width="7" height="3" rx="1.5" fill="#fff"/></svg>Fleet</a>
+      <a class="mark" href="./"><svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><rect width="16" height="16" fill="#241a2e"/><rect x="1" y="1" width="14" height="14" fill="#1d2b53"/><rect x="2" y="2" width="12" height="9" fill="#241a2e"/><rect x="3" y="3" width="10" height="7" fill="#29adff"/><rect x="4" y="4" width="5" height="1" fill="#fff6e9"/><rect x="4" y="6" width="3" height="1" fill="#00e436"/><rect x="8" y="6" width="3" height="1" fill="#fff6e9"/><rect x="4" y="8" width="1" height="1" fill="#ffec27"/><rect x="7" y="11" width="2" height="1" fill="#241a2e"/><rect x="1" y="12" width="14" height="1" fill="#ffa300"/><rect x="1" y="13" width="14" height="2" fill="#241a2e"/><rect x="2" y="13" width="1" height="2" fill="#ffa300"/><rect x="13" y="13" width="1" height="2" fill="#ffa300"/></svg>Fleet</a>
       <nav class="tabs" aria-label="Site">
         <a href="./">Home</a>
         <a href="docs.html" aria-current="page">Docs</a>
@@ -26,215 +29,245 @@
     </div>
   </header>
 
-  <div class="wrap docs">
+  <main class="wrap docs">
     <nav class="toc" aria-label="On this page">
-      <p>Getting started</p>
-      <a href="#install">Install</a>
-      <a href="#first-run">First run</a>
-      <a href="#autostart">Start at login</a>
-      <a href="#update">Update and uninstall</a>
-      <p>Using Fleet</p>
-      <a href="#agents">Agents</a>
-      <a href="#session">A session's panel</a>
-      <a href="#summaries">Summaries</a>
-      <a href="#history">History</a>
-      <a href="#notifications">Notifications</a>
-      <a href="#new-agent">New agent</a>
-      <a href="#usage">Usage</a>
-      <a href="#plan-limits">Plan limits</a>
-      <a href="#mcp">MCP, plugins and skills</a>
-      <p>Reference</p>
-      <a href="#how">How it works</a>
-      <a href="#costs">About costs</a>
-      <a href="#privacy">Privacy</a>
-      <a href="#security">Security</a>
-      <a href="#compatibility">Compatibility</a>
-      <a href="#troubleshooting">Troubleshooting</a>
-      <a href="#contributing">Contributing</a>
+      <ul>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#first-run">First run</a></li>
+        <li><a href="#autostart">Start at login</a></li>
+        <li><a href="#update">Update and uninstall</a></li>
+        <li><a href="#the-office">The office</a></li>
+        <li><a href="#the-team">The team</a></li>
+        <li><a href="#actions">Actions</a></li>
+        <li><a href="#customise">Customise your team</a></li>
+        <li><a href="#pull-requests">Pull requests</a></li>
+        <li><a href="#notifications">Notifications</a></li>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#compatibility">Compatibility</a></li>
+        <li><a href="#limits">Limits</a></li>
+        <li><a href="#troubleshooting">Troubleshooting</a></li>
+        <li><a href="#development">Development</a></li>
+        <li><a href="#credits">Credits and license</a></li>
+      </ul>
     </nav>
 
     <article class="doc">
       <h1>Fleet docs</h1>
-      <p class="lede">Fleet is a local dashboard for every Claude Code session on your Mac. It runs on your machine, reads what Claude Code already writes, and opens in your browser.</p>
+      <p class="lede">Fleet is a pixel-art office for a team of Claude Code agents on your Mac. You talk to one agent, the CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen. Every decision or permission an agent needs from you lands in one Actions list.</p>
+
+      <figure>
+        <img src="office.png" alt="The Fleet office: agents at their desks, the plan wall with tasks, and the top bar with running agents and Actions" loading="lazy" width="1440" height="900" />
+        <figcaption>The office. Each desk shows what that agent is doing now.</figcaption>
+      </figure>
 
       <h2 id="install">Install</h2>
-      <p>You need macOS, Node 20 or later, and Claude Code (<code>claude</code>) signed in.</p>
-      <pre><code>npm install -g @jainil_desai/fleet
-fleet</code></pre>
-      <p>Fleet starts a server on <code>http://localhost:7788</code> and opens it. Options:</p>
+      <p>You need:</p>
+      <ul>
+        <li>macOS.</li>
+        <li>Node 20 or later.</li>
+        <li>Claude Code (<code>claude</code>), signed in.</li>
+        <li>tmux.</li>
+        <li>Optional: the GitHub CLI (<code>gh</code>), signed in. With it, Fleet follows the team's <a href="#pull-requests">pull requests</a>.</li>
+      </ul>
+      <pre class="install"><code>brew install tmux          # and optionally: brew install gh
+npm install -g @jainil_desai/fleet
+cd ~/code/my-app           # any git repo
+fleet                      # opens http://localhost:7788</code></pre>
+      <p>Fleet works on one git repo per run: the folder you start it in, or the one you pass with <code>--repo</code>.</p>
       <table>
         <tr><th>Option</th><th>What it does</th></tr>
-        <tr><td><code>--port 8000</code></td><td>Use another port. <code>FLEET_PORT</code> works too.</td></tr>
-        <tr><td><code>--no-open</code></td><td>Start the server without opening a browser tab.</td></tr>
-        <tr><td><code>--autostart</code></td><td>Start Fleet at login, in the background. See <a href="#autostart">Start at login</a>.</td></tr>
-        <tr><td><code>--stop</code>, <code>--start</code></td><td>Stop Fleet for now, or start the background copy again. See <a href="#autostart">Start at login</a>.</td></tr>
-        <tr><td><code>--help</code></td><td>List the options.</td></tr>
+        <tr><td><code>--repo &lt;path&gt;</code></td><td>The git repo the team works on. Default: this folder, or <code>FLEET_REPO</code>.</td></tr>
+        <tr><td><code>--port &lt;n&gt;</code></td><td>Serve on another port. Default 7788, or <code>FLEET_PORT</code>.</td></tr>
+        <tr><td><code>--no-open</code></td><td>Don't open a browser tab.</td></tr>
+        <tr><td><code>--autostart</code>, <code>--no-autostart</code>, <code>--stop</code>, <code>--start</code></td><td>Run Fleet in the background from login. See <a href="#autostart">Start at login</a>.</td></tr>
+        <tr><td><code>-h</code>, <code>--help</code></td><td>List the options.</td></tr>
       </table>
-      <p>To try it without installing, run <code>npx @jainil_desai/fleet</code>. Install it globally if you want <a href="#plan-limits">plan limits</a>, because that setup points at Fleet's install folder, which <code>npx</code> doesn't keep.</p>
-      <p>From source: <code>git clone https://github.com/jainilDesai/fleet.git</code>, then <code>node bin/fleet.js</code> in that folder. There is nothing to build or install.</p>
+      <p>To try it without installing:</p>
+      <pre class="install"><code>npx @jainil_desai/fleet --repo ~/code/my-app</code></pre>
+      <p>From source:</p>
+      <pre class="install"><code>git clone https://github.com/jainilDesai/fleet.git &amp;&amp; cd fleet
+npm install &amp;&amp; npm run build
+node bin/fleet.js --repo &lt;path&gt;</code></pre>
+      <p class="note">Optional: <code>brew install terminal-notifier</code> makes notification banners clickable. See <a href="#notifications">Notifications</a>.</p>
 
       <h2 id="first-run">First run</h2>
-      <p>Running sessions show up within a couple of seconds, wherever you started them: Terminal, iTerm, or an editor's built-in terminal. Fleet starts reading your past sessions for <a href="#history">History</a> in the background; about 1,000 sessions take around 12 seconds.</p>
-      <p>The first time you launch an agent or click <b>Show terminal</b>, macOS asks whether your terminal (or Node) may control Terminal or iTerm. Allow it once.</p>
-      <div class="note">Optional: <code>brew install terminal-notifier</code> makes notification banners clickable. See <a href="#notifications">Notifications</a>.</div>
+      <ol class="steps">
+        <li>The <strong>Set up your team</strong> window opens. Name the project, the lead and each agent, pick their roles, and choose whether PRs get reviewed before merge. Click <strong>Create team</strong>. This is saved in <code>~/.fleet</code>, never in your repo. You can change all of it later in Settings.</li>
+        <li>Click <strong>Start team</strong> in the top bar. It starts only the CTO. The others start the first time the CTO gives them work.</li>
+        <li>Message the CTO with what you want built.</li>
+      </ol>
+      <p>A new agent may stop on Claude Code's folder-trust prompt. It shows up in <a href="#actions">Actions</a> with <strong>Open in iTerm</strong>. Open it and answer the prompt there.</p>
+      <p>The first time you click <strong>Open in iTerm</strong>, macOS asks whether Fleet (your terminal or Node) may control iTerm or Terminal. Allow it once.</p>
 
       <h2 id="autostart">Start at login</h2>
-      <p>Fleet can run in the background all the time, so notifications and History never miss a session.</p>
-      <pre><code>fleet --autostart       # start at login, in the background, and start it now
-fleet --stop            # stop it for now; it starts again at the next login
-fleet --start           # start the background copy again now
-fleet --no-autostart    # turn auto-start off and stop the background copy</code></pre>
-      <p><code>fleet --stop</code> also stops a copy you started by hand. Stopping the background copy any other way doesn't stick: macOS restarts it, because it's set to come back after a crash.</p>
-      <p>The background copy doesn't open a browser tab; open <code>http://localhost:7788</code> whenever you want it. It restarts if it crashes and writes to <code>~/.fleet/fleet.log</code>. It uses about 100&nbsp;MB of memory and around 1% CPU.</p>
-      <p>Under the hood this is a standard macOS LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.plist</code>. Add <code>--port &lt;n&gt;</code> to <code>--autostart</code> to use another port.</p>
-      <div class="note">If you update Node with nvm, run <code>fleet --autostart</code> again: the login item records the Node it was set up with. Fleet reminds you when you start it by hand.</div>
+      <p>Fleet can run in the background for one repo, all the time.</p>
+      <pre class="install"><code>fleet --autostart          # start at login for this repo, in the background, and start it now
+fleet --stop               # stop it for now; it starts again at the next login
+fleet --start              # start the background copy again now
+fleet --no-autostart       # turn auto-start off and stop the background copy</code></pre>
+      <ul>
+        <li>It remembers the repo you set it up from (or <code>--repo &lt;path&gt;</code>). Run <code>fleet --autostart</code> again to switch repos.</li>
+        <li>Add <code>--port &lt;n&gt;</code> to <code>--autostart</code> to use another port.</li>
+        <li>The background copy doesn't open a browser tab. Open <code>http://localhost:7788</code> when you want it.</li>
+        <li>It restarts if it crashes and logs to <code>~/.fleet/fleet.log</code>.</li>
+        <li>It's a standard macOS LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.plist</code>.</li>
+      </ul>
+      <p class="note">If you update Node through nvm, run <code>fleet --autostart</code> again. Fleet reminds you when you start it by hand. If you set up auto-start before 0.3.0, also run <code>fleet --autostart</code> again from your repo, or the background copy can't start.</p>
 
       <h2 id="update">Update and uninstall</h2>
-      <pre><code>npm install -g @jainil_desai/fleet@latest    # update
+      <pre class="install"><code>npm install -g @jainil_desai/fleet@latest    # update
 npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
-      <p>If you turned on <a href="#autostart">start at login</a>, run <code>fleet --no-autostart</code> before uninstalling. Fleet keeps its own files in <code>~/.fleet</code>; delete that folder to remove its history and settings. If you set up <a href="#plan-limits">plan limits</a>, also remove the <code>statusLine</code> block from <code>~/.claude/settings.json</code>, or put back the one Fleet wrapped.</p>
+      <p>If you turned on <a href="#autostart">start at login</a>, run <code>fleet --no-autostart</code> before you uninstall. Fleet keeps its own files in <code>~/.fleet</code>. Delete that folder to remove its teams, plans and history.</p>
 
-      <h2 id="agents">Agents</h2>
-      <p>Every live Claude Code session, grouped by repo. Each card shows:</p>
+      <h2 id="the-office">The office</h2>
+      <p>Every team member is a character at a desk. The desk shows its state: working, idle, needs you, or in review. The top bar shows how many agents are running and how many things are waiting on you.</p>
+      <p>The <strong>plan wall</strong> holds the boards and tasks the CTO creates, with status (to do, in progress, in review, done, blocked) and owner. Tasks update as agents report back and as their pull requests are reviewed and merged.</p>
+      <p>Click an agent to open its drawer:</p>
       <ul>
-        <li>Its status: working (green), waiting on you (amber) or idle (grey).</li>
-        <li>Its model, git branch, the latest prompt, and the tool call it's running now.</li>
-        <li>Its cost and tokens, including all of its subagents, and how full its context window is.</li>
+        <li><strong>Task:</strong> what it's working on, the task's notes, and its branch.</li>
+        <li><strong>Messages:</strong> everything between you, the CTO and that agent, rendered as Markdown (headings, lists, tables, code). Long replies start collapsed with <strong>Show all</strong>.</li>
+        <li><strong>Open in iTerm:</strong> attaches to the agent's tmux session (<code>tmux attach -t fleet-&lt;repo&gt;-&lt;agent&gt;</code>). You can read or type into the real Claude Code session.</li>
       </ul>
-      <p>The bar at the top counts live sessions, how many are working, running subagents, and the total cost of live sessions.</p>
-      <div class="shot"><img src="agents.png" width="1500" height="860" alt="The Agents page with five sessions in three repos" loading="lazy" /></div>
+      <figure>
+        <img src="agent.png" alt="An agent's drawer open on its Messages tab, next to the office" loading="lazy" width="1440" height="900" />
+        <figcaption>An agent's drawer: its task and messages.</figcaption>
+      </figure>
 
-      <h2 id="session">A session's panel</h2>
-      <p>Click a session to open its panel:</p>
+      <h2 id="the-team">The team</h2>
+      <p>A new project starts with a CTO (the lead) and five roles. Each role has a short role text, a model and a Claude Code permission mode. You can edit all three in <strong>Settings → Team</strong>.</p>
+      <table>
+        <tr><th>Role</th><th>Does</th></tr>
+        <tr><td>CTO</td><td>Talks to you, plans the flow, creates and assigns tasks. Never writes app code or deploys.</td></tr>
+        <tr><td>Planner</td><td>Turns a request into a plan that follows the repo's own rules. Doesn't change code.</td></tr>
+        <tr><td>Implementer</td><td>Builds the approved plan on its branch and commits.</td></tr>
+        <tr><td>QA</td><td>Checks out the branch, installs, tests, and reports pass/fail with evidence.</td></tr>
+        <tr><td>Reviewer</td><td>Reviews the diff for bugs and simplicity, ranked by severity.</td></tr>
+        <tr><td>Deployer</td><td>Deploys only when you asked, and asks you to approve each deploy first. Starts in <code>default</code> permission mode.</td></tr>
+      </table>
+      <p>The default role texts are generic. They follow your repo's own instructions (<code>CLAUDE.md</code>) and use any skills you have. See <a href="#customise">Customise your team</a> to make them your flow.</p>
+      <figure>
+        <img src="team.png" alt="Settings, Team: an agent expanded with its role text, Load role from file and Skills for this agent" loading="lazy" width="1440" height="900" />
+        <figcaption>Settings → Team.</figcaption>
+      </figure>
+
+      <h2 id="actions">Actions</h2>
+      <p>Actions is one list of everything that needs you.</p>
       <ul>
-        <li><b>Cost and tokens</b>, split between the session and its subagents, with input, cache and output detail.</li>
-        <li><b>Latest prompt</b>, in full.</li>
-        <li><b>Subagents</b>, as a tree (nested ones included), each with its type, model, state, cost and current action.</li>
-        <li><b>Workflows</b>, as phase columns (for example Foundation, Build, Integrate, Review) with every workflow agent under its phase.</li>
-        <li><b>Recent activity</b>, a timeline of the last tool calls.</li>
+        <li><strong>Questions and approvals.</strong> An agent asks with <code>ask_user</code>, for example "Approve plan: …" or "Approve deploy to production: …". Mark it <strong>Done</strong> or <strong>Dismiss</strong> it. A waiting agent continues with your answer.</li>
+        <li><strong>Permission prompts.</strong> When Claude Code asks to run a command or edit a file, the request shows here with the full command. <strong>Allow</strong> or <strong>Deny</strong> it from the browser, or answer in the terminal. Either one closes the other.</li>
+        <li><strong>Agents waiting in their terminal,</strong> for example on the folder-trust prompt, with <strong>Open in iTerm</strong>.</li>
       </ul>
-      <p><b>Show terminal</b> brings the session's window forward and, for Terminal and iTerm, selects its exact tab. Sessions inside an editor (VS Code, Cursor, Zed) bring the editor forward. <b>Copy resume command</b> gives you the <code>claude --resume</code> line for that session.</p>
-      <div class="shot"><img src="session.png" width="1500" height="860" alt="A session's panel with its cost split, latest prompt, subagents and recent activity" loading="lazy" /></div>
+      <p>A production deploy is labelled <code>⚠ PRODUCTION deploy: &lt;branch&gt;</code>, so it never looks routine.</p>
+      <p class="note">Nothing is allowed automatically. Agents can do whatever their permission mode allows. Anything that needs approval waits for you.</p>
+      <figure>
+        <img src="actions.png" alt="The Action items list with two requests from agents, each with steps and Done or Dismiss" loading="lazy" width="1440" height="900" />
+        <figcaption>A plan approval and a permission prompt in Actions.</figcaption>
+      </figure>
 
-      <h2 id="summaries">Summaries</h2>
-      <p>Click ✦ on a session, subagent or workflow agent for a two or three line summary: what it's working on, where it's at, and whether it's waiting on you, blocked or going in circles.</p>
-      <p>Summaries are written by Claude Haiku through your own <code>claude</code> login and take about 3 seconds. Each one is cached until the agent does more work, and an outdated one is flagged. The summarizer runs with no tools, MCP servers, settings files, hooks or plugins, saves no transcript, and never appears on the board. It only runs when you click.</p>
-
-      <h2 id="history">History</h2>
-      <p>Claude Code deletes transcripts older than <code>cleanupPeriodDays</code>, 30 days by default. Fleet keeps a record of every session anyway: its title, project, branch, model, start and end time, cost including subagents, the first and last thing you asked, and the files it edited.</p>
+      <h2 id="customise">Customise your team</h2>
+      <p>Out of the box every agent is generic. Make it work the way you do in <strong>Settings → Team → More</strong>, for any agent, the CTO included.</p>
       <ul>
-        <li>Sessions are grouped by day. Search covers titles, prompts, files, projects and session ids.</li>
-        <li>Open a session to see its details, copy its resume command, or summarize what it did. Summaries are saved with the record.</li>
-        <li>Sessions whose transcript Claude Code has deleted are marked <b>Archived</b>. Their record stays; resuming and new summaries need the transcript.</li>
+        <li><strong>Role.</strong> Rewrite what the agent does, or click <strong>Load role from file…</strong> to use a Markdown file. Fleet adds the team, the rules and the tools around it.</li>
+        <li><strong>Skills.</strong> Paste a <code>SKILL.md</code> or click <strong>Load SKILL.md…</strong>, give it a name, and click <strong>Add skill</strong>. Fleet writes it to <code>.claude/skills/fleet-&lt;name&gt;/SKILL.md</code> in that agent's worktree, where Claude Code loads it. It's never committed, and the repo's own skills are never touched. A skill without frontmatter gets a <code>name</code> and <code>description</code> added. Each agent can have up to 20 skills of up to 100 KB each.</li>
       </ul>
-      <p>Fleet re-reads only transcripts that grew, once a minute. Records live in <code>~/.fleet/history.json</code>; delete it to start over. "Files edited" counts edits made with Claude's Edit and Write tools, not changes made by shell commands.</p>
-      <div class="shot"><img src="history.png" width="1500" height="860" alt="History grouped by day, with one session expanded" loading="lazy" /></div>
+      <p>Changes apply the next time the agent starts.</p>
+      <h3>Skills for every agent</h3>
+      <p>Skills in <code>~/.claude/skills</code> (or the repo's <code>.claude/skills</code>) already work for all agents. Point to them by name in a role, for example "Test UI changes with the <code>browser-test</code> skill."</p>
+      <h3>Your defaults for every repo</h3>
+      <p>Save role texts as <code>~/.fleet/roles/&lt;role&gt;.md</code>: <code>cto.md</code> for the lead, and <code>planner.md</code>, <code>implementer.md</code>, <code>qa.md</code>, <code>reviewer.md</code>, <code>deployer.md</code>, or any role name you use. A new team, or an agent you add, starts from your file instead of the built-in text. Teams you already have keep their saved text.</p>
+      <p>For example, <code>~/.fleet/roles/qa.md</code>:</p>
+      <pre><code>You are QA. You test the branch the lead names and report pass/fail with evidence.
+
+- Run `npm ci &amp;&amp; npm test`, then test the change in the browser with the `browser-test` skill.
+- Only use the staging environment; never production.
+- Report what you ran, what passed, what failed (exact output), and what you couldn't test.</code></pre>
+
+      <h2 id="pull-requests">Pull requests</h2>
+      <p>With <code>gh</code> signed in and a GitHub <code>origin</code>, Fleet polls the repo's pull requests. It links each one to its task and agent, and reacts:</p>
+      <ul>
+        <li>Review comments go to the PR's author.</li>
+        <li>A passed review goes to the CTO.</li>
+        <li>A merge marks the task done.</li>
+      </ul>
+      <p>Only PRs from the team's own branches count. PRs from forks are ignored.</p>
+      <p>In <strong>Settings → Workflow</strong> you choose the review tool (CodeRabbit, Greptile, Copilot, a human, or a custom check) and whether you or the CTO merges.</p>
 
       <h2 id="notifications">Notifications</h2>
-      <p>Fleet tells you when:</p>
+      <p>Fleet still watches every Claude Code session on your Mac. It sends a macOS banner when one needs you or finishes a long turn, even with the page closed. With <code>terminal-notifier</code> installed, banners are clickable.</p>
+      <p class="fine">0.3.0 removed the old Agents, History, Usage, MCP and Plugins pages. History is still recorded in <code>~/.fleet/history.json</code>, but isn't shown in the UI.</p>
+
+      <h2 id="how-it-works">How it works</h2>
       <ul>
-        <li>an agent <b>needs you</b>: it asked a question (the question is shown), wants a permission, or has a plan ready for review;</li>
-        <li>an agent <b>finished</b> a turn that took over 20 seconds, so quick replies don't ping you;</li>
-        <li>a background subagent is done, a workflow completes, or a workflow agent fails.</li>
+        <li><strong>Agents.</strong> Each one is <code>claude</code> running in a tmux session named <code>fleet-&lt;repo&gt;-&lt;agent&gt;</code>, started through your login shell so it has your usual <code>PATH</code>. The CTO starts with <strong>Start team</strong>. The others start the first time they get a task or a message. They keep running if you close Fleet.</li>
+        <li><strong>Worktrees.</strong> Each agent works in its own git worktree at <code>~/.fleet/projects/&lt;repo&gt;/&lt;agent&gt;</code>, on a branch <code>fleet/&lt;agent&gt;</code> taken from the default branch. Your own checkout is never touched.</li>
+        <li><strong>Team tools.</strong> Agents talk to Fleet through a small MCP server at <code>http://127.0.0.1:&lt;port&gt;/mcp</code>: <code>list_workers</code>, <code>get_status</code>, <code>list_tasks</code>, <code>create_board</code>, <code>create_task</code>, <code>update_task</code>, <code>assign_task</code> (lead only), <code>get_my_task</code>, <code>set_my_status</code>, <code>ask_user</code> and <code>send_message</code>.</li>
+        <li><strong>Live state.</strong> Claude Code hooks in each worktree post to Fleet when an agent starts a turn, uses a tool, needs input or stops. A message for a busy agent is held and handed over when its turn ends.</li>
+        <li><strong>Permission prompts.</strong> They reach Actions through Claude Code's <code>PermissionRequest</code> hook. Fleet holds that request open until you answer.</li>
+        <li><strong>Files in each worktree</strong>, all excluded from git through the repo's <code>info/exclude</code>: <code>.fleet-role.md</code> (the role text), <code>.claude/settings.local.json</code> (the hooks), <code>.claude/fleet-mcp.json</code> (the MCP connection) and <code>.claude/skills/fleet-*/</code> (skills you attached). The files that hold the agents' access token are readable by you only.</li>
+        <li><strong>State</strong> lives in <code>~/.fleet/projects/&lt;repo&gt;/</code>: team config, plan, action items, the inbox and recent message history. A restart picks up where it left off.</li>
       </ul>
-      <p>These appear in the bell's inbox, as a count in the tab title, and as macOS notification banners while Fleet is running, even with the dashboard closed. Turn banners off in the inbox. Subagent completions only go to the inbox. The last 200 events are kept in <code>~/.fleet/events.jsonl</code>.</p>
-      <h3>Clickable banners</h3>
-      <p>Install <code>terminal-notifier</code> and clicking a banner brings that session's terminal window and tab forward. A banner that groups several agents opens the dashboard instead.</p>
-      <pre><code>brew install terminal-notifier</code></pre>
-      <p>Without it, banners are informational: macOS gives plain script banners no way to act on a click, so clicking one opens an unrelated app.</p>
-      <p>Detection is plain code that compares session states every 1.5 seconds. It uses no hooks and makes no AI calls.</p>
-
-      <h2 id="new-agent">New agent</h2>
-      <p>Pick a repo, a model (Haiku, Sonnet, Opus, Fable), effort, permission mode, an optional name and first prompt, and optionally its own git worktree. Fleet opens a new Terminal or iTerm window running that <code>claude</code> command, through your own login shell (<code>$SHELL</code>), so it gets the same <code>PATH</code> and environment as a terminal you open yourself. The command is previewed before you launch.</p>
-      <p>Your first prompt is written to a private, self-deleting script, so it never passes through AppleScript quoting.</p>
-
-      <h2 id="usage">Usage</h2>
-      <ul>
-        <li><b>Plan limits</b>: your 5-hour and weekly percentages, the same numbers <code>/usage</code> shows, with reset times.</li>
-        <li><b>Today</b>: cost by model and by project, and how much went to top-tier models.</li>
-        <li><b>Last 30 days</b>: tokens per day, split by model.</li>
-        <li><b>All time</b>: cost per model.</li>
-      </ul>
-
-      <h2 id="plan-limits">Plan limits</h2>
-      <p>Claude Code exposes plan-limit percentages in one place: the statusline command it runs after each turn. Fleet ships <code>bin/statusline.js</code>, which saves them to <code>~/.fleet/limits.json</code> and prints a short status line.</p>
-      <p>Fleet never edits <code>~/.claude/settings.json</code> itself. The Usage page shows the exact block to paste. If you already have a statusline, the block wraps it: your script gets the same input and its output is what your terminal shows, so nothing changes visually.</p>
-      <pre><code>"statusLine": {
-  "type": "command",
-  "command": "/path/to/node /path/to/fleet/bin/statusline.js ~/.claude/scripts/your-bar.sh"
-}</code></pre>
-      <p>With a global install, Fleet's folder is <code>$(npm root -g)/@jainil_desai/fleet</code>.</p>
-
-      <h2 id="mcp">MCP, plugins and skills</h2>
-      <p><b>MCP servers</b> lists every server with its health, split into claude.ai connectors, user servers, local (per-project) servers and project servers. Scope conflicts are flagged. The health check takes about 20 seconds because Claude Code connects to each server.</p>
-      <p><b>Plugins &amp; skills</b> lists installed plugins and what each ships, user and plugin skills, custom agents, commands and user-level hooks, all searchable.</p>
-
-      <h2 id="how">How it works</h2>
-      <p>Everything comes from files and commands Claude Code already provides.</p>
-      <table>
-        <tr><th>Data</th><th>Source</th></tr>
-        <tr><td>Live sessions</td><td><code>~/.claude/sessions/&lt;pid&gt;.json</code>, filtered to running processes</td></tr>
-        <tr><td>Prompts, tool calls, tokens</td><td>Session transcripts in <code>~/.claude/projects</code>, read from the last byte seen</td></tr>
-        <tr><td>Subagents</td><td><code>&lt;session&gt;/subagents/agent-*.jsonl</code> and their <code>.meta.json</code></td></tr>
-        <tr><td>Workflows</td><td><code>&lt;session&gt;/workflows/*.json</code> and their agents' transcripts</td></tr>
-        <tr><td>History</td><td>Every transcript on disk, kept in <code>~/.fleet/history.json</code></td></tr>
-        <tr><td>Daily usage</td><td><code>~/.claude/stats-cache.json</code></td></tr>
-        <tr><td>Plan limits</td><td><code>bin/statusline.js</code>, saved to <code>~/.fleet/limits.json</code></td></tr>
-        <tr><td>Summaries</td><td><code>claude -p --model haiku</code> over the end of a transcript</td></tr>
-        <tr><td>MCP, plugins, account</td><td><code>claude mcp list</code>, <code>claude plugin list</code>, <code>claude auth status</code></td></tr>
-      </table>
-
-      <h2 id="costs">About costs</h2>
-      <p>Fleet multiplies token counts by API list prices. A Pro or Max subscription isn't billed per token, so read the numbers as what the work would cost on the API. They're useful for comparing sessions and models, not as a bill.</p>
 
       <h2 id="privacy">Privacy</h2>
       <table>
         <tr><th></th><th>What</th></tr>
-        <tr><td>Reads</td><td>What Claude Code writes under <code>~/.claude</code>, and the output of <code>claude mcp list</code>, <code>claude plugin list</code> and <code>claude auth status</code>.</td></tr>
-        <tr><td>Stores</td><td>Only in <code>~/.fleet</code>: <code>history.json</code> (a record per session, including your first and last prompt), <code>events.jsonl</code> (the last 200 notifications), <code>limits.json</code> and <code>config.json</code>.</td></tr>
-        <tr><td>Sends</td><td>Only summaries, and only when you ask for one: the end of that transcript goes to Claude Haiku through your own <code>claude</code> login. No telemetry, no other network calls.</td></tr>
+        <tr><td>Reads</td><td>What Claude Code writes under <code>~/.claude</code> (session registry and transcripts), and the agents' own transcripts to show their replies.</td></tr>
+        <tr><td>Writes</td><td>Everything Fleet keeps is in <code>~/.fleet</code>. In your repo, Fleet adds git worktrees and the excluded files above. It doesn't change your own checkout or your Claude Code settings.</td></tr>
+        <tr><td>Sends</td><td>Fleet itself only calls GitHub through your <code>gh</code> login, to read the repo's pull requests. No telemetry. Your agents are ordinary Claude Code sessions and use your own login.</td></tr>
       </table>
-      <p>This website loads nothing from other servers either: no analytics, no web fonts.</p>
 
       <h2 id="security">Security</h2>
-      <p>Fleet listens on <code>127.0.0.1</code> only. Launching agents and focusing windows start processes, so those requests need a token that changes every run and is only in the page Fleet serves. Requests whose <code>Host</code> isn't localhost are rejected, which blocks DNS-rebinding attacks from other websites.</p>
+      <p>Fleet listens on <code>127.0.0.1</code> only. Every action from the page (starting agents, sending messages, answering permissions) needs a per-run token embedded in the page Fleet serves. Any request whose <code>Host</code> header isn't localhost is rejected, which blocks DNS-rebinding attacks from other websites. Agents reach the hook and MCP endpoints with a separate agent token.</p>
+      <p>Agents can do whatever their permission mode allows. Prompts that need approval wait for you, and Fleet never approves one on its own.</p>
 
       <h2 id="compatibility">Compatibility</h2>
-      <p>Fleet reads Claude Code's own files, which Claude Code doesn't document as a stable format. It's tested with Claude Code 2.1.28x. If an update changes the transcript format, the Agents page says it can't read those sessions instead of showing empty numbers. Please <a href="https://github.com/jainilDesai/fleet/issues">open an issue</a> with your <code>claude --version</code>.</p>
-      <p>Fleet runs on macOS only: opening and focusing terminals uses AppleScript.</p>
+      <p>The team runs on Claude Code's documented hooks and MCP support. Fleet also reads agents' transcripts to show their replies, and detects prompts in the tmux pane. Neither is a documented stable format. If an update breaks something, please <a href="https://github.com/jainilDesai/fleet/issues">open an issue</a> with your <code>claude --version</code>.</p>
+
+      <h2 id="limits">Limits</h2>
+      <ul>
+        <li>macOS only. Open in iTerm uses AppleScript.</li>
+        <li>One repo per run. To work on two repos, run two copies on different ports.</li>
+        <li>Each agent's worktree starts without <code>node_modules</code>. QA installs before it tests.</li>
+      </ul>
 
       <h2 id="troubleshooting">Troubleshooting</h2>
-      <dl>
-        <dt>Show terminal or New agent does nothing</dt>
-        <dd>macOS blocked Fleet from controlling your terminal. Allow it in System Settings, Privacy &amp; Security, Automation, then try again.</dd>
-        <dt>A new agent's window opens and closes right away</dt>
-        <dd>Your login shell can't find <code>claude</code>. Check with <code>$SHELL -ilc 'command -v claude'</code>; if it prints nothing, add Claude Code's folder to <code>PATH</code> in your shell's startup file.</dd>
-        <dt>Clicking a banner opens Finder or another app</dt>
-        <dd>Install <code>terminal-notifier</code> (see <a href="#notifications">Notifications</a>), then restart Fleet.</dd>
-        <dt>"Port 7788 is in use"</dt>
-        <dd>Fleet is probably already running. Open <code>http://localhost:7788</code>, or start another copy with <code>--port</code>.</dd>
-        <dt>A session is missing</dt>
-        <dd>The board only lists running sessions. Ended ones are in History.</dd>
-        <dt>Plan limits show nothing</dt>
-        <dd>They arrive through the statusline. Set it up as in <a href="#plan-limits">Plan limits</a>, then send any message in a Claude Code session.</dd>
-        <dt>The costs look high for my Max plan</dt>
-        <dd>They're API-equivalent estimates, not what you pay. See <a href="#costs">About costs</a>.</dd>
-      </dl>
+      <h3>"… is not inside a git repository"</h3>
+      <p>Run <code>fleet</code> from your project folder, or pass <code>--repo &lt;path&gt;</code>.</p>
+      <h3>"tmux is not installed"</h3>
+      <p>Run <code>brew install tmux</code>, then start Fleet again.</p>
+      <h3>An agent is stuck and nothing happens</h3>
+      <p>It's probably waiting on Claude Code's folder-trust prompt. Find it in <a href="#actions">Actions</a>, click <strong>Open in iTerm</strong>, and answer the prompt.</p>
+      <h3>Open in iTerm does nothing</h3>
+      <p>macOS blocked Fleet from controlling your terminal. Allow it in System Settings → Privacy &amp; Security → Automation, then try again.</p>
+      <h3>"Port 7788 is in use"</h3>
+      <p>Fleet is probably already running. Open <code>http://localhost:7788</code>, or start another copy with <code>--port &lt;n&gt;</code>.</p>
+      <h3>A permission prompt disappeared from Actions</h3>
+      <p>Fleet holds a permission request for up to 10 minutes. If you don't answer in time, or Fleet restarts, the agent asks in its terminal instead. Answer it there with <strong>Open in iTerm</strong>.</p>
+      <h3>The background copy doesn't start after upgrading</h3>
+      <p>Auto-start now remembers the repo. Run <code>fleet --autostart</code> again from your repo. Do the same after updating Node through nvm.</p>
+      <h3>"Fleet isn't built yet"</h3>
+      <p>You're running from source. Run <code>npm install &amp;&amp; npm run build</code> in the Fleet folder first.</p>
 
-      <h2 id="contributing">Contributing</h2>
-      <pre><code>git clone https://github.com/jainilDesai/fleet.git && cd fleet
-npm test                                  # runs against fake transcripts
-node bin/fleet.js --port 7799 --no-open</code></pre>
-      <p>No build step and no dependencies. UI files load when the server starts, so restart it after editing <code>public/</code>. This site lives in <code>docs/</code>. Issues and pull requests are welcome on <a href="https://github.com/jainilDesai/fleet">GitHub</a>.</p>
+      <h2 id="development">Development</h2>
+      <pre class="install"><code>npm install
+npm run build              # hq/ → public/ (the office UI) and dist/hq.mjs (the team server)
+npm test                   # node --test
+node bin/fleet.js --repo &lt;path&gt; --port 7799 --no-open
+npm run dev                # Vite dev server for the UI, proxied to Fleet on 7788</code></pre>
+      <p>The office UI (React, pixi.js) and the team server (TypeScript, MCP SDK) live in <code>hq/</code>. <code>npm run build</code> bundles both, so the published package has no runtime dependencies. <code>public/</code> and <code>dist/</code> are build output and aren't committed. This site lives in <code>docs/</code>. Issues and pull requests are welcome on <a href="https://github.com/jainilDesai/fleet">GitHub</a>.</p>
+
+      <h2 id="credits">Credits and license</h2>
+      <p>Fleet is MIT licensed. Its office UI and team server are adapted from <a href="https://github.com/jsmastery-pro/jsm-hq">JSM HQ</a> by JavaScript Mastery, also MIT. JSM HQ's license is in <a href="https://github.com/jainilDesai/fleet/blob/main/hq/LICENSE-jsm-hq"><code>hq/LICENSE-jsm-hq</code></a>. Fleet takes HQ's office and team model and runs it without Docker or a browser terminal.</p>
+      <p class="fine">JSM HQ's name and logo belong to JavaScript Mastery. Fleet is not affiliated with or endorsed by JavaScript Mastery or Anthropic. Claude and Claude Code are trademarks of Anthropic.</p>
     </article>
-  </div>
+  </main>
 
-  <footer>
+  <footer class="foot">
     <div class="wrap">
-      <span>Fleet is MIT licensed and not affiliated with Anthropic. Claude and Claude Code are trademarks of Anthropic.</span>
-      <span><a href="https://github.com/jainilDesai/fleet">GitHub</a> &nbsp; <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a> &nbsp; <a href="changelog.html">Changelog</a></span>
+      <p><a href="https://github.com/jainilDesai/fleet">GitHub</a> · <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a> · <a href="changelog.html">Changelog</a></p>
+      <p class="fine">Fleet is MIT licensed and not affiliated with or endorsed by Anthropic or JavaScript Mastery. Claude and Claude Code are trademarks of Anthropic.</p>
     </div>
   </footer>
-  <script src="site.js" defer></script>
 </body>
 </html>

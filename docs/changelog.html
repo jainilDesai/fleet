@@ -8,14 +8,14 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="site.css" />
   <meta property="og:title" content="Fleet changelog" />
-  <meta property="og:image" content="https://fleet.jainildesai.com/agents.png" />
+  <meta property="og:image" content="https://fleet.jainildesai.com/office.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href="https://fleet.jainildesai.com/changelog.html" />
 </head>
 <body>
   <header class="bar">
     <div class="wrap">
-      <a class="mark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2b59c3"/><circle cx="10" cy="11" r="3" fill="#4ade80"/><rect x="15" y="9.5" width="10" height="3" rx="1.5" fill="#fff"/><circle cx="10" cy="21" r="3" fill="#fbbf24"/><rect x="15" y="19.5" width="7" height="3" rx="1.5" fill="#fff"/></svg>Fleet</a>
+      <a class="mark" href="./"><svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><rect width="16" height="16" fill="#241a2e"/><rect x="1" y="1" width="14" height="14" fill="#1d2b53"/><rect x="2" y="2" width="12" height="9" fill="#241a2e"/><rect x="3" y="3" width="10" height="7" fill="#29adff"/><rect x="4" y="4" width="5" height="1" fill="#fff6e9"/><rect x="4" y="6" width="3" height="1" fill="#00e436"/><rect x="8" y="6" width="3" height="1" fill="#fff6e9"/><rect x="4" y="8" width="1" height="1" fill="#ffec27"/><rect x="7" y="11" width="2" height="1" fill="#241a2e"/><rect x="1" y="12" width="14" height="1" fill="#ffa300"/><rect x="1" y="13" width="14" height="2" fill="#241a2e"/><rect x="2" y="13" width="1" height="2" fill="#ffa300"/><rect x="13" y="13" width="1" height="2" fill="#ffa300"/></svg>Fleet</a>
       <nav class="tabs" aria-label="Site">
         <a href="./">Home</a>
         <a href="docs.html">Docs</a>
@@ -29,6 +29,18 @@
     <div class="hero">
       <h1>Changelog</h1>
       <p class="lede">Every release of Fleet. Update with <code>npm install -g @jainil_desai/fleet@latest</code>.</p>
+    </div>
+
+    <div class="release">
+      <div>
+        <h2>0.3.1</h2>
+        <time datetime="2026-11-14">14 November 2026</time>
+      </div>
+      <div>
+        <ul>
+          <li>The top bar fits at every window width. Below 1536px it hides the repo path and the "Plan wall" label, so the project name always shows (hover it for the repo).</li>
+        </ul>
+      </div>
     </div>
 
     <div class="release">
@@ -136,10 +148,15 @@
     </div>
   </main>
 
-  <footer>
+  <footer class="foot">
     <div class="wrap">
-      <span>Fleet is MIT licensed and not affiliated with Anthropic. Claude and Claude Code are trademarks of Anthropic.</span>
-      <span><a href="https://github.com/jainilDesai/fleet">GitHub</a> &nbsp; <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a> &nbsp; <a href="docs.html">Docs</a></span>
+      <p>Fleet is free and MIT licensed. Office UI and team server adapted from <a href="https://github.com/jsmastery-pro/jsm-hq">JSM HQ</a> by JavaScript Mastery (MIT). Fleet is not affiliated with or endorsed by JavaScript Mastery or Anthropic. Claude and Claude Code are trademarks of Anthropic.</p>
+      <nav aria-label="Footer">
+        <a href="docs.html">Docs</a>
+        <a href="./">Home</a>
+        <a href="https://github.com/jainilDesai/fleet">GitHub</a>
+        <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a>
+      </nav>
     </div>
   </footer>
   <script src="site.js" defer></script>

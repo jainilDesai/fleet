@@ -3,22 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Fleet: every Claude Code session on your Mac, on one board</title>
-  <meta name="description" content="Fleet is a free, open-source dashboard for every Claude Code session on your Mac: what each agent is doing, its subagents and cost, a history that outlives transcript cleanup, and new agents in real terminals." />
+  <title>Fleet: a pixel office for a team of Claude Code agents</title>
+  <meta name="description" content="Fleet is a free, open-source pixel-art office for a CTO-led team of Claude Code agents on your Mac. Talk to the CTO; it plans and assigns work to the team. Every agent is a real Claude Code session in tmux, in its own git worktree." />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="fonts/pixelify-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="site.css" />
-  <meta property="og:title" content="Fleet: every Claude Code session on your Mac, on one board" />
-  <meta property="og:description" content="See what every agent is doing, what it costs, and what each session did, long after Claude Code deletes the transcript. Free and open source." />
+  <meta property="og:title" content="Fleet: a pixel office for a team of Claude Code agents" />
+  <meta property="og:description" content="Talk to one CTO agent. It plans the work and hands tasks to a Planner, Implementer, QA, Reviewer and Deployer, each a real Claude Code session. Free and open source." />
   <meta property="og:url" content="https://fleet.jainildesai.com/" />
-  <meta property="og:image" content="https://fleet.jainildesai.com/agents.png" />
+  <meta property="og:image" content="https://fleet.jainildesai.com/office.png" />
   <meta property="og:type" content="website" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Fleet: a pixel office for a team of Claude Code agents" />
+  <meta name="twitter:description" content="Talk to one CTO agent. It plans the work and hands tasks to the team, each a real Claude Code session. Free and open source." />
+  <meta name="twitter:image" content="https://fleet.jainildesai.com/office.png" />
   <link rel="canonical" href="https://fleet.jainildesai.com/" />
 </head>
 <body>
   <header class="bar">
     <div class="wrap">
-      <a class="mark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2b59c3"/><circle cx="10" cy="11" r="3" fill="#4ade80"/><rect x="15" y="9.5" width="10" height="3" rx="1.5" fill="#fff"/><circle cx="10" cy="21" r="3" fill="#fbbf24"/><rect x="15" y="19.5" width="7" height="3" rx="1.5" fill="#fff"/></svg>Fleet</a>
+      <a class="mark" href="./"><svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><rect width="16" height="16" fill="#241a2e"/><rect x="1" y="1" width="14" height="14" fill="#1d2b53"/><rect x="2" y="2" width="12" height="9" fill="#241a2e"/><rect x="3" y="3" width="10" height="7" fill="#29adff"/><rect x="4" y="4" width="5" height="1" fill="#fff6e9"/><rect x="4" y="6" width="3" height="1" fill="#00e436"/><rect x="8" y="6" width="3" height="1" fill="#fff6e9"/><rect x="4" y="8" width="1" height="1" fill="#ffec27"/><rect x="7" y="11" width="2" height="1" fill="#241a2e"/><rect x="1" y="12" width="14" height="1" fill="#ffa300"/><rect x="1" y="13" width="14" height="2" fill="#241a2e"/><rect x="2" y="13" width="1" height="2" fill="#ffa300"/><rect x="13" y="13" width="1" height="2" fill="#ffa300"/></svg>Fleet</a>
       <nav class="tabs" aria-label="Site">
         <a href="./" aria-current="page">Home</a>
         <a href="docs.html">Docs</a>
@@ -29,96 +33,150 @@
   </header>
 
   <main>
-    <div class="wrap hero">
-      <h1>Every Claude Code session on your Mac, on one board.</h1>
-      <p class="lede">Fleet shows what each agent is doing right now, the subagents it spawned and what it costs, across every repo and terminal. It keeps a record of every session after Claude Code deletes the transcript, and opens new agents in real terminal windows.</p>
-      <div class="actions">
-        <div class="install"><code>npm install -g @jainil_desai/fleet</code><button type="button" data-copy="npm install -g @jainil_desai/fleet">Copy</button></div>
-        <a class="ghost-btn" href="https://github.com/jainilDesai/fleet">Source on GitHub</a>
-      </div>
-      <p class="fine">Then run <code>fleet</code>. Free and open source, macOS, Node 20+.</p>
-
-      <div class="board" role="img" aria-label="Example board: five Claude Code sessions with their model, current action and cost">
-        <div class="board-head"><span></span><span>Session</span><span>Model</span><span class="h-now">Doing now</span><span class="cost">Cost</span></div>
-        <div class="row" data-name="checkout"><span class="dot busy"></span><span class="name">checkout</span><span class="model m-opus">Opus 5.5</span><span class="now"><b>Agent</b> Write tests for the one-click path</span><span class="cost">$0.74</span></div>
-        <div class="row" data-name="tax-rounding"><span class="dot wait"></span><span class="name">tax-rounding</span><span class="model m-sonnet">Sonnet 5</span><span class="now"><b>Waiting on you</b> Round half up or banker's rounding?</span><span class="cost">$0.10</span></div>
-        <div class="row" data-name="rate-limits"><span class="dot busy"></span><span class="name">rate-limits</span><span class="model m-sonnet">Sonnet 5</span><span class="now"><b>Write</b> src/middleware/rateLimit.ts</span><span class="cost">$0.15</span></div>
-        <div class="row" data-name="docs"><span class="dot busy"></span><span class="name">docs</span><span class="model m-sonnet">Sonnet 5</span><span class="now"><b>WebFetch</b> retry guidance for webhooks</span><span class="cost">$0.10</span></div>
-        <div class="row" data-name="deps"><span class="dot"></span><span class="name">deps</span><span class="model m-haiku">Haiku 4.5</span><span class="now"><b>Idle</b> Bumped minor versions, tests pass</span><span class="cost">$0.02</span></div>
-        <div class="board-foot">Five sessions in three repos. This board is a mock-up; Fleet updates its own every 1.5 seconds.</div>
+    <div class="stage">
+      <div class="wrap hero">
+        <div class="intro panel">
+          <h1>A pixel office for your Claude Code team.</h1>
+          <p class="lede">You talk to one agent, the CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen. Every agent is a real Claude Code session on your Mac.</p>
+          <div class="install"><code><span class="prompt" aria-hidden="true">$</span>npm install -g @jainil_desai/fleet</code><button type="button" data-copy="npm install -g @jainil_desai/fleet">Copy</button></div>
+          <div class="cta">
+            <a class="btn primary" href="docs.html">Read the docs</a>
+            <a class="btn" href="https://github.com/jainilDesai/fleet">GitHub</a>
+          </div>
+          <p class="fine">Then run <code>fleet</code> in a git repo. Free and open source (MIT). macOS, Node 20+, Claude Code and tmux.</p>
+        </div>
+        <figure class="shot hero-shot"><img src="office.png" alt="Fleet's pixel office: the team's agents at their desks and the plan wall with tasks" width="1440" height="900" /></figure>
       </div>
     </div>
 
-    <section class="part">
+    <section class="part" id="how">
+      <div class="wrap">
+        <p class="eyebrow">How it works</p>
+        <h2>You talk to the CTO. The CTO runs the team.</h2>
+        <p>The CTO breaks your request into tasks and assigns them. Each agent starts only when it's first needed.</p>
+        <div class="flow">
+          <div class="node panel"><h3>You</h3><p>Ask for a feature, a fix or a deploy.</p></div>
+          <div class="arrow" aria-hidden="true">&rarr;</div>
+          <div class="node panel-dark"><h3>CTO</h3><p>Plans the flow, creates and assigns tasks. Never writes app code or deploys.</p></div>
+          <div class="arrow" aria-hidden="true">&rarr;</div>
+          <ul class="team node panel" aria-label="The team">
+            <li><span class="chip" style="--c: #29adff">Planner</span>Turns the request into a plan.</li>
+            <li><span class="chip" style="--c: #00e436">Implementer</span>Builds the approved plan and commits.</li>
+            <li><span class="chip" style="--c: #ffa300">QA</span>Installs, tests, reports with evidence.</li>
+            <li><span class="chip" style="--c: #ff77a8">Reviewer</span>Reviews the diff for bugs and simplicity.</li>
+            <li><span class="chip" style="--c: #ffec27">Deployer</span>Deploys only when you asked and approved.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="part alt">
       <div class="wrap">
         <div class="feature">
           <div class="text">
-            <h3>Every agent, live</h3>
-            <p>Sessions are grouped by repo, including ones you started in an editor's terminal. Each shows whether it's working, idle or waiting on you, its model and branch, the tool call it's running, its cost and how full its context is.</p>
-            <p>Run several small agents on the model each task deserves, instead of one big session doing everything.</p>
+            <h3>See every agent at its desk</h3>
+            <p>Each agent shows what it's doing now: working, idle, waiting on you, or in review. Tasks move across the plan wall as agents report back.</p>
+            <p>Click an agent to open its drawer: its task and branch, and every message between you, the CTO and that agent, rendered as Markdown.</p>
           </div>
-          <div class="shot"><img src="agents.png" width="1500" height="860" alt="Fleet's Agents page: five sessions grouped under three repos" loading="lazy" /></div>
+          <figure class="shot"><img src="agent.png" alt="An agent's drawer open on its Messages tab, next to the office" loading="lazy" width="1440" height="900" /></figure>
         </div>
 
         <div class="feature flip">
           <div class="text">
-            <h3>Subagents and workflows, not just sessions</h3>
-            <p>Open a session to see its cost split between itself and its subagents, the latest prompt, the tree of subagents it spawned with each one's model and cost, and its recent tool calls.</p>
-            <p>Workflows show as phases with every workflow agent under its phase. The ✦ button asks Claude Haiku for a two or three line summary of what an agent is up to.</p>
+            <h3>You decide, in one list</h3>
+            <p>Questions, plan and deploy approvals, and Claude Code permission prompts all land in <b>Actions</b>. A permission prompt shows the full command; <b>Allow</b> or <b>Deny</b> it from the browser or answer in the terminal.</p>
+            <p>Nothing is ever allowed automatically, and a production deploy is labelled so it never looks routine.</p>
           </div>
-          <div class="shot"><img src="session.png" width="1500" height="860" alt="A session's panel: cost, latest prompt, two subagents and recent activity" loading="lazy" /></div>
+          <figure class="shot"><img src="actions.png" alt="The Action items list with two requests from agents, each with steps and Done or Dismiss" loading="lazy" width="1440" height="900" /></figure>
         </div>
 
         <div class="feature">
           <div class="text">
-            <h3>A history that outlives cleanup</h3>
-            <p>Claude Code deletes transcripts after 30 days. Fleet keeps a record of every session: title, project, branch, model, cost, what you asked and which files it edited.</p>
-            <p>Search all of it, summarize what a session did, or copy the command to resume it.</p>
+            <h3>Make it your flow</h3>
+            <p>Every agent, the CTO included, has a role you can rewrite in <b>Settings &rarr; Team</b> or load from a Markdown file. Attach skills by pasting a <code>SKILL.md</code> or uploading one.</p>
+            <p>Save your own defaults as <code>~/.fleet/roles/&lt;role&gt;.md</code> and every new repo's team starts from them.</p>
           </div>
-          <div class="shot"><img src="history.png" width="1500" height="860" alt="History page: past sessions grouped by day, one expanded" loading="lazy" /></div>
+          <figure class="shot"><img src="team.png" alt="Settings, Team: an agent's editable role and its skills field" loading="lazy" width="1440" height="900" /></figure>
         </div>
       </div>
     </section>
 
     <section class="part">
       <div class="wrap">
-        <h2>Small on purpose</h2>
-        <ul class="facts">
-          <li><b>Zero dependencies</b><span>Node 20 and the <code>claude</code> CLI. The whole package is 18 files.</span></li>
-          <li><b>Reads, doesn't change</b><span>Fleet reads what Claude Code already writes to <code>~/.claude</code>. No hooks, no edits to your settings.</span></li>
-          <li><b>Stays on your Mac</b><span>It listens on localhost only and has no telemetry. Summaries go through your own Claude login, only when you ask.</span></li>
-        </ul>
+        <div class="feature">
+          <div class="text">
+            <h3>Real sessions, not a simulation</h3>
+            <p>Each agent is <code>claude</code> running in tmux, in its own git worktree on its own branch. Your own checkout is never touched.</p>
+            <p><b>Open in iTerm</b> attaches to any agent so you can read or type into the real session. Agents keep running if you close Fleet.</p>
+          </div>
+          <div class="term panel-dark" role="img" aria-label="Example: the tmux session and worktree for a repo's Implementer agent">
+            <p><span class="dim">$</span> tmux attach -t fleet-my-app-implementer</p>
+            <p><span class="dim">worktree</span> ~/.fleet/projects/my-app/implementer</p>
+            <p><span class="dim">branch&nbsp;&nbsp;</span> <span class="ok">fleet/implementer</span></p>
+          </div>
+        </div>
+
+        <div class="feature flip">
+          <div class="text">
+            <h3>Pull requests that move the plan</h3>
+            <p>With the GitHub CLI (<code>gh</code>) signed in, Fleet follows the team's pull requests and links each one to its task and agent.</p>
+            <ul>
+              <li>Review comments go back to the author.</li>
+              <li>A passed review goes to the CTO.</li>
+              <li>A merge marks the task done.</li>
+            </ul>
+            <p class="fine">PRs from forks are ignored.</p>
+          </div>
+          <div class="term panel-dark" role="img" aria-label="Example: how a pull request's events reach the team">
+            <p><span class="warn">review comment</span> <span class="dim">&rarr;</span> author</p>
+            <p><span class="ok">review passed</span> <span class="dim">&rarr;</span> CTO</p>
+            <p><span class="ok">merged</span> <span class="dim">&rarr;</span> task done</p>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="part">
+    <section class="part alt" id="start">
       <div class="wrap">
-        <h2>Also in Fleet</h2>
-        <ul class="facts">
-          <li><b>Notifications</b><span>A banner when an agent needs you or finishes a long task. With terminal-notifier installed, a click lands on that session's terminal tab.</span></li>
-          <li><b>New agent</b><span>Pick a repo, model, effort and first prompt. Fleet opens it in Terminal or iTerm, optionally in its own git worktree.</span></li>
-          <li><b>Usage and limits</b><span>Your 5-hour and weekly plan limits, today's spend by model and project, and 30 days of tokens.</span></li>
+        <p class="eyebrow">Get started</p>
+        <h2>Needs</h2>
+        <ul class="reqs">
+          <li class="panel"><b>macOS</b><span>Open in iTerm uses AppleScript.</span></li>
+          <li class="panel"><b>Node 20+</b><span>No runtime dependencies.</span></li>
+          <li class="panel"><b>Claude Code</b><span><code>claude</code>, signed in.</span></li>
+          <li class="panel"><b>tmux</b><span>Plus <code>gh</code>, optional, for PRs.</span></li>
         </ul>
-      </div>
-    </section>
-
-    <section class="part">
-      <div class="wrap">
-        <h2>Get started</h2>
-        <ol class="steps">
-          <li>Install Fleet with npm.<pre><code>npm install -g @jainil_desai/fleet</code></pre></li>
-          <li>Start it. Your browser opens <code>http://localhost:7788</code> with every running session.<pre><code>fleet</code></pre></li>
-          <li>Optional: make notification banners open the session's terminal when clicked.<pre><code>brew install terminal-notifier</code></pre></li>
+        <ol class="steps" style="margin-top: 36px">
+          <li>Install tmux and Fleet.<pre><code>brew install tmux
+npm install -g @jainil_desai/fleet</code></pre></li>
+          <li>Start it in any git repo, or point it at one. Your browser opens <code>http://localhost:7788</code>.<pre><code>cd ~/code/my-app &amp;&amp; fleet
+fleet --repo ~/code/my-app</code></pre></li>
+          <li>Optional: start Fleet at login for this repo, in the background.<pre><code>fleet --autostart</code></pre></li>
         </ol>
-        <p>Everything else, from plan limits to privacy, is in the <a href="docs.html">docs</a>.</p>
+        <p>Options, customising roles and how it all works are in the <a href="docs.html">docs</a>.</p>
+      </div>
+    </section>
+
+    <section class="part" id="credit">
+      <div class="wrap">
+        <div class="credit panel-dark">
+          <h2>Built on JSM HQ</h2>
+          <p>Fleet's office UI and much of its team server are adapted from <a href="https://github.com/jsmastery-pro/jsm-hq">JSM HQ</a> by JavaScript Mastery, under the MIT license. Fleet takes HQ's office and team model and runs it without Docker or a browser terminal.</p>
+          <p>JSM HQ's name and logo belong to JavaScript Mastery. Fleet is not affiliated with or endorsed by JavaScript Mastery.</p>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer>
+  <footer class="foot">
     <div class="wrap">
-      <span>Fleet is MIT licensed and not affiliated with Anthropic. Claude and Claude Code are trademarks of Anthropic.</span>
-      <span><a href="https://github.com/jainilDesai/fleet">GitHub</a> &nbsp; <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a> &nbsp; <a href="changelog.html">Changelog</a></span>
+      <p>Fleet is free and MIT licensed. Office UI and team server adapted from <a href="https://github.com/jsmastery-pro/jsm-hq">JSM HQ</a> by JavaScript Mastery (MIT). Fleet is not affiliated with or endorsed by JavaScript Mastery or Anthropic. Claude and Claude Code are trademarks of Anthropic.</p>
+      <nav aria-label="Footer">
+        <a href="docs.html">Docs</a>
+        <a href="changelog.html">Changelog</a>
+        <a href="https://github.com/jainilDesai/fleet">GitHub</a>
+        <a href="https://www.npmjs.com/package/@jainil_desai/fleet">npm</a>
+      </nav>
     </div>
   </footer>
   <script src="site.js" defer></script>

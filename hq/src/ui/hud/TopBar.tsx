@@ -36,7 +36,7 @@ export function TopBar() {
   const openPrs = snap.pullRequests.filter((p) => !p.merged && !p.closed).length;
 
   return (
-    <header className="panel fixed left-4 right-4 top-[10px] z-10 flex h-[50px] items-center gap-4 px-3">
+    <header className="panel fixed left-4 right-4 top-[10px] z-10 flex h-[50px] items-center gap-2 px-3 2xl:gap-4">
       <div className="flex min-w-0 items-center gap-2.5">
         <Logo />
         <b className="whitespace-nowrap text-[22px] font-bold tracking-[0.02em]">Fleet</b>
@@ -45,17 +45,18 @@ export function TopBar() {
             Demo data
           </span>
         )}
-        <span className="truncate text-[16px] text-muted">
+        {/* The project name keeps its room; the repo path only shows on wide screens (hover shows both). */}
+        <span className="max-w-[24ch] shrink-0 truncate text-[16px] text-muted 2xl:max-w-none 2xl:shrink" title={`${snap.config.project.name} · ${snap.config.project.repo}`}>
           — <em className="font-semibold not-italic text-ink">{snap.config.project.name}</em>{" "}
-          <span className="font-term text-[17px]">{snap.config.project.repo}</span>
+          <span className="hidden font-term text-[17px] 2xl:inline">{snap.config.project.repo}</span>
         </span>
       </div>
       <div className="flex-1" />
 
-      <label className="flex items-center gap-2 text-[14px]">
-        <span className="text-muted">Plan wall</span>
+      <label className="flex shrink-0 items-center gap-2 text-[14px]">
+        <span className="hidden whitespace-nowrap text-muted 2xl:inline">Plan wall</span>
         <select
-          className="field w-[190px] py-0 text-[14px]"
+          className="field w-[140px] py-0 text-[14px] 2xl:w-[190px]"
           value={planBoardId ?? ""}
           onChange={(e) => ui.showBoardOnWall(e.target.value || null)}
           aria-label="Board shown on the plan wall"
@@ -93,7 +94,8 @@ export function TopBar() {
         title="Each agent runs Claude Code in its own tmux session and git worktree"
       >
         <span>
-          Agents · <b>{running}</b> running
+          <span className="hidden 2xl:inline">Agents · </span>
+          <b>{running}</b> running
         </span>
         <i className="led" style={running ? undefined : { background: "#83769c", animation: "none" }} />
       </div>

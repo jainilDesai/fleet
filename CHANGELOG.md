@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- The top bar fits at every window width. Below 1536px it hides the repo path and the
+  "Plan wall" label, so the project name always shows (hover it for the repo).
+- The README shows the office, an agent's drawer, Action items and the Team settings.
+
 ## 0.3.0
 
 Fleet is now an office for a team of Claude Code agents, built on

@@ -5,6 +5,8 @@ CTO. It plans the work, hands tasks to the rest of the team, and you watch all o
 
 **[fleet.jainildesai.com](https://fleet.jainildesai.com)**: overview, docs and changelog.
 
+![Fleet's pixel office: agents at their desks, the plan wall and the activity feed (demo data)](docs/office.png)
+
 Fleet's office UI and much of its agent-team server come from
 **[JSM HQ](https://github.com/jsmastery-pro/jsm-hq)** by JavaScript Mastery (MIT). Fleet
 takes HQ's office and team model and runs it without Docker or a browser terminal: every
@@ -64,6 +66,8 @@ again; Fleet reminds you when you start it by hand.
 
 ## What you get
 
+![An agent's drawer open on its Messages tab, next to the office (demo data)](docs/agent.png)
+
 **The office.** Every team member is a character at a desk that shows its state: working,
 idle, needs you, in review. The top bar shows how many agents are running and how many
 things are waiting on you. Click an agent to open its drawer:
@@ -95,6 +99,8 @@ your flow.
 review, done, blocked) and owner. Tasks update themselves as agents report back and as their
 pull requests are reviewed and merged.
 
+![The Action items list: requests from agents with steps, Done and Dismiss (demo data)](docs/actions.png)
+
 **Actions.** One list of everything that needs you:
 
 - **Questions and approvals** an agent asked with `ask_user` (for example "Approve plan: …" or
@@ -118,6 +124,8 @@ CTO merges.
 macOS banner when one needs you or finishes a long turn, even with the page closed.
 
 ## Customise your team
+
+![Settings, Team: an agent's role text, Load role from file, and Skills for this agent (demo data)](docs/team.png)
 
 Out of the box every agent is generic. Make it work the way you do in **Settings → Team →
 More**, for any agent, the CTO included:
