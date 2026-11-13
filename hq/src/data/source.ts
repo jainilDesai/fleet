@@ -1,0 +1,87 @@
+import type {
+  ActionItem,
+  ActivityEvent,
+  AgentMessage,
+  AgentPatch,
+  AgentStatus,
+  Board,
+  Environment,
+  HqConfig,
+  NewAgentInput,
+  OfficeSnapshot,
+  RemoveAgentOptions,
+  SetupState,
+  WelcomeInput,
+  WorkspaceInfo,
+  ProjectConfig,
+  PullRequest,
+  Task,
+  WorkflowPatch,
+} from "./types";
+
+export type OfficeEvent =
+  | { type: "snapshot"; snapshot: OfficeSnapshot }
+  | { type: "setup.updated"; setup: SetupState }
+  | { type: "workspace.info"; info: WorkspaceInfo }
+  | { type: "config.updated"; config: HqConfig }
+  | { type: "agent.updated"; agent: AgentStatus }
+  | { type: "agent.removed"; agentId: string }
+  | { type: "board.updated"; board: Board }
+  | { type: "task.updated"; task: Task }
+  | { type: "task.removed"; taskId: string }
+  | { type: "pr.updated"; pr: PullRequest }
+  | { type: "env.updated"; env: Environment }
+  | { type: "env.removed"; name: string }
+  | { type: "message"; message: AgentMessage }
+  | { type: "activity"; event: ActivityEvent }
+  | { type: "action.updated"; item: ActionItem };
+
+export type SimSpeed = 1 | 2 | 4;
+
+export type ConnectionStatus = "connecting" | "open" | "reconnecting" | "unauthorized";
+
+export interface DataPreset {
+  id: string;
+  label: string;
+}
+
+/** Controls that only exist on the mock source. The UI hides them when absent. */
+export interface DevControls {
+  presets: DataPreset[];
+  loadPreset(id: string): void;
+  setSpeed(multiplier: SimSpeed): void;
+}
+
+export interface OfficeDataSource {
+  connect(onEvent: (e: OfficeEvent) => void, onStatus?: (s: ConnectionStatus) => void): () => void; // returns disconnect
+
+  assignTask(taskId: string, agentId: string): void;
+  /** You → an agent, delivered like any Team MCP message. */
+  sendMessage(toId: string, text: string): void;
+
+  // agent sessions
+  startAgent(id: string): void;
+  stopAgent(id: string): void;
+  openWorkspace(id: string): void; // opens the agent's folder on the host
+  /** Opens iTerm attached to the agent's tmux session. */
+  openInIterm(id: string): void;
+
+  addAgent(input: NewAgentInput): void;
+  updateAgent(id: string, patch: AgentPatch): void;
+  /** Stops the agent and removes it from the team; optionally deletes its worktree. Ignored for the lead. */
+  removeAgent(id: string, opts?: RemoveAgentOptions): void;
+  /** Asks what removing would delete; answered with a `workspace.info` event. */
+  inspectWorkspace(id: string): void;
+  /** Closes an action item; the agent is told (done: with your note; dismissed: continue without it). */
+  resolveActionItem(id: string, decision: "done" | "dismissed", note?: string): void;
+
+  updateWorkflow(patch: WorkflowPatch): void;
+  updateProject(patch: Partial<ProjectConfig>): void;
+  createBoard(title: string): void;
+  updateBoard(id: string, patch: Partial<Pick<Board, "title" | "status">>): void;
+
+  /** Finishes first-run setup: saves the project's team and review tool. */
+  completeWelcome(input: WelcomeInput): void;
+
+  dev?: DevControls;
+}

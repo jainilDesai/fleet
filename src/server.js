@@ -10,16 +10,29 @@ import { summarize } from './summarize.js';
 import { observe, recentEvents, config, setConfig, setDashboardUrl } from './events.js';
 import { scan, history, summarizeSession } from './history.js';
 
-const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
-const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml' };
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PUBLIC = path.join(ROOT, 'public');
+const HQ_BUNDLE = path.join(ROOT, 'dist', 'hq.mjs');
+const TYPES = {
+  '.html': 'text/html',
+  '.css': 'text/css',
+  '.js': 'text/javascript',
+  '.svg': 'image/svg+xml',
+  '.woff2': 'font/woff2',
+  '.woff': 'font/woff',
+  '.png': 'image/png',
+  '.json': 'application/json',
+};
 
 // POSTs start processes on this machine. Only the page this server rendered may send them:
 // it carries a per-run token, and the Host check stops DNS-rebinding pages from reaching us.
 const TOKEN = crypto.randomBytes(24).toString('hex');
 
-export function start({ port = 7788, host = '127.0.0.1' } = {}) {
+export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd() } = {}) {
   const clients = new Set();
   let last = '';
+  // The agent team for `repo` (built into dist/hq.mjs). Its routes are tried before Fleet's own.
+  const hqReady = import(HQ_BUNDLE).then((m) => m.startHq({ repo, port, pageToken: TOKEN }));
 
   const snapshot = () => ({ at: Date.now(), sessions: liveSessions(), events: recentEvents(), config: config() });
 
@@ -45,6 +58,8 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
     if (!allowedHost) return send(res, 403, { error: 'bad host' });
 
     try {
+      // Agents' hooks and Team MCP authenticate with their own token, so they come before Fleet's POST check.
+      if (await (await hqReady).handle(req, res, url)) return;
       if (req.method === 'GET' && url.pathname === '/api/stream') {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
         last = JSON.stringify(snapshot());
@@ -90,6 +105,7 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
     }
   });
 
+  server.hqReady = hqReady;
   server.listen(port, host);
   setDashboardUrl(`http://localhost:${port}`);
   refreshMcp(); // warm the slow MCP health check
@@ -100,12 +116,19 @@ export function start({ port = 7788, host = '127.0.0.1' } = {}) {
 
 // Loaded once at startup, like the server code, so the page always matches the API it talks to.
 // (Reading from disk per request let a git pull serve a new UI to an old server.)
+// Keys are paths relative to public/, with forward slashes (e.g. "assets/index-x.js").
 const STATIC = new Map(
-  fs.readdirSync(PUBLIC).map((f) => {
-    let body = fs.readFileSync(path.join(PUBLIC, f));
-    if (f === 'index.html') body = Buffer.from(body.toString().replace('__FLEET_TOKEN__', TOKEN));
-    return [f, body];
-  })
+  fs.existsSync(PUBLIC)
+    ? fs
+        .readdirSync(PUBLIC, { recursive: true })
+        .map(String)
+        .filter((f) => fs.statSync(path.join(PUBLIC, f)).isFile())
+        .map((f) => {
+          let body = fs.readFileSync(path.join(PUBLIC, f));
+          if (f === 'index.html') body = Buffer.from(body.toString().replace('__FLEET_TOKEN__', TOKEN));
+          return [f.split(path.sep).join('/'), body];
+        })
+    : []
 );
 
 function serveStatic(pathname, res) {

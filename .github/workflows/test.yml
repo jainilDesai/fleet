@@ -16,5 +16,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: for f in bin/*.js src/*.js public/*.js; do node --check "$f"; done
+      - run: npm ci
+      - run: npm run build
+      - run: for f in bin/*.js src/*.js dist/*.mjs; do node --check "$f"; done
       - run: npm test

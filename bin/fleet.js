@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import { execFile } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { enable, disable, staleNode, isSetUp, startBackground, stopAll } from '../src/autostart.js';
 
 const arg = (name, fallback) => {
@@ -8,10 +11,13 @@ const arg = (name, fallback) => {
 };
 const has = (name) => process.argv.includes(name);
 const port = Number(arg('--port', process.env.FLEET_PORT ?? 7788));
+// The repo the agent team works on: --repo, else FLEET_REPO, else the current folder.
+const repo = path.resolve(arg('--repo', process.env.FLEET_REPO ?? process.cwd()));
 
 if (has('--help') || has('-h')) {
   console.log(`Usage: fleet [options]
 
+  --repo <path>     The git repo the agent team works on (default: this folder, or FLEET_REPO)
   --port <n>        Serve on another port (default 7788, or FLEET_PORT)
   --no-open         Don't open a browser tab
   --autostart       Start Fleet at login, in the background, and start it now
@@ -66,8 +72,19 @@ const stale = staleNode();
 if (stale) console.warn(`Auto-start points at ${stale}, which no longer exists (Node was updated or removed).
 Run "fleet --autostart" again to fix it.`);
 
+// The office UI (public/) and the agent-team server (dist/hq.mjs) are built from hq/.
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+if (!fs.existsSync(path.join(root, 'public', 'index.html')) || !fs.existsSync(path.join(root, 'dist', 'hq.mjs'))) {
+  console.error(`Fleet isn't built yet. Run this first, in ${root}:\n\n  npm install && npm run build\n`);
+  process.exit(1);
+}
+
 const { start } = await import('../src/server.js');
-const server = start({ port });
+const server = start({ port, repo });
+server.hqReady.catch((e) => {
+  console.error(`Could not start the agent team: ${e.message}`);
+  process.exit(1);
+});
 server.on('listening', () => {
   const url = `http://localhost:${port}`;
   console.log(`Fleet running at ${url}`);

@@ -8,7 +8,35 @@
   },
   "scripts": {
     "start": "node bin/fleet.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "dev": "vite hq",
+    "typecheck": "tsc -p hq && tsc -p hq/server",
+    "build": "tsc -p hq && tsc -p hq/server && vite build hq --logLevel warn && node hq/build-server.mjs",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/pixelify-sans": "^5.3.0",
+    "@fontsource/vt323": "^5.3.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "esbuild": "^0.28.2",
+    "framer-motion": "^11.18.2",
+    "pixi.js": "^8.22.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-markdown": "^9.1.0",
+    "remark-gfm": "^4.0.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~5.8.3",
+    "vite": "^6.4.4",
+    "zod": "^4.6.7",
+    "zustand": "^5.0.15"
   },
   "engines": {
     "node": ">=20"
@@ -19,7 +47,8 @@
   "files": [
     "bin",
     "src",
-    "public"
+    "public",
+    "dist"
   ],
   "keywords": [
     "claude-code",
