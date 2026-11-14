@@ -1,5 +1,7 @@
 # Fleet
 
+https://github.com/user-attachments/assets/fa72b826-72be-4002-bd1d-0c431a469238
+
 A pixel-art office for a team of Claude Code agents on your Mac. You talk to one agent, the
 CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen.
 
