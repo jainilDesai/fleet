@@ -2,7 +2,7 @@
 
 https://github.com/user-attachments/assets/fa72b826-72be-4002-bd1d-0c431a469238
 
-A pixel-art office for a team of Claude Code agents on your Mac. You talk to one agent, the
+A pixel-art office for a team of Claude Code agents on macOS, Linux or Windows (through WSL). You talk to one agent, the
 CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen.
 
 **[fleet.jainildesai.com](https://fleet.jainildesai.com)**: overview, docs and changelog.
@@ -25,13 +25,17 @@ decision or permission it needs from you lands in one Actions list.
   all show up in Actions. Fleet never approves anything on its own, but agents follow your
   Claude Code permission mode: in auto mode, for example, edits run without asking.
 - **Real sessions.** Agents run `claude` in tmux. **Open in terminal** attaches to any of them
-  (in iTerm if you have it, else Terminal.app), and they keep running if you close Fleet.
+  (iTerm or Terminal.app on macOS, your terminal on Linux, Windows Terminal on WSL), and they
+  keep running if you close Fleet.
 - **No runtime dependencies.** The UI and server are prebuilt into the package.
 
 ## Install
 
-Needs macOS, Node 20 or later, Claude Code (`claude`) signed in, and tmux. The GitHub CLI
-(`gh`, signed in) is optional; with it, Fleet follows the team's pull requests and reviews.
+Needs Node 20 or later, Claude Code (`claude`) signed in, and tmux, on macOS, Linux, or
+Windows through WSL. The GitHub CLI (`gh`, signed in) is optional; with it, Fleet follows the
+team's pull requests and reviews.
+
+### macOS
 
 ```bash
 brew install tmux          # and optionally: brew install gh
@@ -39,6 +43,39 @@ npm install -g @jainil_desai/fleet
 cd ~/code/my-app           # any git repo
 fleet                      # opens http://localhost:7788
 ```
+
+### Linux
+
+```bash
+sudo apt install tmux      # Fedora: sudo dnf install tmux; Arch: sudo pacman -S tmux
+npm install -g @jainil_desai/fleet
+cd ~/code/my-app
+fleet                      # opens http://localhost:7788 with xdg-open
+```
+
+Install Claude Code with `curl -fsSL https://claude.ai/install.sh | bash` and run `claude` once
+to sign in. `gh` is optional: [its Linux install page](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)
+covers apt, dnf, pacman and the rest.
+
+### Windows (via WSL)
+
+Fleet doesn't run on Windows itself (agents run in tmux); it runs inside WSL, and you use it
+from your Windows browser. Running `fleet` in PowerShell or cmd just prints these steps.
+
+1. In PowerShell: `wsl --install`, restart, and open **Ubuntu** from the Start menu.
+2. Inside Ubuntu, install Node 20 or later, with [nvm](https://github.com/nvm-sh/nvm)
+   (`nvm install 22`) or [NodeSource](https://github.com/nodesource/distributions).
+3. `sudo apt update && sudo apt install tmux git`
+4. Claude Code: `curl -fsSL https://claude.ai/install.sh | bash`, then run `claude` once and
+   sign in.
+5. Optional: `gh`, from [its Linux install page](https://github.com/cli/cli/blob/trunk/docs/install_linux.md),
+   then `gh auth login`.
+6. `npm install -g @jainil_desai/fleet`
+7. Keep your repo in the Linux file system (for example `~/code/my-app`), not under `/mnt/c`:
+   git and agents are many times faster there, and file watching works. Then `cd ~/code/my-app`
+   and run `fleet`.
+8. Open http://localhost:7788 in your Windows browser (Fleet tries to open it for you, with
+   `wslview` or `explorer.exe`).
 
 Fleet works on one git repo per run (with at least one commit): the folder you start it in,
 or `--repo <path>`. Other options: `--port 8000`, `--no-open`, `--list`, `--version`. To try it without
@@ -51,12 +88,22 @@ missing one, on the welcome screen and in **Settings → Project**.
 If `npm install` fails with `ETARGET` right after a release, npm's cache hasn't seen the new
 version yet: `npm i -g @jainil_desai/fleet@latest --prefer-online`.
 
-**Optional:** `brew install terminal-notifier` makes notification banners clickable.
+**Optional (macOS):** `brew install terminal-notifier` makes notification banners clickable.
 
-**Terminal.** **Open in terminal** uses iTerm when it's installed and Terminal.app otherwise;
-iTerm is optional. The first time, macOS asks whether Fleet (your terminal or Node) may control
-iTerm or Terminal. Allow it once. If it was denied, Fleet shows the `tmux attach` command to
-run yourself; to allow it later, go to System Settings → Privacy & Security → Automation.
+**Terminal.** **Open in terminal** attaches a terminal window to the agent's tmux session.
+When Fleet can't open one, it shows the `tmux attach` command to run yourself, with a Copy
+button.
+
+- **macOS:** iTerm when it's installed, Terminal.app otherwise; iTerm is optional. The first
+  time, macOS asks whether Fleet (your terminal or Node) may control iTerm or Terminal. Allow
+  it once. If it was denied, allow it later in System Settings → Privacy & Security → Automation.
+- **Linux:** the first of `x-terminal-emulator`, `gnome-terminal`, `konsole`, `xfce4-terminal`,
+  `kitty`, `alacritty`, `wezterm` and `xterm` that's installed. It needs a desktop session
+  (`DISPLAY` or `WAYLAND_DISPLAY`); over SSH or from a background service, copy the command.
+- **WSL:** a new Windows Terminal tab (`wt.exe`) in your distro, else a Linux terminal through
+  WSLg, else the command to copy.
+
+The setup checks show which one Fleet will use.
 
 From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && npm install && npm run build && node bin/fleet.js --repo <path>`.
 
@@ -71,11 +118,19 @@ fleet --no-autostart       # turn auto-start off for this repo and stop its back
 
 Fleet then runs without opening a browser tab (open `http://localhost:7788` when you want
 it), restarts if it crashes, and logs to `~/.fleet/fleet-<project>.log`. Each repo gets its
-own standard macOS LaunchAgent, `~/Library/LaunchAgents/com.jainildesai.fleet.<project>.plist`,
-with its own fixed port: the one you pass with `--port`, else the one it had, else the first
+own login item with its own fixed port: the one you pass with `--port`, else the one it had, else the first
 free port from 7788. Install Fleet globally first (`npm install -g`); `--autostart` refuses to
 run from the npx cache, which npm can clear. If you update Node through nvm, or move Fleet, run
 `fleet --autostart` again; Fleet reminds you when you start it by hand.
+
+- **macOS:** a standard LaunchAgent, `~/Library/LaunchAgents/com.jainildesai.fleet.<project>.plist`.
+- **Linux:** a systemd user service, `~/.config/systemd/user/fleet-<project>.service`
+  (`systemctl --user status fleet-<project>`). It starts when you log in; to start it at boot
+  without logging in, run `loginctl enable-linger "$USER"` once.
+- **WSL:** the same systemd user service, which needs systemd turned on in WSL. If it's off,
+  `fleet --autostart` says so: add `[boot]` and `systemd=true` to `/etc/wsl.conf`, run
+  `wsl --shutdown` in Windows and open your distro again. Fleet then starts when WSL does
+  (when you open the distro), not when Windows starts. Or just run `fleet` in a terminal.
 
 Set up with Fleet 0.3? Your `com.jainildesai.fleet` item still counts as that repo's item:
 `--stop`, `--start` and `--no-autostart` find it, and `fleet --autostart` in that repo replaces
@@ -96,7 +151,7 @@ port and tmux sessions.
   `--no-autostart` act on the repo you run them in (or `--repo`); add `--all` for every repo.
 - **Same folder name.** Projects are named after the repo folder. A second repo with a name
   that's taken (say two `app` folders) gets `app-<hash>`, so the two never share a team.
-- **Banners and history.** Only one copy at a time watches every Claude session on the Mac,
+- **Banners and history.** Only one copy at a time watches every Claude session on the machine,
   raises banners and writes `~/.fleet/events.jsonl` and `history.json`; another copy takes over
   when it stops.
 
@@ -181,8 +236,11 @@ branches do this; PRs from forks are ignored. In **Settings → Workflow** you c
 review tool (CodeRabbit, Greptile, Copilot, a human or a custom check) and whether you or the
 CTO merges.
 
-**Notifications.** Fleet still watches every Claude Code session on the Mac and sends a
-macOS banner when one needs you or finishes a long turn, even with the page closed.
+**Notifications.** Fleet still watches every Claude Code session on the machine and sends a
+banner when one needs you or finishes a long turn, even with the page closed. On macOS that's
+a notification banner (clickable with `terminal-notifier`). On Linux it uses `notify-send`
+when it's installed (`sudo apt install libnotify-bin`), without a click action. On WSL there
+are no banners; the events still show in Fleet.
 
 ## Customise your team
 
@@ -273,7 +331,8 @@ issue](https://github.com/jainilDesai/fleet/issues) with your `claude --version`
 
 ## Limits
 
-- macOS only (Open in terminal uses AppleScript).
+- macOS and Linux. Native Windows isn't supported: use WSL (see Install).
+- Clickable banners are macOS-only; WSL shows no banners.
 - One repo per run. To work on two repos, run `fleet` in each (see Several projects).
 - Each agent's worktree starts without `node_modules`; QA installs before it tests.
 - 0.3.0 replaces the old dashboard pages (Agents, History, Usage, MCP, Plugins) with the

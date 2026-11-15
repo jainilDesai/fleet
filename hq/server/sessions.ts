@@ -8,6 +8,7 @@ import { launchArgs, writeAgentFiles } from "./adapters";
 import type { Hub } from "./hub";
 import { tmuxBackend } from "./backends/tmux";
 import { run } from "./lib/exec";
+import { openTarget } from "../../src/platform.js";
 import { log } from "./lib/log";
 import { sessionName } from "./paths";
 import { runSetupChecks } from "./setup";
@@ -170,7 +171,7 @@ export class Sessions {
     const st = this.hub.status(id);
     const agent = this.hub.cfg(id);
     const dir = st?.session.workspace ?? (agent ? workspaceFor(agent, this.hub.slug) : null);
-    if (dir) await run("open", [dir], { timeoutMs: 5000 });
+    if (dir) openTarget(dir);
   }
 
   // ------------------------------------------------------------ health

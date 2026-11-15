@@ -35,7 +35,7 @@ export function CopyCommand({ command }: { command: string }) {
 }
 
 /** "Open in terminal" failed: the command to run yourself, and how to let Fleet open the terminal next time. */
-export function TerminalFallback({ error }: { error: { message: string; command: string } }) {
+export function TerminalFallback({ error }: { error: { message: string; command: string; hint?: string } }) {
   return (
     <div className="border-[3px] border-ink bg-[#fff1d6] px-3 py-2 text-[13px]">
       <p className="m-0 mb-1">
@@ -43,9 +43,7 @@ export function TerminalFallback({ error }: { error: { message: string; command:
       </p>
       <p className="m-0 mb-1">Run this in any terminal to attach to the agent:</p>
       <CopyCommand command={error.command} />
-      <p className="m-0 mt-1 text-muted">
-        To let Fleet open it for you: System Settings → Privacy & Security → Automation, and allow the app that runs Fleet to control iTerm or Terminal.
-      </p>
+      {error.hint && <p className="m-0 mt-1 text-muted">{error.hint}</p>}
     </div>
   );
 }

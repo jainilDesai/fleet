@@ -1,15 +1,23 @@
-// Start Fleet at login with a per-user LaunchAgent, one per repo. launchd starts it without a
-// browser tab, restarts it if it crashes, and writes its output to ~/.fleet/fleet-<project>.log.
-// FLEET_LAUNCH_AGENTS and FLEET_LAUNCHCTL point it at another folder and launchctl (for tests).
+// Start Fleet at login, one login item per repo: a per-user LaunchAgent on macOS, a systemd user
+// service on Linux and WSL. It starts without a browser tab, restarts if it crashes, and writes
+// its output to ~/.fleet/fleet-<project>.log.
+// FLEET_LAUNCH_AGENTS and FLEET_LAUNCHCTL point it at another folder and launchctl (for tests);
+// FLEET_SYSTEMD_UNITS and FLEET_SYSTEMCTL do the same for systemd.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
+import { OS } from './platform.js';
+
+const SYSTEMD = OS !== 'mac';
 
 // The single login item older versions made, still recognised as its repo's item.
 export const LABEL = 'com.jainildesai.fleet';
-export const labelFor = (slug) => `${LABEL}.${slug}`;
-const AGENTS = process.env.FLEET_LAUNCH_AGENTS || path.join(os.homedir(), 'Library', 'LaunchAgents');
+export const labelFor = (slug) => (SYSTEMD ? `fleet-${slug}` : `${LABEL}.${slug}`);
+const AGENTS = SYSTEMD
+  ? process.env.FLEET_SYSTEMD_UNITS || path.join(os.homedir(), '.config', 'systemd', 'user')
+  : process.env.FLEET_LAUNCH_AGENTS || path.join(os.homedir(), 'Library', 'LaunchAgents');
+const EXT = SYSTEMD ? '.service' : '.plist';
 const PLIST = path.join(AGENTS, `${LABEL}.plist`);
 const SCRIPT = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'bin', 'fleet.js');
 
@@ -46,10 +54,46 @@ ${args.map((a) => `    <string>${xml(a)}</string>`).join('\n')}
 `;
 }
 
-// A login item Fleet wrote: its label, plist file, and the node, script, port and repo it runs.
+// systemd quoting: each word in double quotes, specifiers (%) doubled, and in ExecStart (which
+// expands variables, unlike Environment) $ doubled too.
+const unitWord = (s, dollars = true) => {
+  const q = String(s).replace(/[\\"]/g, '\\$&').replace(/%/g, '%%');
+  return `"${dollars ? q.replace(/\$/g, '$$$$') : q}"`;
+};
+const ununit = (s) => s.replace(/\$\$/g, '$').replace(/%%/g, '%').replace(/\\(.)/g, '$1');
+
+// The same login item as a systemd user service. Restart=on-failure is launchd's
+// KeepAlive SuccessfulExit=false: a copy that exits cleanly (e.g. its repo already has a Fleet) stays down.
+export function unit({ node, script, port, repo, pathEnv, log }) {
+  const args = [node, script, '--no-open', '--port', String(port), ...(repo ? ['--repo', repo] : [])];
+  return `# Written by fleet --autostart; remove it with fleet --no-autostart.
+[Unit]
+Description=Fleet${repo ? ` for ${repo.replace(/%/g, '%%')}` : ''}
+
+[Service]
+ExecStart=${args.map((a) => unitWord(a)).join(' ')}
+Environment=${unitWord(`PATH=${pathEnv}`, false)}
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:${log.replace(/%/g, '%%')}
+StandardError=append:${log.replace(/%/g, '%%')}
+
+[Install]
+WantedBy=default.target
+`;
+}
+
+// A login item Fleet wrote: its label, plist or unit file, and the node, script, port and repo it runs.
 export function readItem(file) {
   try {
     const text = fs.readFileSync(file, 'utf8');
+    if (file.endsWith('.service')) {
+      if (!text.startsWith('# Written by fleet --autostart')) return null; // someone else's fleet-*.service
+      const args = [...(text.match(/^ExecStart=(.*)$/m)?.[1] ?? '').matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((m) => ununit(m[1]));
+      const flag = (f) => (args.includes(f) ? args[args.indexOf(f) + 1] : null);
+      const log = text.match(/^StandardOutput=append:(.*)$/m)?.[1];
+      return { label: path.basename(file, '.service'), file, node: args[0], script: args[1], port: Number(flag('--port')) || null, repo: flag('--repo'), log: log && log.replace(/%%/g, '%') };
+    }
     const args = [...(text.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/)?.[1] ?? '').matchAll(/<string>([^<]*)<\/string>/g)].map((m) => unxml(m[1]));
     const flag = (f) => (args.includes(f) ? args[args.indexOf(f) + 1] : null);
     const log = text.match(/<key>StandardOutPath<\/key>\s*<string>([^<]*)<\/string>/)?.[1];
@@ -59,7 +103,8 @@ export function readItem(file) {
   }
 }
 
-// Every Fleet login item: the older com.jainildesai.fleet and the per-project com.jainildesai.fleet.<slug>.
+// Every Fleet login item: the older com.jainildesai.fleet and the per-project com.jainildesai.fleet.<slug>
+// on macOS; fleet-<slug>.service elsewhere.
 export function items() {
   let files;
   try {
@@ -68,7 +113,7 @@ export function items() {
     return [];
   }
   return files
-    .filter((f) => f === `${LABEL}.plist` || (f.startsWith(`${LABEL}.`) && f.endsWith('.plist')))
+    .filter((f) => (SYSTEMD ? f.startsWith('fleet-') && f.endsWith(EXT) : f === `${LABEL}.plist` || (f.startsWith(`${LABEL}.`) && f.endsWith('.plist'))))
     .map((f) => readItem(path.join(AGENTS, f)))
     .filter(Boolean);
 }
@@ -78,6 +123,32 @@ export const itemsFor = (repo) => items().filter((i) => i.repo === repo || (i.la
 
 const domain = () => `gui/${process.getuid()}`;
 const launchctl = (...args) => execFileSync(process.env.FLEET_LAUNCHCTL || 'launchctl', args, { stdio: 'pipe', encoding: 'utf8' });
+const systemctl = (...args) => execFileSync(process.env.FLEET_SYSTEMCTL || 'systemctl', ['--user', ...args], { stdio: 'pipe', encoding: 'utf8' });
+const unitName = (item) => path.basename(item.file);
+
+// systemd user services need a running user manager; WSL has none unless systemd is turned on.
+export function systemdReady() {
+  try {
+    systemctl('show-environment');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const NO_SYSTEMD =
+  OS === 'wsl'
+    ? `Start at login needs systemd, which this WSL doesn't run. Turn it on: add these lines to /etc/wsl.conf
+
+  [boot]
+  systemd=true
+
+then run "wsl --shutdown" in Windows and open your Linux terminal again. Or just run fleet in a terminal.`
+    : 'Start at login needs systemd user services ("systemctl --user"), which this system does not have. Run fleet in a terminal instead.';
+
+// Loads (and starts) or unloads a login item.
+const load = (file) => (SYSTEMD ? (systemctl('daemon-reload'), systemctl('enable', '--now', path.basename(file))) : launchctl('bootstrap', domain(), file));
+const unload = (file) => (SYSTEMD ? systemctl('disable', '--now', path.basename(file)) : launchctl('bootout', domain(), file));
 
 // npx runs Fleet from a cache folder npm may delete at any time; a login item can't point there.
 export const fromNpx = (script = SCRIPT) => script.split(path.sep).includes('_npx');
@@ -88,20 +159,22 @@ export function enable({ port, repo, slug }) {
     const { name } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     throw new Error(`Fleet is running from the npx cache, which npm can clear at any time. Install it first, then run this again:\n\n  npm install -g ${name}\n  fleet --autostart`);
   }
+  if (SYSTEMD && !systemdReady()) throw new Error(NO_SYSTEMD);
   const label = labelFor(slug);
-  const file = path.join(AGENTS, `${label}.plist`);
+  const file = path.join(AGENTS, `${label}${EXT}`);
   const log = path.join(os.homedir(), '.fleet', `fleet-${slug}.log`);
   fs.mkdirSync(AGENTS, { recursive: true });
   fs.mkdirSync(path.dirname(log), { recursive: true });
   for (const old of [...itemsFor(repo), readItem(file)].filter(Boolean)) {
     try {
-      launchctl('bootout', domain(), old.file);
+      unload(old.file);
     } catch {}
     fs.rmSync(old.file, { force: true });
   }
-  fs.writeFileSync(file, plist({ label, node: process.execPath, script: SCRIPT, port, repo, pathEnv: process.env.PATH ?? '/usr/bin:/bin', log }));
-  launchctl('bootstrap', domain(), file);
-  return { label, plist: file, log, port, repo };
+  const make = SYSTEMD ? unit : plist;
+  fs.writeFileSync(file, make({ label, node: process.execPath, script: SCRIPT, port, repo, pathEnv: process.env.PATH ?? '/usr/bin:/bin', log }));
+  load(file);
+  return { label, plist: file, log, port, repo, systemd: SYSTEMD };
 }
 
 // Removes this repo's login items and stops their copies. Returns how many there were.
@@ -109,15 +182,27 @@ export function disable(repo) {
   const mine = itemsFor(repo);
   for (const i of mine) {
     try {
-      launchctl('bootout', domain(), i.file);
+      unload(i.file);
     } catch {}
     fs.rmSync(i.file);
   }
+  if (SYSTEMD && mine.length)
+    try {
+      systemctl('daemon-reload');
+    } catch {}
   return mine.length;
 }
 
-// What launchd says about a login item. `loaded` but not `running` is a copy that keeps exiting.
+// What launchd (or systemd) says about a login item. `loaded` but not `running` is a copy that keeps exiting.
 export function jobState(label) {
+  if (SYSTEMD) {
+    let out = '';
+    try {
+      out = systemctl('show', `${label}.service`, '--property=ActiveState,SubState,ExecMainStatus');
+    } catch {}
+    const v = (k) => out.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1];
+    return { loaded: !!v('ActiveState') && v('ActiveState') !== 'inactive', running: v('SubState') === 'running', lastExit: v('ExecMainStatus') ?? null };
+  }
   let out;
   try {
     out = launchctl('print', `${domain()}/${label}`);
@@ -132,7 +217,8 @@ export function jobState(label) {
 export function startBackground(item) {
   const s = jobState(item.label);
   if (s.running) return { state: 'running' };
-  if (s.loaded) launchctl('kickstart', `${domain()}/${item.label}`);
+  if (SYSTEMD) systemctl('restart', unitName(item));
+  else if (s.loaded) launchctl('kickstart', `${domain()}/${item.label}`);
   else launchctl('bootstrap', domain(), item.file);
   return { state: 'started', lastExit: s.loaded && s.lastExit !== '0' ? s.lastExit : null };
 }
@@ -158,8 +244,9 @@ export function pidsToStop(processes, registry, repo, all) {
   return { pids, unknown };
 }
 
+// -e is procps's spelling of macOS's -ax: every process.
 const processes = () =>
-  execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8' })
+  execFileSync('ps', SYSTEMD ? ['-eo', 'pid=,args='] : ['-axo', 'pid=,command='], { encoding: 'utf8' })
     .split('\n')
     .map((line) => line.trim().match(/^(\d+)\s+(.*)$/))
     .filter(Boolean)
@@ -172,7 +259,8 @@ export function stop({ repo, all = false, registry = [] }) {
   let background = 0;
   for (const i of all ? items() : itemsFor(repo)) {
     if (!jobState(i.label).loaded) continue;
-    launchctl('bootout', domain(), i.file);
+    if (SYSTEMD) systemctl('stop', unitName(i));
+    else launchctl('bootout', domain(), i.file);
     background++;
   }
   const { pids, unknown } = pidsToStop(processes(), registry, repo, all);

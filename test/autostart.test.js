@@ -7,6 +7,9 @@ import { tempHome } from './fixtures.js';
 
 const home = tempHome();
 process.env.HOME = home; // the LaunchAgent path is resolved from the home folder at import
+process.env.FLEET_PLATFORM = 'mac'; // launchd, with the fake launchctl below, on any OS
+// plutil (to check the plist the way macOS reads it) only exists on macOS.
+const plutil = { skip: process.platform !== 'darwin' && 'plutil is macOS-only; the plist is covered on macOS CI' };
 // A fake launchctl: logs its arguments, and `print` answers with the state in $FAKE_STATE (none: not loaded).
 const agents = path.join(home, 'Library', 'LaunchAgents');
 const calls = path.join(home, 'launchctl.log');
@@ -19,7 +22,7 @@ const { plist, staleNode, LABEL, labelFor, isFleetCommand, items, itemsFor, enab
 
 const sample = { node: '/opt/node & co/bin/node', script: '/lib/fleet/bin/fleet.js', port: 7788, pathEnv: '/usr/bin:/bin', log: '/tmp/fleet.log' };
 
-test('writes a valid LaunchAgent that starts Fleet without a browser tab', () => {
+test('writes a valid LaunchAgent that starts Fleet without a browser tab', plutil, () => {
   const xml = plist(sample);
   const file = path.join(home, 'check.plist');
   fs.writeFileSync(file, xml);
@@ -46,7 +49,7 @@ test('notices when the recorded Node or Fleet script no longer exists', () => {
   assert.equal(staleNode(agent), '/gone/fleet/bin/fleet.js');
 });
 
-test('one login item per project; the older com.jainildesai.fleet item still counts as its repo\'s', () => {
+test('one login item per project; the older com.jainildesai.fleet item still counts as its repo\'s', plutil, () => {
   fs.mkdirSync(agents, { recursive: true });
   fs.writeFileSync(path.join(agents, `${LABEL}.plist`), plist({ ...sample, repo: '/code/app' })); // what 0.3 wrote
   fs.writeFileSync(path.join(agents, `${labelFor('site')}.plist`), plist({ ...sample, label: labelFor('site'), port: 7790, repo: '/code/site' }));
@@ -76,6 +79,9 @@ test('one login item per project; the older com.jainildesai.fleet item still cou
 });
 
 test('--start checks the real state: a crash-looping job is kicked, not reported as running', () => {
+  // The same item the test above leaves, written here too because that one is skipped off macOS.
+  fs.mkdirSync(agents, { recursive: true });
+  fs.writeFileSync(path.join(agents, `${labelFor('site')}.plist`), plist({ ...sample, label: labelFor('site'), port: 7790, repo: '/code/site' }));
   const item = itemsFor('/code/site')[0];
   fs.rmSync(calls, { force: true });
   process.env.FAKE_STATE = 'running';

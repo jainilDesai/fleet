@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- **Linux.** Fleet runs on Linux: `sudo apt install tmux`, then the same `npm install -g` and
+  `fleet`. The browser opens with `xdg-open`. **Open in terminal** uses the first installed of
+  `x-terminal-emulator`, `gnome-terminal`, `konsole`, `xfce4-terminal`, `kitty`, `alacritty`,
+  `wezterm` and `xterm`. Banners use `notify-send` when it's installed (no click action).
+- **Windows through WSL.** Fleet runs inside WSL. The browser opens with `wslview` or
+  `explorer.exe`, and **Open in terminal** opens a Windows Terminal tab in your distro. No
+  banners on WSL. On native Windows, `fleet` now installs, and says how to set up WSL
+  instead of running (`--version` and `--help` still work).
+- **Start at login on Linux and WSL** is a systemd user service,
+  `~/.config/systemd/user/fleet-<project>.service`, with the same port, log and
+  restart-on-crash as on macOS. `--stop`, `--start`, `--no-autostart` and `--all` work the same.
+  `loginctl enable-linger` starts it at boot. Without systemd (WSL's default), `--autostart`
+  says how to turn it on in `/etc/wsl.conf`.
+- **Setup checks** show which terminal Open in terminal will use on each platform, and give
+  apt fixes (with links for dnf and pacman) instead of brew off macOS. When Fleet can't open a
+  terminal, the help under the `tmux attach` command fits your platform: the Automation
+  permission is only mentioned on macOS.
+- The older session board's launch and focus buttons say they're macOS-only off macOS,
+  instead of calling AppleScript.
+- macOS is unchanged.
+
 ## 0.4.0
 
 - **Several projects at once.** Run `fleet` in each repo. Without `--port`, a taken 7788 means

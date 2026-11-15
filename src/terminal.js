@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFile, execFileSync } from 'node:child_process';
+import { OS } from './platform.js';
 
 const LAUNCH_DIR = path.join(os.homedir(), '.fleet', 'launch');
 const MODELS = new Set(['haiku', 'sonnet', 'opus', 'fable', 'default']);
@@ -12,12 +13,17 @@ const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
 const MODES = new Set(['default', 'acceptEdits', 'auto', 'plan', 'bypassPermissions']);
 
 const sh = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+// Both drive Terminal.app and iTerm through AppleScript.
+const macOnly = () => {
+  if (OS !== 'mac') throw new Error('Opening terminal windows from the session board works on macOS only. Run claude in your own terminal.');
+};
 const osa = (script) =>
   new Promise((resolve, reject) =>
     execFile('osascript', ['-e', script], (err, out, stderr) => (err ? reject(new Error(stderr || err.message)) : resolve(out.trim())))
   );
 
 export async function launch(opts) {
+  macOnly();
   const cwd = path.resolve(String(opts.cwd ?? ''));
   if (!fs.existsSync(cwd) || !fs.statSync(cwd).isDirectory()) throw new Error(`Not a directory: ${cwd}`);
   const args = [];
@@ -83,6 +89,7 @@ function hostApp(pid) {
 }
 
 export async function focus(pid) {
+  macOnly();
   pid = Number(pid);
   const tty = execFileSync('ps', ['-o', 'tty=', '-p', String(pid)], { encoding: 'utf8' }).trim();
   const app = hostApp(pid);

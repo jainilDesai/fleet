@@ -12,6 +12,7 @@ import { newAgent } from "./store";
 import { skillSlug } from "./agentFiles";
 import { mergeByNotice } from "./githubSync";
 import { hasIterm } from "./setup";
+import { OS, openTerminal } from "../../src/platform.js";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "agent";
 const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
@@ -22,9 +23,19 @@ const osaString = (s: string) => JSON.stringify(s);
 /** The command that attaches a terminal to an agent's session. Quoted: zsh would expand a bare `=name`. */
 const attachCommand = (session: string, tmux = "tmux") => `${tmux} attach -t '=${session}'`;
 
-/** Opens iTerm (else Terminal.app) attached to the agent's tmux session. */
+/** How to let Fleet open the terminal next time, shown with the command when it couldn't. */
+const TERMINAL_HINT =
+  OS === "mac"
+    ? "To let Fleet open it for you: System Settings → Privacy & Security → Automation, and allow the app that runs Fleet to control iTerm or Terminal."
+    : OS === "wsl"
+      ? "To let Fleet open it for you: install Windows Terminal (wt.exe), or a Linux terminal such as xterm."
+      : "To let Fleet open it for you: run Fleet from your desktop session with a terminal installed (gnome-terminal, konsole, xterm…).";
+
+/** Opens a terminal attached to the agent's tmux session: iTerm (else Terminal.app) on macOS. */
 async function openInTerminal(session: string) {
   const tmux = (await run("sh", ["-c", "command -v tmux"])).stdout.trim() || "tmux";
+  // No shell in between, so `=name` needs no quoting.
+  if (OS !== "mac") return void (await openTerminal([tmux, "attach", "-t", `=${session}`]));
   // Session names are [a-z0-9-] only (slugs). iTerm runs the command itself, Terminal.app through your shell.
   const script = hasIterm()
     ? `tell application "iTerm"\n  activate\n  create window with default profile command ${osaString(`${tmux} attach -t =${session}`)}\nend tell`
@@ -50,9 +61,9 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
         if (st.session.terminalError) hub.setSession(agentId, { terminalError: null });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        // The UI shows the command to run yourself, and how to let Fleet open the terminal (Automation permission).
-        hub.setSession(agentId, { terminalError: { message, command: attachCommand(session) } });
-        hub.activity("session", agentId, `Couldn't open ${hub.name(agentId)} in ${hasIterm() ? "iTerm" : "Terminal"}: ${message}`);
+        // The UI shows the command to run yourself, and how to let Fleet open the terminal (Automation permission on macOS).
+        hub.setSession(agentId, { terminalError: { message, command: attachCommand(session), hint: TERMINAL_HINT } });
+        hub.activity("session", agentId, `Couldn't open ${hub.name(agentId)} in ${OS !== "mac" ? "a terminal" : hasIterm() ? "iTerm" : "Terminal"}: ${message}`);
       }
     },
     trustFolder: (id) => sessions.trustFolder(str(id, 80)),
