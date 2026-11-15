@@ -137,7 +137,7 @@ node bin/fleet.js --repo &lt;path&gt;</code></pre>
       <h2 id="projects">Several projects</h2>
       <p>Run <code>fleet</code> in each repo. A second copy takes the next free port and says which. <code>fleet</code> in a repo that already has a copy just opens it.</p>
       <ul>
-        <li><code>fleet --list</code> shows every running copy, and the <a href="#home-page">home page</a> every project. The <strong>⇄</strong> switcher in the top bar jumps between them, and <strong>Home</strong> goes to the home page.</li>
+        <li><code>fleet --list</code> shows every running copy, and the <a href="#home-page">home page</a> every project. The <strong>⇄</strong> switcher in the top bar jumps between them, and the Fleet logo goes to the home page.</li>
         <li>Each repo gets its own team, tmux sessions and worktrees. Two repos with the same folder name never share one.</li>
         <li>Two checkouts of the same repo can each run a team: new agent branches are named <code>fleet/&lt;project&gt;/&lt;agent&gt;</code>. Until an agent reports its PR, a PR for a shared task number may show as unclaimed in both teams.</li>
         <li>Only one copy raises notification banners and writes history.</li>
@@ -165,7 +165,8 @@ fleet --no-autostart       # turn auto-start off and stop the background copy</c
       <h2 id="stopping">Stopping</h2>
       <ul>
         <li><strong>One agent:</strong> open it and press <strong>Stop</strong> in its drawer.</li>
-        <li><strong>The whole team:</strong> <strong>Stop team</strong> in the top bar (shown while any agent runs) lists who is running and asks first. <strong>Stop agents</strong> ends their Claude Code sessions. Committed work, worktrees, branches, plans and the team stay, and <strong>Start team</strong> brings them back.</li>
+        <li><strong>The whole team:</strong> <strong>Settings → Team → Stop team…</strong> (disabled while no agent runs) lists who is running and asks first. <strong>Stop agents</strong> ends their Claude Code sessions. Committed work, worktrees, branches, plans and the team stay, and <strong>Start team</strong> brings them back.</li>
+        <li><strong>Idle agents, automatically:</strong> <strong>Settings → Workflow → Stop idle agents after</strong> (1, 3 or 7 days, or Never; 3 by default). Every 15 minutes Fleet stops a running agent that has been idle that long: no turn, no question or open Action item, no queued message, no unsent text at its prompt. An idle agent does nothing on its own, but its session holds memory, and waking it days later re-sends a long context that's no longer cached, which is expensive. The activity feed says who was stopped, and <strong>Start team</strong> or a new task starts it again as a fresh session with its role and task. The idle clock is each agent's last state change or activity line, saved in the project's <code>history.json</code>, so it survives a Fleet restart.</li>
         <li><strong>The team and Fleet:</strong> <strong>Stop agents and quit Fleet</strong> also exits Fleet, and the page says so. Start it again with <code>fleet</code> in the repo, or <code>fleet --start</code> if it starts at login. It exits cleanly, so the login item doesn't restart it before then.</li>
         <li><strong>From a terminal:</strong> <code>fleet --stop</code> stops this repo's Fleet, <code>fleet --stop --all</code> every one, and Ctrl-C a copy you started in a terminal. These leave the agents running in tmux.</li>
       </ul>
@@ -177,7 +178,7 @@ fleet --no-autostart       # turn auto-start off and stop the background copy</c
         <li><strong>A card per project</strong> (every repo Fleet has run in): repo path, running or stopped, its URL, agents running, how many things need you (its Action items), open PRs and cost. <strong>Open</strong> goes to the project, <strong>Start</strong> starts it in the background (its login item if it has one), <strong>Stop</strong> is <code>fleet --stop</code> for that repo.</li>
         <li>A project whose repo folder is gone is dimmed, with <strong>Forget</strong>: after asking, it deletes only Fleet's folder for it (<code>~/.fleet/projects/&lt;project&gt;</code>), never a repo.</li>
         <li><strong>Cost</strong> is the API-equivalent cost of the project's agents' sessions (subagents included), for today, the last 7 days and all time, from <code>~/.fleet/history.json</code>. On a Claude plan you don't pay this per session. A session counts on the day it last ran.</li>
-        <li>It updates every few seconds. Every project's top bar has a <strong>Home</strong> link back to it.</li>
+        <li>It updates every few seconds. In every project, the Fleet logo in the top bar links back to it.</li>
       </ul>
       <pre class="install"><code>fleet home --autostart     # start the home page at login (the first fleet --autostart does this for you)
 fleet home --no-autostart  # stop starting it at login, and stop it</code></pre>
@@ -276,7 +277,7 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
         <li>A merge marks the task done.</li>
       </ul>
       <p>Only PRs from the team's own branches count. PRs from forks are ignored.</p>
-      <p>In <strong>Settings → Workflow</strong> you choose the review tool (CodeRabbit, Greptile, Copilot, a human, or a custom check) and whether you or the CTO merges.</p>
+      <p>In <strong>Settings → Workflow</strong> you choose the review tool (CodeRabbit, Greptile, Copilot, a human, or a custom check), whether you or the CTO merges, and after how long idle agents are stopped (see <a href="#stopping">Stopping</a>).</p>
 
       <h2 id="notifications">Notifications</h2>
       <p>Fleet still watches every Claude Code session on your machine. It sends a banner when one needs you or finishes a long turn, even with the page closed.</p>

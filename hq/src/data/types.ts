@@ -119,10 +119,15 @@ export interface NewMcpServer {
 export type ReviewTool = "coderabbit" | "greptile" | "copilot" | "human" | "custom";
 export type DeployTool = "instacloud" | "vercel" | "custom";
 
+/** Settings → Workflow → Stop idle agents after: days, 0 = never. */
+export const IDLE_STOP_DAYS = [1, 3, 7, 0] as const;
+
 export interface WorkflowConfig {
   review: { enabled: boolean; tool: ReviewTool; command: string };
   merge: { by: "human" | "lead" };
   deploy: { enabled: boolean; tool: DeployTool; command: string; perAgentEnvironments: boolean };
+  /** Fleet stops a running agent that has been idle this many days (one of IDLE_STOP_DAYS; 0 = never). */
+  stopIdleAfterDays: number;
 }
 
 export interface ProjectConfig {
@@ -440,4 +445,5 @@ export interface WorkflowPatch {
   review?: Partial<WorkflowConfig["review"]>;
   merge?: Partial<WorkflowConfig["merge"]>;
   deploy?: Partial<WorkflowConfig["deploy"]>;
+  stopIdleAfterDays?: number;
 }

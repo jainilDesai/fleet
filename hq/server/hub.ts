@@ -17,8 +17,14 @@ export class Hub {
   snap: OfficeSnapshot;
   private listeners = new Set<Listener>();
   private seq = 0;
+  /** When this Fleet started: the idle clock of an agent with no saved last activity. */
+  readonly startedAt = Date.now();
+  /** Each agent's last state change or activity line (ISO). Saved in history.json, so it survives a restart. */
+  lastActive: Record<string, string>;
 
   constructor(readonly repo: RepoInfo, readonly slug: string, readonly home: string, config: HqConfig, plan: PlanFile, setup: SetupState) {
+    const { lastActive, ...history } = Hub.loadHistory(home);
+    this.lastActive = lastActive;
     this.snap = {
       setup,
       sbx: { basePolicy: "unknown", proxy: null, globalKeys: [], agents: {}, checkedAt: now() },
@@ -28,18 +34,22 @@ export class Hub {
       tasks: plan.tasks,
       pullRequests: [],
       environments: [],
-      ...Hub.loadHistory(home),
+      ...history,
     };
   }
 
-  // Messages and the activity feed survive a Fleet restart: kept in the project's home (history.json).
-  private static loadHistory(home: string): Pick<OfficeSnapshot, "messages" | "activity"> {
+  // Messages, the activity feed and each agent's last activity survive a Fleet restart: kept in the project's home (history.json).
+  private static loadHistory(home: string): Pick<OfficeSnapshot, "messages" | "activity"> & { lastActive: Record<string, string> } {
     const file = join(home, "history.json");
     try {
-      const h = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Partial<OfficeSnapshot>) : {};
-      return { messages: Array.isArray(h.messages) ? h.messages.slice(0, 100) : [], activity: Array.isArray(h.activity) ? h.activity.slice(0, 50) : [] };
+      const h = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Partial<OfficeSnapshot> & { lastActive?: Record<string, string> }) : {};
+      return {
+        messages: Array.isArray(h.messages) ? h.messages.slice(0, 100) : [],
+        activity: Array.isArray(h.activity) ? h.activity.slice(0, 50) : [],
+        lastActive: h.lastActive && typeof h.lastActive === "object" ? h.lastActive : {},
+      };
     } catch {
-      return { messages: [], activity: [] };
+      return { messages: [], activity: [], lastActive: {} };
     }
   }
 
@@ -52,7 +62,7 @@ export class Hub {
       this.historyTimer = null;
       const file = join(this.home, "history.json");
       const tmp = `${file}.tmp`;
-      writeFileSync(tmp, JSON.stringify({ messages: this.snap.messages, activity: this.snap.activity }) + "\n", { mode: 0o600 });
+      writeFileSync(tmp, JSON.stringify({ messages: this.snap.messages, activity: this.snap.activity, lastActive: this.lastActive }) + "\n", { mode: 0o600 });
       renameSync(tmp, file);
     }, 1000);
   }
@@ -94,7 +104,11 @@ export class Hub {
   setStatus(id: string, patch: Partial<Omit<AgentStatus, "agentId" | "session">>) {
     const s = this.status(id);
     if (!s) return;
-    if (patch.state !== undefined && patch.state !== s.state) s.stateSince = now();
+    if (patch.state !== undefined && patch.state !== s.state) {
+      s.stateSince = now();
+      this.lastActive[id] = s.stateSince;
+      this.historyChanged();
+    }
     Object.assign(s, patch);
     this.emit({ type: "agent.updated", agent: structuredClone(s) });
   }
@@ -116,6 +130,7 @@ export class Hub {
     // Time-based ids: ones loaded from history.json must never clash with new ones.
     const event = { id: `a${Date.now().toString(36)}${this.seq}`, at: now(), type, agentId, text };
     this.snap.activity = [event, ...this.snap.activity].slice(0, 50);
+    if (agentId) this.lastActive[agentId] = event.at;
     this.historyChanged();
     this.emit({ type: "activity", event });
   }

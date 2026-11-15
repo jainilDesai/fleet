@@ -3,7 +3,6 @@ import type { SimSpeed } from "../../data/source";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
 import { ui, useUi } from "../../store/ui";
 import { Logo } from "../Logo";
-import { StopTeamDialog } from "./StopTeamDialog";
 
 const SPEEDS: SimSpeed[] = [1, 2, 4];
 
@@ -60,7 +59,6 @@ export function TopBar() {
   const debugOpen = useUi((s) => s.debugOpen);
   const live = useOffice((s) => s.live);
   const quit = useOffice((s) => s.quit);
-  const [stopping, setStopping] = useState(false);
   if (!snap) return null;
   // Only the lead is started by hand; the others start when the lead first gives them work.
   const lead = snap.config.team.find((a) => a.isLead);
@@ -74,23 +72,20 @@ export function TopBar() {
   return (
     <header className="panel fixed left-4 right-4 top-[10px] z-20 flex h-[50px] items-center gap-2 px-3 2xl:gap-4">
       <div className="flex min-w-0 items-center gap-2.5">
-        <Logo />
-        <b className="whitespace-nowrap text-[22px] font-bold tracking-[0.02em]">Fleet</b>
+        <a className="flex shrink-0 items-center gap-2.5 text-ink no-underline focus-visible:outline-[3px] focus-visible:outline-offset-1 focus-visible:outline-blue" href={homeUrl} aria-label="Fleet home" title="Fleet home">
+          <Logo />
+          <b className="whitespace-nowrap text-[22px] font-bold tracking-[0.02em]">Fleet</b>
+        </a>
         {!live && (
           <span className="chip shrink-0 text-[12px]" style={{ ["--c" as string]: "#ffec27" }} title="Running on mock data. Start the real one with `npm run build && fleet`.">
             Demo data
           </span>
         )}
-        {/* The project name gives way first at 1280px (Home and ⇄ stay whole); the repo path only shows on wide screens (hover shows both). */}
-        <span className="min-w-[6ch] max-w-[24ch] truncate text-[16px] text-muted 2xl:max-w-none 2xl:shrink" title={`${snap.config.project.name} · ${snap.config.project.repo}`}>
+        {/* The project name gives way first at 1280px (⇄ stays whole); the repo path only shows on wide screens (hover shows both). */}
+        <span className="min-w-[6ch] max-w-[30ch] truncate text-[16px] text-muted 2xl:max-w-none 2xl:shrink" title={`${snap.config.project.name} · ${snap.config.project.repo}`}>
           — <em className="font-semibold not-italic text-ink">{snap.config.project.name}</em>{" "}
           <span className="hidden font-term text-[17px] 2xl:inline">{snap.config.project.repo}</span>
         </span>
-        {live && (
-          <a className="btn shrink-0 px-2 text-[14px] no-underline" href={homeUrl} title="Fleet's home page: every project, what's running, cost">
-            Home
-          </a>
-        )}
         {live && <ProjectSwitcher />}
       </div>
       <div className="flex-1" />
@@ -147,12 +142,6 @@ export function TopBar() {
           Start team
         </button>
       )}
-      {live && running > 0 && (
-        <button className="btn text-[14px]" onClick={() => setStopping(true)} title="Stop every running agent, and optionally Fleet too">
-          Stop team
-        </button>
-      )}
-      {stopping && <StopTeamDialog onClose={() => setStopping(false)} />}
       <div className="flex gap-1.5">
         <button
           className="btn text-[14px]"

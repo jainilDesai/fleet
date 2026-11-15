@@ -154,7 +154,7 @@ run `fleet` in a repo.
 - **Cost** is the API-equivalent cost of the project's agents' sessions (subagents included),
   for today, the last 7 days and all time, from `~/.fleet/history.json`. On a Claude plan you
   don't pay this per session. A session counts on the day it last ran.
-- It updates every few seconds. Every project's top bar has a **Home** link back to it.
+- It updates every few seconds. In every project, the Fleet logo in the top bar links back to it.
 
 ```bash
 fleet home --autostart     # start the home page at login (done for you by the first fleet --autostart)
@@ -214,9 +214,17 @@ when it comes from its own `fleet/<project>/…` branch or the agent reported it
 ## Stopping
 
 - **One agent:** open it (click its desk or card) and press **Stop** in its drawer.
-- **The whole team:** **Stop team** in the top bar (shown while any agent runs) lists who is
-  running and asks first. **Stop agents** ends their Claude Code sessions; committed work,
+- **The whole team:** **Settings → Team → Stop team…** (disabled while no agent runs) lists who
+  is running and asks first. **Stop agents** ends their Claude Code sessions; committed work,
   worktrees, branches, plans and the team stay, and **Start team** brings them back.
+- **Idle agents, automatically:** **Settings → Workflow → Stop idle agents after** (1, 3 or 7
+  days, or Never; 3 by default). Every 15 minutes Fleet stops a running agent that has been idle
+  that long: no turn, no question or open Action item, no queued message, no unsent text at its
+  prompt. An idle agent does nothing on its own, but its session holds memory, and waking it days
+  later re-sends a long context that's no longer cached, which is expensive. The activity feed
+  says who was stopped; Start team or a new task starts it again as a fresh session with its role
+  and task. The idle clock is each agent's last state change or activity line, saved in the
+  project's `history.json`, so it survives a Fleet restart.
 - **The team and Fleet:** **Stop agents and quit Fleet** in the same dialog also exits Fleet. The
   page then says Fleet has stopped. Start it again with `fleet` in the repo, or `fleet --start`
   if it starts at login. It exits cleanly, so the login item doesn't restart it before then.
@@ -293,8 +301,8 @@ pull requests are reviewed and merged.
 links each one to its task and agent and reacts: review comments are passed to the author,
 a passed review goes to the CTO, and a merge marks the task done. Only PRs from the team's own
 branches do this; PRs from forks are ignored. In **Settings → Workflow** you choose the
-review tool (CodeRabbit, Greptile, Copilot, a human or a custom check) and whether you or the
-CTO merges.
+review tool (CodeRabbit, Greptile, Copilot, a human or a custom check), whether you or the
+CTO merges, and after how long idle agents are stopped (see [Stopping](#stopping)).
 
 **Notifications.** Fleet still watches every Claude Code session on the machine and sends a
 banner when one needs you or finishes a long turn, even with the page closed. On macOS that's
