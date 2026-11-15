@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0
 
 - **Stop team.** While any agent runs, the top bar shows **Stop team**. It lists the running
   agents and offers **Stop agents** (ends their Claude Code sessions, all at once; work,
