@@ -67,6 +67,7 @@ const lastRegistry = new Map(); // registry file name -> last parsed contents
 export function liveSessions() {
   const dir = path.join(CLAUDE, 'sessions');
   const out = [];
+  if (!fs.existsSync(dir)) return out; // Claude Code hasn't run on this machine yet
   for (const f of fs.readdirSync(dir)) {
     if (!f.endsWith('.json')) continue;
     // Claude Code rewrites these files in place; a read can land mid-write. Keep the last good copy.

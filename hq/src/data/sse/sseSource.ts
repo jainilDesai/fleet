@@ -51,6 +51,8 @@ export function createSseSource(token: string): OfficeDataSource {
     stopAgent: (id) => send("stopAgent", id),
     openWorkspace: (id) => send("openWorkspace", id),
     openInIterm: (id) => send("openInIterm", id),
+    trustFolder: (id) => send("trustFolder", id),
+    recheckSetup: () => send("recheckSetup"),
     addAgent: (input) => send("addAgent", input),
     updateAgent: (id, patch) => send("updateAgent", id, patch),
     removeAgent: (id, opts) => send("removeAgent", id, opts),

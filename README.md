@@ -22,9 +22,10 @@ decision or permission it needs from you lands in one Actions list.
   them to the Planner, Implementer, QA, Reviewer and Deployer, starting each agent only when
   it's first needed.
 - **You decide.** Plan approvals, questions and Claude Code permission prompts (Allow/Deny)
-  all show up in Actions. Nothing is ever allowed automatically.
-- **Real sessions.** Agents run `claude` in tmux. **Open in iTerm** attaches to any of them, and
-  they keep running if you close Fleet.
+  all show up in Actions. Fleet never approves anything on its own, but agents follow your
+  Claude Code permission mode: in auto mode, for example, edits run without asking.
+- **Real sessions.** Agents run `claude` in tmux. **Open in terminal** attaches to any of them
+  (in iTerm if you have it, else Terminal.app), and they keep running if you close Fleet.
 - **No runtime dependencies.** The UI and server are prebuilt into the package.
 
 ## Install
@@ -39,14 +40,23 @@ cd ~/code/my-app           # any git repo
 fleet                      # opens http://localhost:7788
 ```
 
-Fleet works on one git repo per run: the folder you start it in, or `--repo <path>`. Other
-options: `--port 8000`, `--no-open`. To try it without installing:
-`npx @jainil_desai/fleet --repo ~/code/my-app`.
+Fleet works on one git repo per run (with at least one commit): the folder you start it in,
+or `--repo <path>`. Other options: `--port 8000`, `--no-open`, `--version`. To try it without
+installing: `npx @jainil_desai/fleet --repo ~/code/my-app`.
+
+Fleet checks what it needs when it starts (tmux, Claude Code and its sign-in, `gh`, a GitHub
+remote, and which terminal it opens) and shows the result, with a command to fix each
+missing one, on the welcome screen and in **Settings → Project**.
+
+If `npm install` fails with `ETARGET` right after a release, npm's cache hasn't seen the new
+version yet: `npm i -g @jainil_desai/fleet@latest --prefer-online`.
 
 **Optional:** `brew install terminal-notifier` makes notification banners clickable.
 
-The first time you click **Open in iTerm**, macOS asks whether Fleet (your terminal or Node)
-may control iTerm or Terminal. Allow it once.
+**Terminal.** **Open in terminal** uses iTerm when it's installed and Terminal.app otherwise;
+iTerm is optional. The first time, macOS asks whether Fleet (your terminal or Node) may control
+iTerm or Terminal. Allow it once. If it was denied, Fleet shows the `tmux attach` command to
+run yourself; to allow it later, go to System Settings → Privacy & Security → Automation.
 
 From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && npm install && npm run build && node bin/fleet.js --repo <path>`.
 
@@ -66,6 +76,20 @@ set it up from (or `--repo <path>`); run `fleet --autostart` again to switch rep
 `--port <n>` to `--autostart` to use another port. If you update Node through nvm, run `fleet --autostart`
 again; Fleet reminds you when you start it by hand.
 
+## First run
+
+1. **Create team.** The welcome screen shows the requirements check, then the team: a CTO and
+   five roles. Without a GitHub remote, PR review starts off and agents work on local branches.
+2. **Start team.** Press **Start team** in the top bar. It starts the CTO; the others start
+   when the CTO first gives them work.
+3. **Trust the folder.** On an agent's first start, Claude Code asks whether you trust its new
+   worktree. Press **Trust folder** in Action items (or the agent's drawer), or answer it with
+   **Open in terminal**.
+4. **Open the CTO.** Click the CTO's card or desk, then the **Messages** tab.
+5. **Type a task**, for example "Add a /health endpoint that returns ok", and send it.
+6. **Watch Action items.** Plans to approve, questions and permission prompts land there; the
+   plan wall and the agents' desks show the rest.
+
 ## What you get
 
 ![An agent's drawer open on its Messages tab, next to the office (demo data)](docs/agent.png)
@@ -77,7 +101,7 @@ things are waiting on you. Click an agent to open its drawer:
 - **Task:** what it's working on, the task's notes, and its branch.
 - **Messages:** everything between you, the CTO and that agent, rendered as Markdown
   (headings, lists, tables, code). Long replies start collapsed with **Show all**.
-- **Open in iTerm:** attaches to the agent's tmux session (`tmux attach -t fleet-<repo>-<agent>`),
+- **Open in terminal:** attaches to the agent's tmux session (`tmux attach -t fleet-<repo>-<agent>`),
   so you can read or type into the real Claude Code session.
 
 **The team.** A new project starts with a CTO (the lead) and five roles. Each role has a
@@ -114,8 +138,9 @@ pull requests are reviewed and merged.
   shows here with the full command. **Allow** or **Deny** it from the browser, or answer in the
   terminal; either one closes the other. A production deploy is labelled
   `⚠ PRODUCTION deploy: <branch>` so it never looks routine.
-- **Agents waiting in their terminal** (for example on Claude Code's folder-trust prompt),
-  with **Open in iTerm**.
+- **Agents waiting in their terminal**, with **Open in terminal**. Claude Code's folder-trust
+  prompt also has **Trust folder**, which answers "Yes, I trust this folder" (only for
+  worktrees Fleet made).
 
 **Pull requests.** With `gh` signed in and a GitHub `origin`, Fleet polls the repo's PRs. It
 links each one to its task and agent and reacts: review comments are passed to the author,
@@ -215,7 +240,7 @@ issue](https://github.com/jainilDesai/fleet/issues) with your `claude --version`
 
 ## Limits
 
-- macOS only (Open in iTerm uses AppleScript).
+- macOS only (Open in terminal uses AppleScript).
 - One repo per run. To work on two repos, run two copies on different ports.
 - Each agent's worktree starts without `node_modules`; QA installs before it tests.
 - 0.3.0 replaces the old dashboard pages (Agents, History, Usage, MCP, Plugins) with the

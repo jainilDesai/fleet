@@ -63,8 +63,12 @@ export interface OfficeDataSource {
   startAgent(id: string): void;
   stopAgent(id: string): void;
   openWorkspace(id: string): void; // opens the agent's folder on the host
-  /** Opens iTerm attached to the agent's tmux session. */
+  /** Opens a terminal (iTerm, else Terminal.app) attached to the agent's tmux session. */
   openInIterm(id: string): void;
+  /** Answers Claude Code's folder-trust prompt with "Yes" (worktrees Fleet made only). */
+  trustFolder(id: string): void;
+  /** Runs the setup checks again (tmux, Claude Code, gh, …). */
+  recheckSetup(): void;
 
   addAgent(input: NewAgentInput): void;
   updateAgent(id: string, patch: AgentPatch): void;

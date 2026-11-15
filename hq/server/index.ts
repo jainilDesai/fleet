@@ -96,4 +96,5 @@ export { branchAgent } from "./github";
 export { passedNotice } from "./githubSync";
 export { rolePreset } from "./roles";
 export { isApproval, resolutionMessage } from "./actionItems";
-export { skillText, writeSkills } from "./agentFiles";
+export { roleMd, skillText, writeSkills } from "./agentFiles";
+export { trustSelected } from "./sessions";

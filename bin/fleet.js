@@ -10,7 +10,31 @@ const arg = (name, fallback) => {
   return i > -1 ? process.argv[i + 1] : fallback;
 };
 const has = (name) => process.argv.includes(name);
-const port = Number(arg('--port', process.env.FLEET_PORT ?? 7788));
+const fail = (message) => {
+  console.error(message);
+  process.exit(1);
+};
+
+// Unknown flags and missing values stop here, before anything starts.
+const VALUE_FLAGS = ['--repo', '--port'];
+const FLAGS = ['--no-open', '--autostart', '--no-autostart', '--stop', '--start', '--version', '-h', '--help'];
+for (let i = 2; i < process.argv.length; i++) {
+  const a = process.argv[i];
+  if (VALUE_FLAGS.includes(a)) {
+    const v = process.argv[++i];
+    if (v === undefined || v.startsWith('-')) fail(`${a} needs a value. Run "fleet --help" for usage.`);
+  } else if (!FLAGS.includes(a)) fail(`Unknown option: ${a}. Run "fleet --help" for the options.`);
+}
+
+if (has('--version')) {
+  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  console.log(pkg.version);
+  process.exit(0);
+}
+
+const portText = String(arg('--port', process.env.FLEET_PORT ?? 7788));
+const port = Number(portText);
+if (!/^\d+$/.test(portText) || port < 1 || port > 65535) fail(`Port must be a number from 1 to 65535, not "${portText}".`);
 // The repo the agent team works on: --repo, else FLEET_REPO, else the current folder.
 const repo = path.resolve(arg('--repo', process.env.FLEET_REPO ?? process.cwd()));
 
@@ -24,18 +48,26 @@ if (has('--help') || has('-h')) {
   --no-autostart    Stop starting Fleet at login, and stop the background copy
   --stop            Stop Fleet now; with auto-start it comes back at the next login
   --start           Start the background copy now (needs --autostart)
+  --version         Print Fleet's version
   -h, --help        Show this help`);
   process.exit(0);
 }
 
 // The agent team needs a git repo. Check it up front: the background copy must not restart forever on a bad folder.
 const repoRoot = () => {
+  let root;
   try {
-    return execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: repo, stdio: 'pipe' }).toString().trim();
+    root = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: repo, stdio: 'pipe' }).toString().trim();
   } catch {
-    console.error(`${repo} is not inside a git repository. Run fleet from your project folder, or pass --repo <path>.`);
-    process.exit(1);
+    fail(`${repo} is not inside a git repository. Run fleet from your project folder, or pass --repo <path>.`);
   }
+  // Agents' worktrees start from a commit, so an empty repo would fail later with "invalid reference: HEAD".
+  try {
+    execFileSync('git', ['rev-parse', '--verify', '--quiet', 'HEAD'], { cwd: root, stdio: 'pipe' });
+  } catch {
+    fail('This repo has no commits yet. Make a first commit, then run fleet.');
+  }
+  return root;
 };
 
 if (has('--autostart')) {

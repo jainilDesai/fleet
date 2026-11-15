@@ -1,6 +1,5 @@
 // Browser commands → server actions. Names match OfficeDataSource methods.
 
-import { existsSync } from "node:fs";
 import { PERMISSION_MODES, SKILL_LIMITS, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type ProjectConfig, type RemoveAgentOptions, type WorkflowPatch } from "../src/data/types";
 import { LEAD_NAME, OFFICE_NAME_MAX } from "../src/data/names";
 import { run } from "./lib/exec";
@@ -12,6 +11,7 @@ import type { Sessions } from "./sessions";
 import { newAgent } from "./store";
 import { skillSlug } from "./agentFiles";
 import { mergeByNotice } from "./githubSync";
+import { hasIterm } from "./setup";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "agent";
 const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
@@ -19,14 +19,16 @@ const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max)
 /** AppleScript string literal (same escaping as JSON for what we pass). */
 const osaString = (s: string) => JSON.stringify(s);
 
+/** The command that attaches a terminal to an agent's session. Quoted: zsh would expand a bare `=name`. */
+const attachCommand = (session: string, tmux = "tmux") => `${tmux} attach -t '=${session}'`;
+
 /** Opens iTerm (else Terminal.app) attached to the agent's tmux session. */
 async function openInTerminal(session: string) {
   const tmux = (await run("sh", ["-c", "command -v tmux"])).stdout.trim() || "tmux";
-  // Session names are [a-z0-9-] only (slugs), so no quoting is needed inside the command.
-  const command = `${tmux} attach -t =${session}`;
-  const script = existsSync("/Applications/iTerm.app")
-    ? `tell application "iTerm"\n  activate\n  create window with default profile command ${osaString(command)}\nend tell`
-    : `tell application "Terminal"\n  activate\n  do script ${osaString(command)}\nend tell`;
+  // Session names are [a-z0-9-] only (slugs). iTerm runs the command itself, Terminal.app through your shell.
+  const script = hasIterm()
+    ? `tell application "iTerm"\n  activate\n  create window with default profile command ${osaString(`${tmux} attach -t =${session}`)}\nend tell`
+    : `tell application "Terminal"\n  activate\n  do script ${osaString(attachCommand(session, tmux))}\nend tell`;
   const r = await run("osascript", ["-e", script], { timeoutMs: 10_000 });
   if (!r.ok) throw new Error(r.stderr.trim() || "osascript failed");
 }
@@ -40,13 +42,21 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
     openWorkspace: (id) => sessions.openWorkspace(str(id, 80)),
     openInIterm: async (id) => {
       const agentId = str(id, 80);
-      if (hub.status(agentId)?.session.state !== "running") return;
+      const st = hub.status(agentId);
+      if (st?.session.state !== "running") return;
+      const session = sessions.name(agentId);
       try {
-        await openInTerminal(sessions.name(agentId));
+        await openInTerminal(session);
+        if (st.session.terminalError) hub.setSession(agentId, { terminalError: null });
       } catch (err) {
-        hub.activity("session", agentId, `Couldn't open ${hub.name(agentId)} in iTerm: ${err instanceof Error ? err.message : err}`);
+        const message = err instanceof Error ? err.message : String(err);
+        // The UI shows the command to run yourself, and how to let Fleet open the terminal (Automation permission).
+        hub.setSession(agentId, { terminalError: { message, command: attachCommand(session) } });
+        hub.activity("session", agentId, `Couldn't open ${hub.name(agentId)} in ${hasIterm() ? "iTerm" : "Terminal"}: ${message}`);
       }
     },
+    trustFolder: (id) => sessions.trustFolder(str(id, 80)),
+    recheckSetup: () => sessions.recheckSetup(),
 
     // You → agent: same delivery path as the lead's assign_task / send_message.
     assignTask: (taskId, agentId) => planner.assign(str(taskId, 40), str(agentId, 80), "you"),

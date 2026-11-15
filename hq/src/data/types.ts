@@ -142,7 +142,12 @@ export interface SessionInfo {
   detail: string | null; // why it failed, or what it is doing
   workspace: string | null; // absolute folder path on the host
   sandbox: { cpus: number; memoryGb: number } | null; // what the existing sandbox actually has
+  /** "Open in terminal" failed (e.g. no Automation permission): the error and the command to run yourself. */
+  terminalError?: { message: string; command: string } | null;
 }
+
+/** The note an agent gets while Claude Code asks to trust its new worktree (the UI shows Trust folder for it). */
+export const TRUST_NOTE = "Asking: trust this new worktree (first start only). Press Trust folder, or answer it in the terminal.";
 
 export interface AgentStatus {
   agentId: string;
@@ -263,7 +268,7 @@ export interface RemoveAgentOptions {
 
 // ---------------------------------------------------------------- Setup
 
-export type SetupCheckId = "os" | "sbx" | "sbx-login" | "sbx-policy" | "tmux" | "gh" | "gh-remote" | "github-secret" | "claude" | "codex" | "openai-secret";
+export type SetupCheckId = "os" | "sbx" | "sbx-login" | "sbx-policy" | "tmux" | "gh" | "gh-remote" | "github-secret" | "claude" | "claude-login" | "terminal" | "codex" | "openai-secret";
 export type SetupStatus = "ok" | "missing" | "unsupported" | "warning";
 
 export interface SetupFix {

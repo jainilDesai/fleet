@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, skillText, writeSkills, isApproval, resolutionMessage } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -131,3 +131,29 @@ test('a normal action item keeps its Done / Dismiss text', () => {
   assert.equal(resolutionMessage(item, 'done'), 'The user did your action item "Add the API key". Continue with it.');
   assert.equal(resolutionMessage(item, 'dismissed'), 'The user dismissed your action item "Add the API key". Continue without it, or find another way.');
 });
+
+// Claude Code's folder-trust prompt, as captured from a real first start.
+const trustScreen = (selected) => [
+  ' Quick safety check: Is this a project you created or one you trust?',
+  " Claude Code'll be able to read, edit, and execute files here.",
+  ' Security guide',
+  selected ? '   No, exit' : ' ❯ No, exit',
+  selected ? ' ❯ Yes, I trust this folder' : '   Yes, I trust this folder',
+  ' Enter to confirm · Esc to cancel',
+].join('\n');
+
+test('Trust folder presses Enter only with "Yes, I trust this folder" highlighted', () => {
+  assert.equal(trustSelected(trustScreen(false)), false); // the default is "No, exit"
+  assert.equal(trustSelected(trustScreen(true)), true);
+  assert.equal(trustSelected('❯ hello'), false);
+});
+
+test('without GitHub, agents are told there are no PRs and not to push', () => {
+  const agent = (id, isLead) => ({ id, name: id, role: id, isLead, roleMd: '' });
+  const cfg = { project: { name: 'toy', repo: 'toy' }, team: [agent('cto', true), agent('dev', false)], workflow: { merge: { by: 'human' } } };
+  for (const a of cfg.team) {
+    assert.match(roleMd(a, cfg, { noGitHub: true }), /no GitHub remote.*don't push/);
+    assert.doesNotMatch(roleMd(a, cfg, {}), /no GitHub remote/);
+  }
+});
+

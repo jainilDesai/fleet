@@ -4,6 +4,7 @@ import { FONT_STYLES, savedFont, setFont, type FontStyle } from "../../theme/fon
 import { officeActions, useOffice } from "../../store/office";
 import { Field, SectionTitle } from "../kit";
 import { CommitInput, Toggle } from "./controls";
+import { SetupChecks } from "../setup/SetupChecks";
 
 function FontPicker() {
   const [font, setCurrent] = useState(savedFont);
@@ -62,6 +63,11 @@ export function ProjectSettings() {
           </div>
         </Field>
       </section>
+      <section className="border-[3px] border-ink bg-white p-3">
+        <SectionTitle>Requirements</SectionTitle>
+        <SetupChecks />
+        <p className="mt-1 text-[13px] text-muted">Checked when Fleet starts. After fixing one, press Check again.</p>
+      </section>
       <section>
         <SectionTitle>Plan</SectionTitle>
         <Toggle checked={!!project.exportPlan} onChange={(v) => officeActions.updateProject({ exportPlan: v })} label="Export plan to docs/plan.md" />
@@ -74,7 +80,7 @@ export function ProjectSettings() {
         <ul className="list-disc pl-5">
           <li>Fleet binds 127.0.0.1 only and rejects requests whose Host isn't localhost.</li>
           <li>This page gets a new token on every start. Agents' hooks and the Team MCP use their own token.</li>
-          <li>Nothing is ever allowed for an agent automatically: permission prompts come to Action items or the agent's terminal.</li>
+          <li>Fleet never approves anything for an agent: permission prompts come to Action items or the agent's terminal. Agents follow their Claude Code permission mode (Settings → Team), so a mode like auto allows edits without asking.</li>
         </ul>
       </section>
     </div>

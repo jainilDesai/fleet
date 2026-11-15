@@ -54,7 +54,8 @@ export function App() {
       {ready && (
         <>
           <TopBar />
-          <TeamPanel />
+          {/* No team exists until the welcome is done: its placeholder cards would say "Idle". */}
+          {!welcome && <TeamPanel />}
           <ActivityFeed />
           <DrawerHost />
           <DebugPanel />

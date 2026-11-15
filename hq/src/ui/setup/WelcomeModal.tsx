@@ -5,6 +5,7 @@ import { officeActions, reviewToolLabel, useOffice } from "../../store/office";
 import { agentPalette } from "../../theme/tokens";
 import { Field, Portrait } from "../kit";
 import { ROLE_SUGGESTIONS } from "../settings/TeamSettings";
+import { SetupChecks } from "./SetupChecks";
 
 interface WorkerDraft {
   name: string;
@@ -19,8 +20,10 @@ export function WelcomeModal() {
   const [projectName, setProjectName] = useState(snap?.config.project.name ?? "");
   const [leadName, setLeadName] = useState(LEAD_NAME);
   const [workers, setWorkers] = useState<WorkerDraft[]>(DEFAULT_ROLES.map((r) => ({ name: r, role: r })));
-  // Defaults come from what Fleet detected in the repo (e.g. a CodeRabbit config).
-  const [reviewEnabled, setReviewEnabled] = useState(snap?.config.workflow.review.enabled ?? true);
+  // Defaults come from what Fleet detected in the repo (e.g. a CodeRabbit config). No GitHub remote or gh: no PRs to review.
+  const checks = snap?.setup.checks ?? [];
+  const github = ["gh", "gh-remote"].every((id) => checks.find((c) => c.id === id)?.status === "ok");
+  const [reviewEnabled, setReviewEnabled] = useState((snap?.config.workflow.review.enabled ?? true) && github);
   const [reviewTool, setReviewTool] = useState<ReviewTool>(snap?.config.workflow.review.tool ?? "human");
   const [sending, setSending] = useState(false);
   if (!snap) return null;
@@ -52,6 +55,12 @@ export function WelcomeModal() {
         </div>
 
         <div className="scroll-thin flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-3">
+          <section>
+            <h3 className="mb-1 text-[16px] font-bold">This Mac</h3>
+            <SetupChecks />
+            {!snap.setup.localReady && <p className="mt-1 text-[13px] text-red">Agents can't start until the ✗ items above are fixed. Fix them, then press Check again.</p>}
+          </section>
+
           <Field label="Project name">
             <input className="field w-full" value={projectName} maxLength={80} onChange={(e) => setProjectName(e.target.value)} />
           </Field>
@@ -118,6 +127,7 @@ export function WelcomeModal() {
                 ))}
               </select>
             </div>
+            {!github && <p className="mt-1 text-[13px] text-muted">No GitHub remote or GitHub CLI, so there are no PRs to review: agents work on branches you merge locally.</p>}
           </section>
         </div>
 
