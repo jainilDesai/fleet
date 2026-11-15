@@ -36,6 +36,7 @@ jobs:
       - name: Run Fleet on a toy repo
         env:
           HOME: ${{ runner.temp }}/home
+          FLEET_HOME_PORT: 7820
         run: |
           mkdir -p "$HOME" toy
           git -C toy init -q
@@ -55,11 +56,24 @@ jobs:
           '
           node bin/fleet.js --list | tee list.txt
           grep -q 'localhost:7821' list.txt
+          # The home page started alongside, on its own port: the page, its manifest, and the toy project running.
+          node bin/fleet.js home --no-open | tee home.txt
+          grep -q 'localhost:7820' home.txt
+          curl -sf http://127.0.0.1:7820/ | grep -q 'manifest.webmanifest'
+          curl -sf http://127.0.0.1:7820/manifest.webmanifest | grep -q '"display": "standalone"'
+          curl -sf -o /dev/null http://127.0.0.1:7820/icon-512.png
+          curl -sf http://127.0.0.1:7820/api/home | tee home.json
+          node -e 'const p = JSON.parse(require("fs").readFileSync("home.json", "utf8")).projects; if (!p.some((x) => x.running && x.summary?.port === 7821)) throw new Error("toy project not running on the home page")'
           node bin/fleet.js --stop --repo toy
           sleep 2
           if curl -sf http://127.0.0.1:7821/ > /dev/null; then echo "still running"; exit 1; fi
+          # --stop for one repo leaves the home page; --all stops it too.
+          curl -sf -o /dev/null http://127.0.0.1:7820/
+          node bin/fleet.js --stop --all
+          sleep 2
+          if curl -sf http://127.0.0.1:7820/ > /dev/null; then echo "home still running"; exit 1; fi
       - if: always()
-        run: cat fleet.log || true
+        run: cat fleet.log "${{ runner.temp }}/home/.fleet/fleet-home.log" || true
 
   # Native Windows installs, prints its version, and points everything else to WSL.
   windows:

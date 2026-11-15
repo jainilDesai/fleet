@@ -8,12 +8,15 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { OS } from './platform.js';
+import { freePort } from './registry.js';
 
 const SYSTEMD = OS !== 'mac';
 
 // The single login item older versions made, still recognised as its repo's item.
 export const LABEL = 'com.jainildesai.fleet';
 export const labelFor = (slug) => (SYSTEMD ? `fleet-${slug}` : `${LABEL}.${slug}`);
+// The home page's own login item (com.jainildesai.fleet.home, fleet-home.service).
+export const HOME_LABEL = labelFor('home');
 const AGENTS = SYSTEMD
   ? process.env.FLEET_SYSTEMD_UNITS || path.join(os.homedir(), '.config', 'systemd', 'user')
   : process.env.FLEET_LAUNCH_AGENTS || path.join(os.homedir(), 'Library', 'LaunchAgents');
@@ -26,8 +29,11 @@ const unxml = (s) => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp
 
 // node: the Node binary to run Fleet with. pathEnv: the PATH Fleet needs to find `claude`;
 // launchd starts agents with a bare PATH, so it is recorded at install time.
-export function plist({ label = LABEL, node, script, port, repo, pathEnv, log }) {
-  const args = [node, script, '--no-open', '--port', String(port), ...(repo ? ['--repo', repo] : [])];
+// args: what follows the script; by default a project's --no-open --port <port> [--repo <repo>].
+const fleetArgs = (port, repo) => ['--no-open', '--port', String(port), ...(repo ? ['--repo', repo] : [])];
+
+export function plist({ label = LABEL, node, script, port, repo, pathEnv, log, args: extra = fleetArgs(port, repo) }) {
+  const args = [node, script, ...extra];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -64,17 +70,19 @@ const ununit = (s) => s.replace(/\$\$/g, '$').replace(/%%/g, '%').replace(/\\(.)
 
 // The same login item as a systemd user service. Restart=on-failure is launchd's
 // KeepAlive SuccessfulExit=false: a copy that exits cleanly (e.g. its repo already has a Fleet) stays down.
-export function unit({ node, script, port, repo, pathEnv, log }) {
-  const args = [node, script, '--no-open', '--port', String(port), ...(repo ? ['--repo', repo] : [])];
+// KillMode=process: stopping or restarting it leaves the agents' tmux sessions running, as launchd does.
+export function unit({ node, script, port, repo, pathEnv, log, args: extra = fleetArgs(port, repo) }) {
+  const args = [node, script, ...extra];
   return `# Written by fleet --autostart; remove it with fleet --no-autostart.
 [Unit]
-Description=Fleet${repo ? ` for ${repo.replace(/%/g, '%%')}` : ''}
+Description=Fleet${repo ? ` for ${repo.replace(/%/g, '%%')}` : extra[0] === 'home' ? ' home page' : ''}
 
 [Service]
 ExecStart=${args.map((a) => unitWord(a)).join(' ')}
 Environment=${unitWord(`PATH=${pathEnv}`, false)}
 Restart=on-failure
 RestartSec=30
+KillMode=process
 StandardOutput=append:${log.replace(/%/g, '%%')}
 StandardError=append:${log.replace(/%/g, '%%')}
 
@@ -120,6 +128,7 @@ export function items() {
 
 // A repo's login items; an older com.jainildesai.fleet item without --repo counts for any repo.
 export const itemsFor = (repo) => items().filter((i) => i.repo === repo || (i.label === LABEL && !i.repo));
+export const homeItem = () => items().find((i) => i.label === HOME_LABEL && !i.repo) ?? null;
 
 const domain = () => `gui/${process.getuid()}`;
 const launchctl = (...args) => execFileSync(process.env.FLEET_LAUNCHCTL || 'launchctl', args, { stdio: 'pipe', encoding: 'utf8' });
@@ -146,40 +155,63 @@ const NO_SYSTEMD =
 then run "wsl --shutdown" in Windows and open your Linux terminal again. Or just run fleet in a terminal.`
     : 'Start at login needs systemd user services ("systemctl --user"), which this system does not have. Run fleet in a terminal instead.';
 
-// Loads (and starts) or unloads a login item.
-const load = (file) => (SYSTEMD ? (systemctl('daemon-reload'), systemctl('enable', '--now', path.basename(file))) : launchctl('bootstrap', domain(), file));
+// Unloads (and stops) a login item.
 const unload = (file) => (SYSTEMD ? systemctl('disable', '--now', path.basename(file)) : launchctl('bootout', domain(), file));
 
 // npx runs Fleet from a cache folder npm may delete at any time; a login item can't point there.
 export const fromNpx = (script = SCRIPT) => script.split(path.sep).includes('_npx');
 
-// Replaces this repo's login item (an older com.jainildesai.fleet one too) and starts it now.
-export function enable({ port, repo, slug }) {
+// Writes a login item (replacing `old` ones) and starts it now.
+function install({ label, log, args, old = [] }) {
   if (fromNpx()) {
     const { name } = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     throw new Error(`Fleet is running from the npx cache, which npm can clear at any time. Install it first, then run this again:\n\n  npm install -g ${name}\n  fleet --autostart`);
   }
   if (SYSTEMD && !systemdReady()) throw new Error(NO_SYSTEMD);
-  const label = labelFor(slug);
   const file = path.join(AGENTS, `${label}${EXT}`);
-  const log = path.join(os.homedir(), '.fleet', `fleet-${slug}.log`);
   fs.mkdirSync(AGENTS, { recursive: true });
   fs.mkdirSync(path.dirname(log), { recursive: true });
-  for (const old of [...itemsFor(repo), readItem(file)].filter(Boolean)) {
+  for (const o of new Map([...old, readItem(file)].filter(Boolean).map((i) => [i.file, i])).values()) {
+    if (SYSTEMD && o.file === file) continue; // restarted below under the new unit, whose KillMode spares tmux
     try {
-      unload(old.file);
+      unload(o.file);
     } catch {}
-    fs.rmSync(old.file, { force: true });
+    fs.rmSync(o.file, { force: true });
   }
   const make = SYSTEMD ? unit : plist;
-  fs.writeFileSync(file, make({ label, node: process.execPath, script: SCRIPT, port, repo, pathEnv: process.env.PATH ?? '/usr/bin:/bin', log }));
-  load(file);
-  return { label, plist: file, log, port, repo, systemd: SYSTEMD };
+  fs.writeFileSync(file, make({ label, node: process.execPath, script: SCRIPT, args, pathEnv: process.env.PATH ?? '/usr/bin:/bin', log }));
+  if (SYSTEMD) {
+    systemctl('daemon-reload');
+    systemctl('enable', path.basename(file));
+    systemctl('restart', path.basename(file));
+  } else launchctl('bootstrap', domain(), file);
+  return { label, plist: file, log, systemd: SYSTEMD };
 }
 
-// Removes this repo's login items and stops their copies. Returns how many there were.
-export function disable(repo) {
-  const mine = itemsFor(repo);
+// Replaces this repo's login item (an older com.jainildesai.fleet one too) and starts it now.
+export function enable({ port, repo, slug }) {
+  const log = path.join(os.homedir(), '.fleet', `fleet-${slug}.log`);
+  return { ...install({ label: labelFor(slug), log, args: fleetArgs(port, repo), old: itemsFor(repo) }), port, repo };
+}
+
+// The home page's login item, started now.
+export const enableHome = (port) => ({ ...install({ label: HOME_LABEL, log: path.join(os.homedir(), '.fleet', 'fleet-home.log'), args: ['home', '--serve', '--port', String(port)] }), port });
+
+// Project login items pinned to the home page's port (written before the home page had it) move to
+// the next free port after it, and restart there. The agents' tmux sessions keep running.
+export async function moveOff(port, slugOf) {
+  const moved = [];
+  for (const i of items()) {
+    if (!i.repo || i.port !== port) continue;
+    const to = await freePort(port + 1, items().map((x) => x.port));
+    enable({ port: to, repo: i.repo, slug: slugOf(i.repo) });
+    moved.push({ repo: i.repo, from: port, to });
+  }
+  return moved;
+}
+
+// Removes this repo's login items (or the ones given) and stops their copies. Returns how many there were.
+export function disable(repo, mine = itemsFor(repo)) {
   for (const i of mine) {
     try {
       unload(i.file);
@@ -227,6 +259,9 @@ export function startBackground(item) {
 // (bin/fleet for a global install, node_modules/.bin/fleet for a local install or npx).
 export const isFleetCommand = (cmd) => /(^|\/)node\s(.*[\s/])?\.?bin\/fleet(\.js)?(\s|$)/.test(cmd);
 
+// The home page's server (fleet home --serve): stopped only with --all.
+export const isHomeCommand = (cmd) => /bin\/fleet(\.js)?\s+home\s/.test(`${cmd} `);
+
 // The --repo a Fleet command line was started with, if any.
 export const repoArg = (cmd) => cmd.match(/\s--repo\s+(.+?)(?=\s--|$)/)?.[1] ?? null;
 
@@ -236,7 +271,7 @@ export function pidsToStop(processes, registry, repo, all) {
   const pids = [];
   let unknown = 0;
   for (const p of processes) {
-    if (p.pid === process.pid || !isFleetCommand(p.cmd)) continue;
+    if (p.pid === process.pid || !isFleetCommand(p.cmd) || (!all && isHomeCommand(p.cmd))) continue;
     const at = registry.find((e) => e.pid === p.pid)?.repo ?? repoArg(p.cmd);
     if (all || at === repo) pids.push(p.pid);
     else if (!at) unknown++;

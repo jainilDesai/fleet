@@ -9,7 +9,7 @@ import { launch, focus } from './terminal.js';
 import { summarize } from './summarize.js';
 import { observe, recentEvents, reloadEvents, config, setConfig, setDashboardUrl } from './events.js';
 import { scan, history, summarizeSession, reloadHistory } from './history.js';
-import { running, register, unregister, urlOf, claimWatcher, releaseWatcher } from './registry.js';
+import { running, register, unregister, urlOf, homeUrl, claimWatcher, releaseWatcher } from './registry.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -23,6 +23,7 @@ const TYPES = {
   '.woff': 'font/woff',
   '.png': 'image/png',
   '.json': 'application/json',
+  '.webmanifest': 'application/manifest+json',
 };
 
 // POSTs start processes on this machine. Only the page this server rendered may send them:
@@ -85,6 +86,8 @@ export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd() } 
       if (req.method === 'GET' && url.pathname === '/api/usage') return send(res, 200, { ...usage(), limits: limits() });
       if (req.method === 'GET' && url.pathname === '/api/history') return send(res, 200, history());
       if (req.method === 'GET' && url.pathname === '/api/projects') return send(res, 200, recentProjects(liveSessions()));
+      // For the home page: this project's agents, what needs you, open PRs.
+      if (req.method === 'GET' && url.pathname === '/api/summary') return send(res, 200, { ...(await hqReady).summary(), port });
       // The Fleet copies running on this Mac, for the project switcher.
       if (req.method === 'GET' && url.pathname === '/api/fleets')
         return send(res, 200, running().map((e) => ({ slug: e.slug, name: e.name, repo: e.repo, url: urlOf(e), current: e.pid === process.pid })));
@@ -149,7 +152,7 @@ const STATIC = new Map(
         .filter((f) => fs.statSync(path.join(PUBLIC, f)).isFile())
         .map((f) => {
           let body = fs.readFileSync(path.join(PUBLIC, f));
-          if (f === 'index.html') body = Buffer.from(body.toString().replace('__FLEET_TOKEN__', TOKEN));
+          if (f === 'index.html') body = Buffer.from(body.toString().replace('__FLEET_TOKEN__', TOKEN).replace('__FLEET_HOME_URL__', homeUrl()));
           return [f.split(path.sep).join('/'), body];
         })
     : []

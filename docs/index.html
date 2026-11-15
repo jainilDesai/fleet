@@ -149,8 +149,9 @@
         <ol class="steps" style="margin-top: 36px">
           <li>Install tmux and Fleet. On Linux or WSL, <code>sudo apt install tmux</code> instead of brew.<pre><code>brew install tmux
 npm install -g @jainil_desai/fleet</code></pre></li>
-          <li>Start it in any git repo, or point it at one. Your browser opens <code>http://localhost:7788</code>.<pre><code>cd ~/code/my-app &amp;&amp; fleet
+          <li>Start it in any git repo, or point it at one. Your browser opens that project's office.<pre><code>cd ~/code/my-app &amp;&amp; fleet
 fleet --repo ~/code/my-app</code></pre></li>
+          <li>Every project in one place: <code>fleet home</code> opens the <a href="docs.html#home-page">home page</a> at <code>http://localhost:7788</code>, with what runs, what needs you and what it costs. Install it as an app from Chrome, Edge or Safari.<pre><code>fleet home</code></pre></li>
           <li>Optional: start Fleet at login for this repo, in the background. Run it in each repo you want; <code>fleet --list</code> shows them all.<pre><code>fleet --autostart</code></pre></li>
         </ol>
         <p>Options, customising roles and how it all works are in the <a href="docs.html">docs</a>.</p>

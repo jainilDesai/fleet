@@ -51,7 +51,9 @@ test('quitFleet from the page: Fleet exits 0 and leaves no registry entry or wat
   execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '--allow-empty', '-m', 'first'], { cwd: repo });
   const port = await freePort(7830);
   const bin = new URL('../bin/fleet.js', import.meta.url).pathname;
-  const child = spawn(process.execPath, [bin, '--repo', repo, '--port', String(port), '--no-open'], { env: { ...process.env, HOME: home }, stdio: 'ignore' });
+  // Its home page (started alongside) gets a test port, and is stopped at the end.
+  const homePort = await freePort(7870);
+  const child = spawn(process.execPath, [bin, '--repo', repo, '--port', String(port), '--no-open'], { env: { ...process.env, HOME: home, FLEET_HOME_PORT: String(homePort), FLEET_LAUNCH_AGENTS: path.join(home, 'agents') }, stdio: 'ignore' });
   const exited = new Promise((r) => child.on('exit', (code) => r(code)));
   try {
     const entry = path.join(home, '.fleet', 'running', `${child.pid}.json`);
@@ -71,5 +73,10 @@ test('quitFleet from the page: Fleet exits 0 and leaves no registry entry or wat
     assert.ok(!fs.existsSync(path.join(home, '.fleet', 'watcher.pid')), 'watcher lock released');
   } finally {
     child.kill();
+    const homePid = path.join(home, '.fleet', 'home.pid');
+    for (let i = 0; i < 50 && !fs.existsSync(homePid); i++) await new Promise((r) => setTimeout(r, 100));
+    try {
+      process.kill(Number(fs.readFileSync(homePid, 'utf8')));
+    } catch {}
   }
 });

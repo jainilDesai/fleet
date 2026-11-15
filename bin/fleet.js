@@ -2,9 +2,10 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { enable, disable, staleNode, items, itemsFor, startBackground, stop } from '../src/autostart.js';
-import { running, urlOf, freePort } from '../src/registry.js';
+import { enable, enableHome, disable, staleNode, items, itemsFor, homeItem, startBackground, stop } from '../src/autostart.js';
+import { running, urlOf, freePort, HOME_PORT, homeUrl } from '../src/registry.js';
 import { OS, openTarget } from '../src/platform.js';
 
 const arg = (name, fallback) => {
@@ -17,10 +18,13 @@ const fail = (message) => {
   process.exit(1);
 };
 
+// `fleet home` and `fleet open`: the home page. Everything else is a project's Fleet.
+const sub = ['home', 'open'].includes(process.argv[2]) ? process.argv[2] : null;
+
 // Unknown flags and missing values stop here, before anything starts.
 const VALUE_FLAGS = ['--repo', '--port'];
-const FLAGS = ['--no-open', '--autostart', '--no-autostart', '--stop', '--start', '--all', '--list', '--version', '-h', '--help'];
-for (let i = 2; i < process.argv.length; i++) {
+const FLAGS = sub ? ['--no-open', '--autostart', '--no-autostart', '--serve', '-h', '--help'] : ['--no-open', '--autostart', '--no-autostart', '--stop', '--start', '--all', '--list', '--version', '-h', '--help'];
+for (let i = sub ? 3 : 2; i < process.argv.length; i++) {
   const a = process.argv[i];
   if (VALUE_FLAGS.includes(a)) {
     const v = process.argv[++i];
@@ -34,21 +38,29 @@ if (has('--version')) {
   process.exit(0);
 }
 
-// No --port or FLEET_PORT: 7788, or the next free port when another Fleet (or anything) has it.
+// No --port or FLEET_PORT: the port after the home page's (7789), or the next free one.
 const portGiven = has('--port') || process.env.FLEET_PORT !== undefined;
-const portText = String(arg('--port', process.env.FLEET_PORT ?? 7788));
+const portText = String(arg('--port', process.env.FLEET_PORT ?? HOME_PORT + 1));
 let port = Number(portText);
 if (!/^\d+$/.test(portText) || port < 1 || port > 65535) fail(`Port must be a number from 1 to 65535, not "${portText}".`);
 // The repo the agent team works on: --repo, else FLEET_REPO, else the current folder.
+const repoGiven = has('--repo') || !!process.env.FLEET_REPO;
 const repo = path.resolve(arg('--repo', process.env.FLEET_REPO ?? process.cwd()));
 
 if (has('--help') || has('-h')) {
   console.log(`Usage: fleet [options]
+       fleet home | fleet open
 
-Run fleet in each repo you want a team on; each copy gets its own port.
+Run fleet in each repo you want a team on; each copy gets its own port. Outside a repo, fleet
+opens the home page at http://localhost:${HOME_PORT}: every project, what runs, what needs you, cost.
+
+  fleet home        Start the home page in the background if needed, and open it
+  fleet open        The same: open the home page
+  fleet home --autostart     Start the home page at login (on by itself once any repo has --autostart)
+  fleet home --no-autostart  Stop starting it at login, and stop it
 
   --repo <path>     The git repo the agent team works on (default: this folder, or FLEET_REPO)
-  --port <n>        Serve on this port (default 7788, or the next free one; or FLEET_PORT)
+  --port <n>        Serve on this port (default ${HOME_PORT + 1}, or the next free one; or FLEET_PORT)
   --no-open         Don't open a browser tab
   --list            List the Fleet copies running on this computer, with their URLs
   --autostart       Start Fleet at login for this repo, in the background, and start it now
@@ -73,6 +85,45 @@ Step by step: ${pkg.homepage}/docs.html#install-wsl`);
 
 const openBrowser = (url) => openTarget(url) || console.log(`Open ${url} in your browser.`);
 
+// The home page's UI is in public/ too.
+const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const built = () => {
+  if (fs.existsSync(path.join(root, 'public', 'index.html')) && fs.existsSync(path.join(root, 'dist', 'hq.mjs'))) return;
+  console.error(`Fleet isn't built yet. Run this first, in ${root}:\n\n  npm install && npm run build\n`);
+  process.exit(1);
+};
+
+const home = await import('../src/home.js');
+const printMoved = (moved) => {
+  for (const m of moved) console.log(`Fleet for ${m.repo} moved from port ${m.from} to ${m.to}, to make room for the home page (its agents keep running).`);
+};
+
+// The home page: started in the background (or served here with --serve), then opened.
+const runHome = async () => {
+  built();
+  if (has('--serve')) return home.serve().then(() => new Promise(() => {})); // serves until stopped; never falls through
+  if (has('--no-autostart')) {
+    const item = homeItem();
+    disable(null, item ? [item] : []);
+    console.log(item ? 'The home page no longer starts at login, and is stopped.' : 'The home page was not set to start at login.');
+    process.exit(0);
+  }
+  if (has('--autostart')) {
+    try {
+      printMoved(await home.migrate());
+      if (!homeItem()) enableHome(HOME_PORT);
+    } catch (e) {
+      fail(`Could not set up auto-start: ${e.stderr?.toString().trim() || e.message}`);
+    }
+    console.log(`The home page now starts at login on ${homeUrl()}.`);
+  } else printMoved(await home.ensureHome());
+  if (!(await home.waitForHome())) fail(`The home page didn't start. See ${path.join(os.homedir(), '.fleet', 'fleet-home.log')}.`);
+  console.log(`Fleet home at ${homeUrl()}`);
+  if (!has('--no-open')) openBrowser(homeUrl());
+  process.exit(0);
+};
+if (sub) await runHome();
+
 if (has('--list')) {
   const list = running();
   if (!list.length) console.log('No Fleet is running.');
@@ -86,7 +137,7 @@ const repoRoot = () => {
   try {
     root = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: repo, stdio: 'pipe' }).toString().trim();
   } catch {
-    fail(`${repo} is not inside a git repository. Run fleet from your project folder, or pass --repo <path>.`);
+    fail(`${repo} is not inside a git repository. Run fleet from your project folder, pass --repo <path>, or run "fleet home" for the home page.`);
   }
   // Agents' worktrees start from a commit, so an empty repo would fail later with "invalid reference: HEAD".
   try {
@@ -97,26 +148,24 @@ const repoRoot = () => {
   return root;
 };
 
-// The office UI (public/) and the agent-team server (dist/hq.mjs) are built from hq/.
-const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const built = () => {
-  if (fs.existsSync(path.join(root, 'public', 'index.html')) && fs.existsSync(path.join(root, 'dist', 'hq.mjs'))) return;
-  console.error(`Fleet isn't built yet. Run this first, in ${root}:\n\n  npm install && npm run build\n`);
-  process.exit(1);
-};
-
 if (has('--autostart')) {
   built();
   const r = repoRoot();
   const { projectSlug } = await import('../dist/hq.mjs');
-  // The port this repo's login item already had, else a free one no other login item uses.
-  const p = portGiven ? port : itemsFor(r).find((i) => i.port)?.port ?? (await freePort(7788, items().map((i) => i.port)));
+  // The port this repo's login item already had (not the home page's), else a free one no other login item uses.
+  const p = portGiven ? port : itemsFor(r).find((i) => i.port && i.port !== HOME_PORT)?.port ?? (await freePort(HOME_PORT + 1, items().map((i) => i.port)));
   try {
     const out = enable({ port: p, repo: r, slug: projectSlug(r) });
     console.log(`Fleet now starts at login on http://localhost:${out.port} for ${out.repo}, and is starting now.
 Log: ${out.log}
 Turn it off with: fleet --no-autostart`);
     if (out.systemd) console.log('It runs as a systemd user service. To start it at boot, before you log in: loginctl enable-linger "$USER"');
+    // The home page starts at login too, the first time any repo does.
+    if (!homeItem()) {
+      printMoved(await home.migrate());
+      enableHome(HOME_PORT);
+      console.log(`The home page starts at login too, on ${homeUrl()} (turn it off with: fleet home --no-autostart).`);
+    }
   } catch (e) {
     console.error(`Could not set up auto-start: ${e.stderr?.toString().trim() || e.message}`);
     process.exit(1);
@@ -164,7 +213,27 @@ if (has('--start')) {
 }
 
 built();
+// Outside a repo (and no --repo): the home page.
+if (!repoGiven) {
+  try {
+    execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: repo, stdio: 'pipe' });
+  } catch {
+    await runHome();
+  }
+}
 const r = repoRoot();
+
+// The home page runs alongside, in the background; it never stops this repo's Fleet from starting.
+// A login item still pinned to the home's port is this copy itself: the home moves it, not us.
+const pinnedHere = portGiven && port === HOME_PORT && itemsFor(r).some((i) => i.port === HOME_PORT);
+try {
+  const moved = await home.ensureHome({ move: !pinnedHere });
+  printMoved(moved);
+  // This repo's own background copy just restarted on its new port: wait for it, don't start a second one.
+  if (moved.some((m) => m.repo === r)) for (let i = 0; i < 100 && !running().some((e) => e.repo === r); i++) await new Promise((res) => setTimeout(res, 300));
+} catch (e) {
+  console.warn(`The home page could not start: ${e.message}`);
+}
 for (const i of itemsFor(r)) {
   const stale = staleNode(i.file);
   if (stale) console.warn(`Auto-start points at ${stale}, which no longer exists (Node or Fleet was updated or removed).
@@ -184,8 +253,9 @@ if (!portGiven) {
   } catch (e) {
     fail(e.message);
   }
-  if (port !== 7788) console.log(`Port 7788 is in use, so Fleet uses ${port}.`);
+  if (port !== HOME_PORT + 1) console.log(`Port ${HOME_PORT + 1} is in use, so Fleet uses ${port}.`);
 }
+if (port === HOME_PORT && !pinnedHere) console.warn(`Port ${HOME_PORT} is the home page's; it can't start while this Fleet uses it.`);
 
 const { start } = await import('../src/server.js');
 const server = start({ port, repo: r });

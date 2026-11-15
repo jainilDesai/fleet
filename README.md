@@ -41,7 +41,8 @@ team's pull requests and reviews.
 brew install tmux          # and optionally: brew install gh
 npm install -g @jainil_desai/fleet
 cd ~/code/my-app           # any git repo
-fleet                      # opens http://localhost:7788
+fleet                      # opens this repo's Fleet, http://localhost:7789
+fleet home                 # the home page, http://localhost:7788 (fleet outside a repo does the same)
 ```
 
 ### Linux
@@ -50,7 +51,7 @@ fleet                      # opens http://localhost:7788
 sudo apt install tmux      # Fedora: sudo dnf install tmux; Arch: sudo pacman -S tmux
 npm install -g @jainil_desai/fleet
 cd ~/code/my-app
-fleet                      # opens http://localhost:7788 with xdg-open
+fleet                      # opens http://localhost:7789 with xdg-open
 ```
 
 Install Claude Code with `curl -fsSL https://claude.ai/install.sh | bash` and run `claude` once
@@ -74,7 +75,7 @@ from your Windows browser. Running `fleet` in PowerShell or cmd just prints thes
 7. Keep your repo in the Linux file system (for example `~/code/my-app`), not under `/mnt/c`:
    git and agents are many times faster there, and file watching works. Then `cd ~/code/my-app`
    and run `fleet`.
-8. Open http://localhost:7788 in your Windows browser (Fleet tries to open it for you, with
+8. Open http://localhost:7789 in your Windows browser (Fleet tries to open it for you, with
    `wslview` or `explorer.exe`).
 
 Fleet works on one git repo per run (with at least one commit): the folder you start it in,
@@ -116,10 +117,10 @@ fleet --start              # start this repo's background copy again now
 fleet --no-autostart       # turn auto-start off for this repo and stop its background copy
 ```
 
-Fleet then runs without opening a browser tab (open `http://localhost:7788` when you want
-it), restarts if it crashes, and logs to `~/.fleet/fleet-<project>.log`. Each repo gets its
+Fleet then runs without opening a browser tab (the [home page](#home-page) links to it),
+restarts if it crashes, and logs to `~/.fleet/fleet-<project>.log`. Each repo gets its
 own login item with its own fixed port: the one you pass with `--port`, else the one it had, else the first
-free port from 7788. Install Fleet globally first (`npm install -g`); `--autostart` refuses to
+free port from 7789. The first `fleet --autostart` also sets the home page to start at login. Install Fleet globally first (`npm install -g`); `--autostart` refuses to
 run from the npx cache, which npm can clear. If you update Node through nvm, or move Fleet, run
 `fleet --autostart` again; Fleet reminds you when you start it by hand.
 
@@ -136,13 +137,59 @@ Set up with Fleet 0.3? Your `com.jainildesai.fleet` item still counts as that re
 `--stop`, `--start` and `--no-autostart` find it, and `fleet --autostart` in that repo replaces
 it with the per-project one on the same port.
 
+## Home page
+
+`fleet home` (or `fleet open`, or plain `fleet` outside a git repo) opens Fleet's home page at
+**http://localhost:7788**, the one address to remember. It runs in the background (a light
+server: no repo, no agents, no tmux), starts if it isn't running, and also starts whenever you
+run `fleet` in a repo.
+
+- **Header:** how many projects Fleet knows, how many run, and the total cost.
+- **A card per project** (every repo Fleet has run in, from `~/.fleet/projects/`): repo path,
+  running or stopped, its URL, agents running, how many things need you (its Action items),
+  open PRs and its cost. **Open** goes to the project, **Start** starts it in the background
+  (its login item if it has one, else `fleet --repo <repo> --no-open`), **Stop** is
+  `fleet --stop` for that repo. A project whose repo folder is gone is dimmed, with **Forget**,
+  which deletes only Fleet's folder for it after asking; it never touches a repo.
+- **Cost** is the API-equivalent cost of the project's agents' sessions (subagents included),
+  for today, the last 7 days and all time, from `~/.fleet/history.json`. On a Claude plan you
+  don't pay this per session. A session counts on the day it last ran.
+- It updates every few seconds. Every project's top bar has a **Home** link back to it.
+
+```bash
+fleet home --autostart     # start the home page at login (done for you by the first fleet --autostart)
+fleet home --no-autostart  # stop starting it at login, and stop it
+```
+
+On macOS its login item is `com.jainildesai.fleet.home`; on Linux and WSL, `fleet-home.service`.
+`fleet --stop --all` and `fleet --no-autostart --all` include it. Set `FLEET_HOME_PORT` to move it.
+
+**Upgrading from 0.5 or earlier.** Projects used to start at 7788, so a project's login item may
+be pinned there. The first time the home page starts (from `fleet`, `fleet home` or at login),
+Fleet moves that login item to the next free port from 7789, restarts it, and says what moved.
+Its agents keep running in tmux. Agents started before the move still call 7788 for their hooks
+and Team MCP; the home page passes those calls on to their project (matched by the project's
+agent token), so they keep working while the home page runs. Agents pick up the new port the
+next time they start.
+
+### Install as an app
+
+The home page installs as an app, with its own window, Dock or taskbar icon, and Spotlight entry:
+
+- **Chrome or Edge:** open http://localhost:7788 and click the install icon in the address bar
+  (or ⋮ → Cast, save and share → Install page as app).
+- **Safari (macOS Sonoma or later):** File → Add to Dock.
+
+Then open it like any app, for example Spotlight → "Fleet". Projects open in your browser
+(each runs on its own port).
+
 ## Several projects
 
 Run `fleet` in each repo you want a team on. Each copy is its own project: its own team, plan,
 port and tmux sessions.
 
-- **Ports.** The first copy gets 7788. When 7788 is taken and you didn't pass `--port` (or
-  `FLEET_PORT`), Fleet takes the next free port and says which. Running `fleet` again in a repo
+- **Ports.** The first copy gets 7789 (7788 is the home page's). When it's taken and you didn't
+  pass `--port` (or `FLEET_PORT`), Fleet takes the next free port and says which. Running `fleet` again in a repo
   that already has one opens that one instead of starting a second.
 - **`fleet --list`** prints every running copy with its URL, project and repo.
 - **Switcher.** When other copies are running, the top bar shows **⇄ n** next to the project
@@ -357,7 +404,7 @@ npm install
 npm run build              # hq/ → public/ (the office UI) and dist/hq.mjs (the team server)
 npm test                   # node --test
 node bin/fleet.js --repo <path> --port 7799 --no-open
-npm run dev                # Vite dev server for the UI, proxied to Fleet on 7788
+npm run dev                # Vite dev server for the UI, proxied to Fleet on 7789
 ```
 
 The office UI (React, pixi.js) and the team server (TypeScript, MCP SDK) live in `hq/`.

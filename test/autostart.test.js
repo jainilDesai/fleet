@@ -108,13 +108,14 @@ test('--stop picks only this repo\'s Fleet, unless --all', () => {
     { pid: 102, cmd: 'node /usr/local/bin/fleet' }, // started by hand in /code/site: known from the registry
     { pid: 103, cmd: 'node /usr/local/bin/fleet --port 7795' }, // repo unknown
     { pid: 104, cmd: 'vim bin/fleet.js' },
+    { pid: 105, cmd: '/usr/local/bin/node /usr/local/lib/node_modules/@jainil_desai/fleet/bin/fleet.js home --serve --port 7788' }, // the home page
     { pid: process.pid, cmd: 'node bin/fleet.js --stop' },
   ];
   const registry = [{ pid: 102, repo: '/code/site', port: 7789 }];
   assert.equal(repoArg(ps[0].cmd), '/code/my app');
   assert.deepEqual(pidsToStop(ps, registry, '/code/my app', false), { pids: [101], unknown: 1 });
   assert.deepEqual(pidsToStop(ps, registry, '/code/site', false), { pids: [102], unknown: 1 });
-  assert.deepEqual(pidsToStop(ps, registry, '/code/site', true), { pids: [101, 102, 103], unknown: 0 });
+  assert.deepEqual(pidsToStop(ps, registry, '/code/site', true), { pids: [101, 102, 103, 105], unknown: 0 }, '--all stops the home page too');
 });
 
 test('--stop only matches Fleet servers, not other processes', () => {

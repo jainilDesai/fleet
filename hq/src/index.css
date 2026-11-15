@@ -65,6 +65,18 @@ html[data-font] .font-term {
     font: inherit;
     color: inherit;
   }
+
+  /* The home page (home.html) scrolls and fits any width, unlike the office. */
+  html.home,
+  html.home body,
+  html.home #root {
+    height: auto;
+    min-height: 100%;
+    overflow: auto;
+  }
+  html.home body {
+    min-width: 0;
+  }
 }
 
 @layer components {
