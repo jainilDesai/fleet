@@ -137,7 +137,12 @@ export function startProject(p) {
   else spawnFleet(['--repo', p.repo, '--no-open'], `fleet-${p.slug}.log`);
 }
 
-const safeEqual = (a, b) => a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+// Byte lengths, not string lengths: timingSafeEqual throws on buffers of different sizes.
+const safeEqual = (a, b) => {
+  const A = Buffer.from(a);
+  const B = Buffer.from(b);
+  return A.length === B.length && crypto.timingSafeEqual(A, B);
+};
 
 // Agents' hooks and Team MCP still pointing at this port (their project moved off it while they
 // ran) reach their project here: the agent token says which one.
@@ -191,12 +196,17 @@ const readBody = (req) =>
 export function handler(req, res) {
   const url = new URL(req.url, 'http://x');
   if (![`127.0.0.1:${HOME_PORT}`, `localhost:${HOME_PORT}`].includes(req.headers.host)) return send(res, 403, { error: 'bad host' });
-  if (url.pathname.startsWith('/hook/') || url.pathname === '/mcp') return forward(req, res);
   (async () => {
+    if (url.pathname.startsWith('/hook/') || url.pathname === '/mcp') return forward(req, res);
     if (req.method === 'GET' && url.pathname === '/api/home') return send(res, 200, await state());
     if (req.method === 'POST') {
       if (req.headers['x-fleet-token'] !== TOKEN) return send(res, 403, { error: 'bad token' });
-      const { slug } = JSON.parse((await readBody(req)) || '{}');
+      let slug;
+      try {
+        ({ slug } = JSON.parse((await readBody(req)) || '{}'));
+      } catch {
+        return send(res, 400, { error: 'bad request' });
+      }
       const p = projects().find((x) => x.slug === slug);
       if (!p) return send(res, 404, { error: 'no such project' });
       if (url.pathname === '/api/home/start') {
@@ -218,7 +228,7 @@ export function handler(req, res) {
     if (!body) return send(res, 404, { error: 'not found' });
     res.writeHead(200, { 'content-type': TYPES[path.extname(rel)] ?? 'application/octet-stream', 'cache-control': 'no-store' });
     res.end(body);
-  })().catch((e) => send(res, 500, { error: e.message }));
+  })().catch((e) => (res.headersSent ? res.end() : send(res, 500, { error: e.message })));
 }
 
 // The home's pid in ~/.fleet/home.pid while it runs (or is starting): one home per computer.

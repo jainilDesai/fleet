@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { tempHome } from './fixtures.js';
@@ -165,6 +166,24 @@ test('fleet outside a repo starts the home page; a project copy takes the next p
     const token = fs.readFileSync(path.join(projectsDir, summary.slug, 'agent-token'), 'utf8').trim();
     const hook = (auth) => get(PORT, '/hook/nobody/Stop', { method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' }, body: '{}' });
     assert.equal((await hook('Bearer wrong')).status, 401);
+    // Same string length as the real header but more bytes once re-encoded: raw 0xE9 bytes arrive as
+    // 'é', one character each, two bytes in UTF-8. A 401, and the home keeps answering.
+    const odd = await new Promise((resolve) => {
+      const sock = net.connect(PORT, '127.0.0.1', () =>
+        sock.end(Buffer.concat([Buffer.from(`POST /hook/nobody/Stop HTTP/1.1\r\nHost: 127.0.0.1:${PORT}\r\nContent-Length: 2\r\nAuthorization: Bearer `), Buffer.alloc(token.length, 0xe9), Buffer.from('\r\nConnection: close\r\n\r\n{}')])),
+      );
+      let data = '';
+      sock.on('data', (d) => (data += d));
+      sock.on('close', () => resolve(Number(data.match(/^HTTP\/1\.1 (\d+)/)?.[1])));
+      sock.on('error', () => resolve('error'));
+    });
+    assert.equal(odd, 401);
+    const badJson = await new Promise((resolve) => {
+      const r = http.request({ host: '127.0.0.1', port: PORT, path: '/api/home/start', method: 'POST', headers: { 'x-fleet-token': page.match(/__FLEET_PAGE_TOKEN__ = "([0-9a-f]+)"/)[1] } }, (x) => (x.resume(), resolve(x.statusCode)));
+      r.end('{not json');
+    });
+    assert.equal(badJson, 400);
+    assert.equal((await get(PORT, '/api/home')).status, 200, 'still answering');
     assert.equal((await hook(`Bearer ${token}`)).status, 404, "forwarded: the project doesn't know agent 'nobody'");
   } finally {
     child?.kill();
