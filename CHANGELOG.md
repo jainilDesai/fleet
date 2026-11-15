@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.1
 
 - **The logo goes home.** The Fleet logo and name in the top bar link to the home page
   (localhost:7788); the separate **Home** button is gone, which gives the project name more room.
