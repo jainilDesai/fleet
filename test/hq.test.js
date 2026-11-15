@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -55,9 +55,46 @@ test('a production deploy is never labelled like a routine command', () => {
 });
 
 test('branchAgent: Fleet worktree branches and agent/ branches map to the agent', () => {
-  assert.equal(branchAgent('fleet/implementer'), 'implementer');
-  assert.equal(branchAgent('alice/UI-T11-redesign'), 'alice');
-  assert.equal(branchAgent('main'), null);
+  assert.equal(branchAgent('fleet/app/implementer', 'app'), 'implementer', "this project's worktree branch");
+  assert.equal(branchAgent('fleet/implementer', 'app'), 'implementer', 'the older per-agent branch');
+  assert.equal(branchAgent('alice/UI-T11-redesign', 'app'), 'alice');
+  assert.equal(branchAgent('main', 'app'), null);
+  assert.equal(branchAgent('fleet/app-hotfix/implementer', 'app'), null, "another project's branch");
+  assert.equal(branchAgent('fleet/a/b/c', 'app'), null);
+});
+
+test('branchAgent on a repo two teams share: only this project\'s own branches count', () => {
+  assert.equal(branchAgent('fleet/app/cto', 'app', true), 'cto');
+  assert.equal(branchAgent('fleet/cto', 'app', true), null);
+  assert.equal(branchAgent('cto/B1-T01-x', 'app', true), null);
+  assert.equal(branchAgent('fleet/app-hotfix/cto', 'app', true), null);
+});
+
+test('agent worktree branches are per project', () => {
+  assert.equal(agentBranch('app', 'cto'), 'fleet/app/cto');
+  assert.notEqual(agentBranch('app', 'cto'), agentBranch('app-hotfix', 'cto'));
+});
+
+test('two repos with the same folder name get separate projects; a known root keeps its slug', () => {
+  const home = process.env.HOME;
+  process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-slug-'));
+  try {
+    assert.equal(projectSlug('/work/a/shop'), 'shop');
+    assert.equal(projectSlug('/work/a/shop'), 'shop', 'same root again');
+    const other = projectSlug('/work/b/shop');
+    assert.match(other, /^shop-[0-9a-f]{6}$/);
+    assert.equal(projectSlug('/work/b/shop'), other, 'stable');
+    assert.equal(projectSlug('/work/a/shop'), 'shop');
+    // A project from before the repo-root file: its config.json path says whose it is.
+    const legacy = path.join(process.env.HOME, '.fleet', 'projects', 'site');
+    fs.mkdirSync(legacy, { recursive: true });
+    fs.writeFileSync(path.join(legacy, 'config.json'), JSON.stringify({ project: { path: '/old/site' } }));
+    assert.match(projectSlug('/new/site'), /^site-/);
+    assert.equal(projectSlug('/old/site'), 'site');
+    assert.equal(fs.readFileSync(path.join(legacy, 'repo-root'), 'utf8'), '/old/site\n');
+  } finally {
+    process.env.HOME = home;
+  }
 });
 
 test('passedNotice never carries the PR title (untrusted text) to the lead', () => {

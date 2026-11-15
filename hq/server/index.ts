@@ -11,7 +11,7 @@ import { Hub } from "./hub";
 import { Inbox } from "./inbox";
 import { run } from "./lib/exec";
 import { log } from "./lib/log";
-import { agentToken, projectHome, slugify } from "./paths";
+import { agentToken, projectHome, projectSlug } from "./paths";
 import { Planner } from "./planner";
 import { detectRepo } from "./repo";
 import { Sessions } from "./sessions";
@@ -30,6 +30,7 @@ export interface HqOptions {
 export interface Hq {
   handle: HqHandler;
   repoRoot: string;
+  slug: string;
   stop(): void;
 }
 
@@ -48,7 +49,7 @@ async function adoptLoginPath() {
 export async function startHq(o: HqOptions): Promise<Hq> {
   await adoptLoginPath();
   const repo = await detectRepo(resolve(o.repo));
-  const slug = slugify(repo.name);
+  const slug = projectSlug(repo.root);
   const home = projectHome(slug);
   const { config, isNew } = loadConfig(home, repo, o.port);
   config.project.id = slug;
@@ -81,6 +82,7 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   return {
     handle,
     repoRoot: repo.root,
+    slug,
     stop() {
       // tmux keeps the agents running.
       sessions.shutdown();
@@ -93,6 +95,8 @@ export async function startHq(o: HqOptions): Promise<Hq> {
 export { describePermission, lastAssistantText } from "./hooks";
 export { draftFromPromptLine } from "./backends/tmuxCli";
 export { branchAgent } from "./github";
+export { projectSlug } from "./paths";
+export { agentBranch } from "./workspace";
 export { passedNotice } from "./githubSync";
 export { rolePreset } from "./roles";
 export { isApproval, resolutionMessage } from "./actionItems";

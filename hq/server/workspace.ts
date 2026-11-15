@@ -12,8 +12,11 @@ export function workspaceFor(agent: AgentConfig, projectSlug: string): string {
   return agent.workspacePath || managedWorkspace(projectSlug, agent.id);
 }
 
-/** The branch a managed worktree is created on. The agent makes its own task branches from there. */
-export const agentBranch = (agentId: string) => `fleet/${agentId}`;
+/**
+ * The branch a managed worktree is created on. The agent makes its own task branches from there.
+ * Per project, so two teams on checkouts of the same repo never want the same branch.
+ */
+export const agentBranch = (projectSlug: string, agentId: string) => `fleet/${projectSlug}/${agentId}`;
 
 /**
  * Makes sure the agent's folder exists and is a git checkout: a worktree of the repo
@@ -28,9 +31,14 @@ export async function ensureWorkspace(agent: AgentConfig, projectSlug: string, r
     mkdirSync(join(dir, ".."), { recursive: true });
     await run("git", ["fetch", "--quiet", "origin"], { cwd: repo.root, timeoutMs: 60_000 }); // best effort: start from the latest
     const base = await defaultBase(repo.root);
-    const branch = agentBranch(agent.id);
-    // Reuse the agent's branch if an earlier worktree left it behind.
-    const exists = (await run("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`], { cwd: repo.root })).ok;
+    // Reuse the agent's branch if an earlier worktree left it behind: this project's, else the older
+    // fleet/<agent> one as long as no worktree has it checked out.
+    const has = async (b: string) => (await run("git", ["rev-parse", "--verify", "--quiet", `refs/heads/${b}`], { cwd: repo.root })).ok;
+    const checkedOut = (await run("git", ["worktree", "list", "--porcelain"], { cwd: repo.root })).stdout;
+    const legacy = `fleet/${agent.id}`;
+    let branch = agentBranch(projectSlug, agent.id);
+    let exists = await has(branch);
+    if (!exists && (await has(legacy)) && !checkedOut.split("\n").includes(`branch refs/heads/${legacy}`)) [branch, exists] = [legacy, true];
     const args = exists ? ["worktree", "add", dir, branch] : ["worktree", "add", "-b", branch, dir, base];
     const add = await run("git", args, { cwd: repo.root, timeoutMs: 120_000 });
     if (!add.ok) throw new Error(`git worktree add failed: ${add.stderr.trim()}`);

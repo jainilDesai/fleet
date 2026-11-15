@@ -1,9 +1,12 @@
 // Polls GitHub, keeps the office's PRs in sync, and runs the review automations:
 // comments → tell the author; passed → tell the lead; merged → task done.
 
+import { homedir } from "node:os";
+import { join, sep } from "node:path";
 import type { PullRequest } from "../src/data/types";
 import { branchAgent, fetchPrs, OPEN_LIMIT, RateLimited, taskIdOf, toPullRequest } from "./github";
 import type { Hub } from "./hub";
+import { run } from "./lib/exec";
 import { log } from "./lib/log";
 import type { Planner } from "./planner";
 
@@ -22,6 +25,13 @@ export function mergeByNotice(by: "human" | "lead", waiting: number[]): string {
   if (by === "human") return "The user changed the workflow: the user merges PRs now. Don't merge PRs yourself.";
   const list = waiting.length ? ` These passed review and are waiting: ${waiting.map((n) => `#${n}`).join(", ")}. Merge each with \`${MERGE_CMD("<number>")}\`.` : "";
   return `The user changed the workflow: you now merge PRs once they pass review.${list}`;
+}
+
+/** Another Fleet project has agent worktrees of this repo (two teams on checkouts of the same repo). */
+async function sharedRepo(root: string, slug: string): Promise<boolean> {
+  const projects = join(homedir(), ".fleet", "projects") + sep;
+  const list = (await run("git", ["worktree", "list", "--porcelain"], { cwd: root })).stdout;
+  return list.split("\n").some((l) => l.startsWith(`worktree ${projects}`) && !l.startsWith(`worktree ${projects}${slug}${sep}`));
 }
 
 const MIN_POLL_MS = 20_000; // never more often than this (nudges included)
@@ -105,15 +115,20 @@ export class GitHubSync {
       if (this.lastError) log.info("GitHub reachable again");
       this.lastError = null;
       this.pace(rate);
+      const shared = await sharedRepo(this.hub.repo.root, this.hub.slug);
+      const theirs = (branch: string) => /^fleet\/[^/]+\//i.test(branch) && !branch.toLowerCase().startsWith(`fleet/${this.hub.slug}/`);
       const wf = this.hub.snap.config.workflow;
       const team = new Set(this.hub.snap.config.team.map((a) => a.id));
       // Fork PRs are outside input: never shown to or acted on by the team.
       const next = [...open, ...merged].filter((gh) => !gh.isCrossRepository).map((gh) => {
         const taskId = taskIdOf(gh);
-        const task = taskId ? this.planner.task(taskId) : undefined;
-        const fromBranch = branchAgent(gh.headRefName);
+        const found = taskId ? this.planner.task(taskId) : undefined;
+        // Every team numbers its tasks the same way (B1-T01…): on a shared repo a task id only counts
+        // once the agent reported this PR (set_my_status in-review), and never on another team's branch.
+        const task = found && !theirs(gh.headRefName) && (!shared || found.prNumber === gh.number) ? found : undefined;
+        const fromBranch = branchAgent(gh.headRefName, this.hub.slug, shared);
         const authorId = task?.ownerId ?? (fromBranch && team.has(fromBranch) ? fromBranch : "");
-        return toPullRequest(gh, wf.review.tool, wf.review.enabled, task?.id ?? taskId ?? "", authorId);
+        return toPullRequest(gh, wf.review.tool, wf.review.enabled, task?.id ?? (found ? "" : taskId) ?? "", authorId);
       });
       // PRs we showed as open that are now neither open nor recently merged were closed. A full page of
       // open PRs may have left older ones out, so then only the recently-closed list proves it.

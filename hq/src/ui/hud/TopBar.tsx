@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { SimSpeed } from "../../data/source";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
 import { ui, useUi } from "../../store/ui";
@@ -14,6 +15,46 @@ function Logo() {
       <rect x="3" y="6" width="4" height="1" fill="#1d2b53" />
       <rect x="4" y="0" width="2" height="1" fill="#ffec27" />
     </svg>
+  );
+}
+
+interface Fleet {
+  slug: string;
+  name: string;
+  repo: string;
+  url: string;
+  current: boolean;
+}
+
+/** The other Fleet projects running on this Mac (from Fleet's registry), as links. Hidden when there are none. */
+function ProjectSwitcher() {
+  const [others, setOthers] = useState<Fleet[]>([]);
+  useEffect(() => {
+    const load = () =>
+      fetch("/api/fleets")
+        .then((r) => (r.ok ? r.json() : []))
+        .then((list: Fleet[]) => setOthers(list.filter((f) => !f.current)))
+        .catch(() => setOthers([]));
+    load();
+    const t = setInterval(load, 10_000);
+    return () => clearInterval(t);
+  }, []);
+  if (!others.length) return null;
+  return (
+    <details className="relative shrink-0">
+      <summary className="btn list-none px-2 text-[14px] [&::-webkit-details-marker]:hidden" title="Other Fleet projects running on this Mac">
+        ⇄ {others.length}
+      </summary>
+      <ul className="panel absolute left-0 top-[34px] min-w-[220px] py-1">
+        {others.map((f) => (
+          <li key={f.url}>
+            <a className="block px-3 py-1 text-[15px] hover:bg-white" href={f.url} title={f.repo}>
+              <b>{f.slug}</b> <span className="font-term text-[16px] text-muted">{f.url.replace("http://", "")}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -36,7 +77,7 @@ export function TopBar() {
   const openPrs = snap.pullRequests.filter((p) => !p.merged && !p.closed).length;
 
   return (
-    <header className="panel fixed left-4 right-4 top-[10px] z-10 flex h-[50px] items-center gap-2 px-3 2xl:gap-4">
+    <header className="panel fixed left-4 right-4 top-[10px] z-20 flex h-[50px] items-center gap-2 px-3 2xl:gap-4">
       <div className="flex min-w-0 items-center gap-2.5">
         <Logo />
         <b className="whitespace-nowrap text-[22px] font-bold tracking-[0.02em]">Fleet</b>
@@ -50,6 +91,7 @@ export function TopBar() {
           — <em className="font-semibold not-italic text-ink">{snap.config.project.name}</em>{" "}
           <span className="hidden font-term text-[17px] 2xl:inline">{snap.config.project.repo}</span>
         </span>
+        {live && <ProjectSwitcher />}
       </div>
       <div className="flex-1" />
 

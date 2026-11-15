@@ -55,6 +55,13 @@ export function setConfig(patch) {
   return config();
 }
 
+// Taking over the watching from a copy that stopped: carry on from what it wrote.
+export function reloadEvents() {
+  events.splice(0, events.length, ...load());
+  seq = events.at(-1)?.id ?? 0;
+  prev = null;
+}
+
 export function recentEvents() {
   return events.slice(-50).reverse();
 }

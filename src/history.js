@@ -26,6 +26,12 @@ function load() {
   }
 }
 
+// Taking over the watching from a copy that stopped: carry on from what it wrote.
+export function reloadHistory() {
+  records.clear();
+  for (const [id, r] of load()) records.set(id, r);
+}
+
 // Write-then-rename: a crash mid-write must never truncate months of history.
 function save() {
   fs.mkdirSync(DIR, { recursive: true });

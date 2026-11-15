@@ -7,8 +7,9 @@ import { liveSessions } from './sessions.js';
 import { inventory, usage, recentProjects, refreshMcp, limits } from './inventory.js';
 import { launch, focus } from './terminal.js';
 import { summarize } from './summarize.js';
-import { observe, recentEvents, config, setConfig, setDashboardUrl } from './events.js';
-import { scan, history, summarizeSession } from './history.js';
+import { observe, recentEvents, reloadEvents, config, setConfig, setDashboardUrl } from './events.js';
+import { scan, history, summarizeSession, reloadHistory } from './history.js';
+import { running, register, unregister, urlOf, claimWatcher, releaseWatcher } from './registry.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -36,12 +37,23 @@ export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd() } 
 
   const snapshot = () => ({ at: Date.now(), sessions: liveSessions(), events: recentEvents(), config: config() });
 
+  // Every copy sees every Claude session on the Mac, so only one (the watcher) raises banners and
+  // writes events.jsonl and history.json. Returns whether this copy is it.
+  const watching = () => {
+    const w = claimWatcher();
+    if (w === 'took') {
+      reloadEvents();
+      reloadHistory();
+    }
+    return !!w;
+  };
+
   // Runs even with no browser open: attention events and banners must not depend on a tab.
   setInterval(() => {
     let body;
     try {
       const snap = snapshot();
-      if (observe(snap.sessions).length) snap.events = recentEvents();
+      if (watching() && observe(snap.sessions).length) snap.events = recentEvents();
       body = JSON.stringify(snap);
     } catch (e) {
       console.error('snapshot failed:', e);
@@ -73,6 +85,9 @@ export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd() } 
       if (req.method === 'GET' && url.pathname === '/api/usage') return send(res, 200, { ...usage(), limits: limits() });
       if (req.method === 'GET' && url.pathname === '/api/history') return send(res, 200, history());
       if (req.method === 'GET' && url.pathname === '/api/projects') return send(res, 200, recentProjects(liveSessions()));
+      // The Fleet copies running on this Mac, for the project switcher.
+      if (req.method === 'GET' && url.pathname === '/api/fleets')
+        return send(res, 200, running().map((e) => ({ slug: e.slug, name: e.name, repo: e.repo, url: urlOf(e), current: e.pid === process.pid })));
 
       if (req.method === 'POST') {
         if (req.headers['x-fleet-token'] !== TOKEN) return send(res, 403, { error: 'bad token' });
@@ -107,10 +122,19 @@ export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd() } 
 
   server.hqReady = hqReady;
   server.listen(port, host);
+  // In ~/.fleet/running/ while it serves (fleet --list, the switcher); out again when it exits.
+  Promise.all([hqReady, new Promise((r) => server.once('listening', r))])
+    .then(([hq]) => register({ slug: hq.slug, name: path.basename(hq.repoRoot), repo: hq.repoRoot, port, pid: process.pid }))
+    .catch(() => {});
+  process.on('exit', () => {
+    unregister();
+    releaseWatcher();
+  });
+  for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => process.exit(0));
   setDashboardUrl(`http://localhost:${port}`);
   refreshMcp(); // warm the slow MCP health check
-  scan();
-  setInterval(scan, 60_000);
+  if (watching()) scan();
+  setInterval(() => watching() && scan(), 60_000);
   return server;
 }
 
