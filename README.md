@@ -197,7 +197,8 @@ port and tmux sessions.
 - **Start at login** works per repo: run `fleet --autostart` in each. `--stop`, `--start` and
   `--no-autostart` act on the repo you run them in (or `--repo`); add `--all` for every repo.
 - **Same folder name.** Projects are named after the repo folder. A second repo with a name
-  that's taken (say two `app` folders) gets `app-<hash>`, so the two never share a team.
+  that's taken (say two `app` folders) gets `app-<hash>`, so the two never share a team. A repo
+  folder named `home` always gets `home-<hash>`, because `home` is the home page's login item.
 - **Banners and history.** Only one copy at a time watches every Claude session on the machine,
   raises banners and writes `~/.fleet/events.jsonl` and `history.json`; another copy takes over
   when it stops.

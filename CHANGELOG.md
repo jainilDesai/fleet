@@ -22,6 +22,9 @@
   earlier version moves to the next free port the first time the home page starts, and says so.
   Its agents keep running; until they restart, the home page passes their hooks and Team MCP
   calls on to their project.
+- **A repo folder named `home`** now gets the project name `home-<hash>`: `home` belongs to the
+  home page's login item. A team set up earlier under `~/.fleet/projects/home` isn't picked up
+  again; move it to the new folder name, or start the team again.
 - **Linux:** the systemd service now has `KillMode=process`, so stopping or restarting Fleet
   leaves the agents' tmux sessions running, as on macOS.
 

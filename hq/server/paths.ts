@@ -43,12 +43,13 @@ function claim(slug: string, root: string): boolean {
 
 /**
  * The project's slug, from the repo folder's name. Another repo with the same folder name already owns
- * that slug? Then <name>-<short hash of the root>, so two repos never share a team.
+ * that slug, or is it "home"? Then <name>-<short hash of the root>, so two repos never share a team.
  */
 export function projectSlug(root: string): string {
   const base = slugify(basename(root));
   const hashed = `${base}-${createHash("sha256").update(root).digest("hex").slice(0, 6)}`;
-  return claim(base, root) ? base : (claim(hashed, root), hashed);
+  // "home" is reserved: its login item would be the home page's (com.jainildesai.fleet.home, fleet-home.service).
+  return base !== "home" && claim(base, root) ? base : (claim(hashed, root), hashed);
 }
 
 export function managedWorkspace(projectSlug: string, agentId: string): string {
