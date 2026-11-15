@@ -5,6 +5,7 @@ import { cpus, platform, totalmem } from "node:os";
 import type { SetupCheck, SetupFix, SetupState } from "../src/data/types";
 import { has, run } from "./lib/exec";
 import type { RepoInfo } from "./repo";
+import { OS, firstFound, terminalCommands, terminalName } from "../../src/platform.js";
 
 const os = platform();
 
@@ -56,7 +57,11 @@ async function checkClaudeLogin(): Promise<Check> {
 export const hasIterm = () => existsSync("/Applications/iTerm.app");
 
 function checkTerminal(): Check {
-  return { id: "terminal", label: "Terminal for Open in terminal", neededFor: "local", status: "ok", detail: hasIterm() ? "iTerm" : "Terminal.app (iTerm optional)", fix: null };
+  const base = { id: "terminal" as const, label: "Terminal for Open in terminal", neededFor: "local" as const, fix: null };
+  if (OS === "mac") return { ...base, status: "ok", detail: hasIterm() ? "iTerm" : "Terminal.app (iTerm optional)" };
+  const found = firstFound(terminalCommands([]));
+  if (found) return { ...base, status: "ok", detail: terminalName(found[0]) };
+  return { ...base, status: "warning", detail: "None found. Open in terminal shows the tmux command to run yourself.", fix: OS === "wsl" ? fix("winget install Microsoft.WindowsTerminal", false, "https://aka.ms/terminal") : fix("sudo apt install xterm", false, null) };
 }
 
 async function checkGh(brew: boolean): Promise<Check> {
@@ -66,7 +71,12 @@ async function checkGh(brew: boolean): Promise<Check> {
       ...base,
       status: "missing",
       detail: "Not installed.",
-      fix: fix(os === "darwin" ? "brew install gh" : os === "win32" ? "winget install --id GitHub.cli" : "sudo apt install gh", os === "darwin" ? brew : os === "win32", "https://cli.github.com"),
+      fix: fix(
+        os === "darwin" ? "brew install gh" : os === "win32" ? "winget install --id GitHub.cli" : "sudo apt install gh",
+        os === "darwin" ? brew : os === "win32",
+        // Linux: the page covers apt, dnf, pacman and the rest.
+        os === "darwin" || os === "win32" ? "https://cli.github.com" : "https://github.com/cli/cli/blob/trunk/docs/install_linux.md",
+      ),
     };
   const r = await run("gh", ["auth", "status"], { timeoutMs: 10_000 });
   const out = r.stdout + r.stderr;

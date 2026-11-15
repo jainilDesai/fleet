@@ -8,7 +8,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="site.css" />
   <meta property="og:title" content="Fleet docs" />
-  <meta property="og:description" content="Install, set up and customise Fleet: a pixel-art office for a CTO-led team of Claude Code agents on your Mac." />
+  <meta property="og:description" content="Install, set up and customise Fleet: a pixel-art office for a CTO-led team of Claude Code agents on macOS, Linux or Windows (WSL)." />
   <meta property="og:url" content="https://fleet.jainildesai.com/docs.html" />
   <meta property="og:image" content="https://fleet.jainildesai.com/office.png" />
   <meta property="og:type" content="website" />
@@ -56,7 +56,7 @@
 
     <article class="doc">
       <h1>Fleet docs</h1>
-      <p class="lede">Fleet is a pixel-art office for a team of Claude Code agents on your Mac. You talk to one agent, the CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen. Every decision or permission an agent needs from you lands in one Actions list.</p>
+      <p class="lede">Fleet is a pixel-art office for a team of Claude Code agents on macOS, Linux or Windows (through WSL). You talk to one agent, the CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen. Every decision or permission an agent needs from you lands in one Actions list.</p>
 
       <figure>
         <img src="office.png" alt="The Fleet office: agents at their desks, the plan wall with tasks, and the top bar with running agents and Actions" loading="lazy" width="1440" height="900" />
@@ -66,16 +66,35 @@
       <h2 id="install">Install</h2>
       <p>You need:</p>
       <ul>
-        <li>macOS.</li>
+        <li>macOS or Linux. On Windows, WSL (<a href="#install-wsl">below</a>).</li>
         <li>Node 20 or later.</li>
         <li>Claude Code (<code>claude</code>), signed in.</li>
         <li>tmux.</li>
         <li>Optional: the GitHub CLI (<code>gh</code>), signed in. With it, Fleet follows the team's <a href="#pull-requests">pull requests</a>.</li>
       </ul>
+      <h3 id="install-macos">macOS</h3>
       <pre class="install"><code>brew install tmux          # and optionally: brew install gh
 npm install -g @jainil_desai/fleet
 cd ~/code/my-app           # any git repo
 fleet                      # opens http://localhost:7788</code></pre>
+      <h3 id="install-linux">Linux</h3>
+      <pre class="install"><code>sudo apt install tmux      # Fedora: sudo dnf install tmux; Arch: sudo pacman -S tmux
+npm install -g @jainil_desai/fleet
+cd ~/code/my-app
+fleet                      # opens http://localhost:7788 with xdg-open</code></pre>
+      <p>Install Claude Code with <code>curl -fsSL https://claude.ai/install.sh | bash</code> and run <code>claude</code> once to sign in. For <code>gh</code>, see <a href="https://github.com/cli/cli/blob/trunk/docs/install_linux.md">its Linux install page</a> (apt, dnf, pacman and more).</p>
+      <h3 id="install-wsl">Windows (via WSL)</h3>
+      <p>Fleet doesn't run on Windows itself, because agents run in tmux. It runs inside WSL, and you use it from your Windows browser. Running <code>fleet</code> in PowerShell or cmd prints these steps.</p>
+      <ol class="steps">
+        <li>In PowerShell: <code>wsl --install</code>, restart, and open <strong>Ubuntu</strong> from the Start menu.</li>
+        <li>Inside Ubuntu, install Node 20 or later, with <a href="https://github.com/nvm-sh/nvm">nvm</a> (<code>nvm install 22</code>) or <a href="https://github.com/nodesource/distributions">NodeSource</a>.</li>
+        <li><code>sudo apt update &amp;&amp; sudo apt install tmux git</code></li>
+        <li>Claude Code: <code>curl -fsSL https://claude.ai/install.sh | bash</code>, then run <code>claude</code> once and sign in.</li>
+        <li>Optional: <code>gh</code>, from <a href="https://github.com/cli/cli/blob/trunk/docs/install_linux.md">its Linux install page</a>, then <code>gh auth login</code>.</li>
+        <li><code>npm install -g @jainil_desai/fleet</code></li>
+        <li>Keep your repo in the Linux file system (for example <code>~/code/my-app</code>), not under <code>/mnt/c</code>: git and agents are much faster there, and file watching works. Then <code>cd ~/code/my-app</code> and run <code>fleet</code>.</li>
+        <li>Open <code>http://localhost:7788</code> in your Windows browser. Fleet tries to open it for you, with <code>wslview</code> or <code>explorer.exe</code>.</li>
+      </ol>
       <p>Each copy of Fleet works on one git repo: the folder you start it in, or the one you pass with <code>--repo</code>. For several repos, see <a href="#projects">Several projects</a>.</p>
       <p class="note">Right after a release, <code>npm install</code> can fail with <code>ETARGET</code>. Add <code>--prefer-online</code> to fetch the fresh version list.</p>
       <table>
@@ -94,16 +113,21 @@ fleet                      # opens http://localhost:7788</code></pre>
       <pre class="install"><code>git clone https://github.com/jainilDesai/fleet.git &amp;&amp; cd fleet
 npm install &amp;&amp; npm run build
 node bin/fleet.js --repo &lt;path&gt;</code></pre>
-      <p class="note">Optional: <code>brew install terminal-notifier</code> makes notification banners clickable. See <a href="#notifications">Notifications</a>.</p>
+      <p class="note">Optional on macOS: <code>brew install terminal-notifier</code> makes notification banners clickable. See <a href="#notifications">Notifications</a>.</p>
 
       <h2 id="first-run">First run</h2>
       <ol class="steps">
-        <li>The <strong>Set up your team</strong> window opens and checks your Mac: tmux, Claude Code and its sign-in, <code>gh</code>, a GitHub remote and your terminal, each with the command that fixes it. Name the project, the lead and each agent, pick their roles, and choose whether PRs get reviewed before merge. Click <strong>Create team</strong>. This is saved in <code>~/.fleet</code>, never in your repo. You can change all of it later in Settings.</li>
+        <li>The <strong>Set up your team</strong> window opens and checks your machine: tmux, Claude Code and its sign-in, <code>gh</code>, a GitHub remote and your terminal, each with the command that fixes it. Name the project, the lead and each agent, pick their roles, and choose whether PRs get reviewed before merge. Click <strong>Create team</strong>. This is saved in <code>~/.fleet</code>, never in your repo. You can change all of it later in Settings.</li>
         <li>Click <strong>Start team</strong> in the top bar. It starts only the CTO. The others start the first time the CTO gives them work.</li>
         <li>The CTO may stop on Claude Code's folder-trust prompt (first start only). Click <strong>Trust folder</strong> in Action items or its drawer.</li>
         <li>Click the CTO, open the <strong>Messages</strong> tab, and type what you want built. Approvals and questions come to <a href="#actions">Action items</a>.</li>
       </ol>
-      <p><strong>Open in terminal</strong> attaches iTerm if you have it, else Terminal.app. The first time, macOS asks whether Fleet (your terminal or Node) may control it. Allow it once. If it's blocked, Fleet shows the <code>tmux attach</code> command to run yourself.</p>
+      <p><strong>Open in terminal</strong> attaches a terminal window to the agent's tmux session. When Fleet can't open one, it shows the <code>tmux attach</code> command to run yourself. The setup checks show which terminal it will use.</p>
+      <ul>
+        <li><strong>macOS:</strong> iTerm if you have it, else Terminal.app. The first time, macOS asks whether Fleet (your terminal or Node) may control it. Allow it once.</li>
+        <li><strong>Linux:</strong> the first installed of <code>x-terminal-emulator</code>, <code>gnome-terminal</code>, <code>konsole</code>, <code>xfce4-terminal</code>, <code>kitty</code>, <code>alacritty</code>, <code>wezterm</code> and <code>xterm</code>. It needs a desktop session; over SSH, copy the command.</li>
+        <li><strong>WSL:</strong> a new Windows Terminal tab in your distro, else a Linux terminal through WSLg.</li>
+      </ul>
 
       <h2 id="projects">Several projects</h2>
       <p>Run <code>fleet</code> in each repo. A second copy takes the next free port and says which. <code>fleet</code> in a repo that already has a copy just opens it.</p>
@@ -125,7 +149,9 @@ fleet --no-autostart       # turn auto-start off and stop the background copy</c
         <li>Add <code>--port &lt;n&gt;</code> to <code>--autostart</code> to use another port.</li>
         <li>The background copy doesn't open a browser tab. Open <code>http://localhost:7788</code> when you want it.</li>
         <li>It restarts if it crashes and logs to <code>~/.fleet/fleet-&lt;project&gt;.log</code>.</li>
-        <li>It's a standard macOS LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.&lt;project&gt;.plist</code>. A login item from an older version keeps working, and is replaced when you run <code>fleet --autostart</code> again.</li>
+        <li>On macOS it's a standard LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.&lt;project&gt;.plist</code>. A login item from an older version keeps working, and is replaced when you run <code>fleet --autostart</code> again.</li>
+        <li>On Linux it's a systemd user service at <code>~/.config/systemd/user/fleet-&lt;project&gt;.service</code> (<code>systemctl --user status fleet-&lt;project&gt;</code>). To start it at boot without logging in, run <code>loginctl enable-linger "$USER"</code> once.</li>
+        <li>On WSL it's the same service, and needs systemd turned on in WSL (see <a href="#troubleshooting">Troubleshooting</a>). It starts when WSL does, not when Windows starts.</li>
         <li>Install Fleet globally first: <code>--autostart</code> refuses to run from <code>npx</code>, whose cache can be cleared.</li>
       </ul>
       <p class="note">If you update Node through nvm, run <code>fleet --autostart</code> again. Fleet reminds you when you start it by hand. If you set up auto-start before 0.3.0, also run <code>fleet --autostart</code> again from your repo, or the background copy can't start.</p>
@@ -142,7 +168,7 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
       <ul>
         <li><strong>Task:</strong> what it's working on, the task's notes, and its branch.</li>
         <li><strong>Messages:</strong> everything between you, the CTO and that agent, rendered as Markdown (headings, lists, tables, code). Long replies start collapsed with <strong>Show all</strong>.</li>
-        <li><strong>Open in iTerm:</strong> attaches to the agent's tmux session (<code>tmux attach -t fleet-&lt;repo&gt;-&lt;agent&gt;</code>). You can read or type into the real Claude Code session.</li>
+        <li><strong>Open in terminal:</strong> attaches to the agent's tmux session (<code>tmux attach -t fleet-&lt;repo&gt;-&lt;agent&gt;</code>). You can read or type into the real Claude Code session.</li>
       </ul>
       <figure>
         <img src="agent.png" alt="An agent's drawer open on its Messages tab, next to the office" loading="lazy" width="1440" height="900" />
@@ -171,7 +197,7 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
       <ul>
         <li><strong>Questions and approvals.</strong> An agent asks with <code>ask_user</code>, for example "Approve plan: …" or "Approve deploy to production: …". Mark it <strong>Done</strong> or <strong>Dismiss</strong> it. A waiting agent continues with your answer.</li>
         <li><strong>Permission prompts.</strong> When Claude Code asks to run a command or edit a file, the request shows here with the full command. <strong>Allow</strong> or <strong>Deny</strong> it from the browser, or answer in the terminal. Either one closes the other.</li>
-        <li><strong>Agents waiting in their terminal,</strong> for example on the folder-trust prompt, with <strong>Open in iTerm</strong>.</li>
+        <li><strong>Agents waiting in their terminal,</strong> for example on the folder-trust prompt, with <strong>Open in terminal</strong>.</li>
       </ul>
       <p>A production deploy is labelled <code>⚠ PRODUCTION deploy: &lt;branch&gt;</code>, so it never looks routine.</p>
       <p class="note">Nothing is allowed automatically. Agents can do whatever their permission mode allows. Anything that needs approval waits for you.</p>
@@ -209,7 +235,12 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
       <p>In <strong>Settings → Workflow</strong> you choose the review tool (CodeRabbit, Greptile, Copilot, a human, or a custom check) and whether you or the CTO merges.</p>
 
       <h2 id="notifications">Notifications</h2>
-      <p>Fleet still watches every Claude Code session on your Mac. It sends a macOS banner when one needs you or finishes a long turn, even with the page closed. With <code>terminal-notifier</code> installed, banners are clickable.</p>
+      <p>Fleet still watches every Claude Code session on your machine. It sends a banner when one needs you or finishes a long turn, even with the page closed.</p>
+      <ul>
+        <li><strong>macOS:</strong> a notification banner. With <code>terminal-notifier</code> installed, banners are clickable.</li>
+        <li><strong>Linux:</strong> <code>notify-send</code> when it's installed (<code>sudo apt install libnotify-bin</code>), without a click action.</li>
+        <li><strong>WSL:</strong> no banners. The events still show in Fleet.</li>
+      </ul>
       <p class="fine">0.3.0 removed the old Agents, History, Usage, MCP and Plugins pages. History is still recorded in <code>~/.fleet/history.json</code>, but isn't shown in the UI.</p>
 
       <h2 id="how-it-works">How it works</h2>
@@ -240,7 +271,8 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
 
       <h2 id="limits">Limits</h2>
       <ul>
-        <li>macOS only for now. Open in terminal uses AppleScript.</li>
+        <li>macOS and Linux. Native Windows isn't supported: use <a href="#install-wsl">WSL</a>.</li>
+        <li>Clickable banners are macOS-only; WSL shows no banners.</li>
         <li>One repo per copy of Fleet; run one per repo (see <a href="#projects">Several projects</a>).</li>
         <li>Each agent's worktree starts without <code>node_modules</code>. QA installs before it tests.</li>
       </ul>
@@ -249,11 +281,20 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
       <h3>"… is not inside a git repository"</h3>
       <p>Run <code>fleet</code> from your project folder, or pass <code>--repo &lt;path&gt;</code>.</p>
       <h3>"tmux is not installed"</h3>
-      <p>Run <code>brew install tmux</code>, then start Fleet again.</p>
+      <p>Run <code>brew install tmux</code> (Linux and WSL: <code>sudo apt install tmux</code>), then start Fleet again.</p>
       <h3>An agent is stuck and nothing happens</h3>
       <p>It's probably waiting on Claude Code's folder-trust prompt. Find it in <a href="#actions">Actions</a> and click <strong>Trust folder</strong>, or <strong>Open in terminal</strong> and answer it there.</p>
       <h3>Open in terminal does nothing</h3>
-      <p>macOS blocked Fleet from controlling your terminal. Fleet shows the <code>tmux attach</code> command to run yourself. To fix it, allow it in System Settings → Privacy &amp; Security → Automation, then try again.</p>
+      <p>On macOS, macOS blocked Fleet from controlling your terminal. Fleet shows the <code>tmux attach</code> command to run yourself. To fix it, allow it in System Settings → Privacy &amp; Security → Automation, then try again.</p>
+      <p>On Linux, Fleet found no terminal app, or no desktop session (it was started over SSH or as a background service). Install one (for example <code>sudo apt install xterm</code>) or copy the command. On WSL, install Windows Terminal.</p>
+      <h3>"Fleet doesn't run on Windows itself"</h3>
+      <p>You ran <code>fleet</code> in PowerShell or cmd. Install it inside WSL instead: see <a href="#install-wsl">Windows (via WSL)</a>.</p>
+      <h3>"Start at login needs systemd" (WSL)</h3>
+      <p>Add these lines to <code>/etc/wsl.conf</code> in your distro, run <code>wsl --shutdown</code> in Windows, open the distro again and run <code>fleet --autostart</code> again. Or just run <code>fleet</code> in a terminal.</p>
+      <pre class="install"><code>[boot]
+systemd=true</code></pre>
+      <h3>Fleet is slow on WSL</h3>
+      <p>Move the repo from <code>/mnt/c/…</code> into the Linux file system (for example <code>~/code</code>). Windows drives are much slower from WSL, and file watching doesn't work there.</p>
       <h3>"This repo has no commits yet"</h3>
       <p>Agents' worktrees start from a commit. Make a first commit, then run <code>fleet</code>.</p>
       <h3>"Port 7788 is in use"</h3>

@@ -1,21 +1,23 @@
 // Attention events: an agent asked something, finished a turn, or a subagent/workflow ended.
 // Derived by diffing consecutive snapshots of live sessions - no hooks. Kept in
-// ~/.fleet/events.jsonl and optionally raised as macOS notification banners.
+// ~/.fleet/events.jsonl and optionally raised as notification banners (macOS; notify-send on Linux).
 // With terminal-notifier installed, clicking a banner opens that session's terminal tab;
 // osascript banners can't run anything on click, so macOS opens an unrelated app instead.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
+import { OS, notifySend } from './platform.js';
 
 const DIR = path.join(os.homedir(), '.fleet');
 const LOG = path.join(DIR, 'events.jsonl');
 const CONFIG = path.join(DIR, 'config.json');
 const KEEP = 200;
 const FOCUS = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'bin', 'focus.js');
-const NOTIFIER = ['/opt/homebrew/bin', '/usr/local/bin', ...(process.env.PATH ?? '').split(':')]
+const NOTIFIER = OS === 'mac' ? ['/opt/homebrew/bin', '/usr/local/bin', ...(process.env.PATH ?? '').split(':')]
   .map((d) => path.join(d, 'terminal-notifier'))
-  .find((p) => fs.existsSync(p));
+  .find((p) => fs.existsSync(p)) : undefined;
+const NOTIFY_SEND = notifySend();
 let dashboardUrl = null;
 
 export function setDashboardUrl(url) {
@@ -169,14 +171,20 @@ function trimLog() {
 
 const sh = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 
+// A leading "-" or "[" would be read as an option; a zero-width space keeps it text.
+const text = (v, n) => String(v || ' ').slice(0, n).replace(/^[-[]/, '\u200b$&');
+
 // event: the session the banner is about (its terminal opens on click), or null for the dashboard.
 function banner(title, message, subtitle, sound, event) {
+  // Off macOS: notify-send when installed (no click action), else no banner; events still go to the inbox.
+  if (OS !== 'mac') {
+    if (NOTIFY_SEND) execFile(NOTIFY_SEND, ['--app-name=Fleet', text(title, 120), text(subtitle ? `${message}\n${subtitle}` : message, 240)], () => {});
+    return;
+  }
   if (NOTIFIER) {
     const click = event?.pid
       ? `${sh(process.execPath)} ${sh(FOCUS)} ${Number(event.pid)}`
       : dashboardUrl && `open ${sh(dashboardUrl)}`;
-    // A leading "-" or "[" would be read as an option; a zero-width space keeps it text.
-    const text = (v, n) => String(v || ' ').slice(0, n).replace(/^[-[]/, '\u200b$&');
     execFile(NOTIFIER, [
       '-title', text(title, 120),
       '-message', text(message, 240),

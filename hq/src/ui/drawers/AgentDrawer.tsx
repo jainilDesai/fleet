@@ -92,7 +92,7 @@ function SessionBar({ agent, status }: { agent: AgentConfig; status: AgentStatus
         </button>
       )}
       {s.state === "running" && live && (
-        <button className="btn px-2 text-[12px]" onClick={() => officeActions.openInIterm(agent.id)} title="Attach a terminal window (iTerm, else Terminal.app) to the agent's tmux session">
+        <button className="btn px-2 text-[12px]" onClick={() => officeActions.openInIterm(agent.id)} title="Attach a terminal window to the agent's tmux session">
           Open in terminal
         </button>
       )}

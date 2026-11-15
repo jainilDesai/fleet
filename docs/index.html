@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fleet: a pixel office for a team of Claude Code agents</title>
-  <meta name="description" content="Fleet is a free, open-source pixel-art office for a CTO-led team of Claude Code agents on your Mac. Talk to the CTO; it plans and assigns work to the team. Every agent is a real Claude Code session in tmux, in its own git worktree." />
+  <meta name="description" content="Fleet is a free, open-source pixel-art office for a CTO-led team of Claude Code agents on macOS, Linux or Windows (WSL). Talk to the CTO; it plans and assigns work to the team. Every agent is a real Claude Code session in tmux, in its own git worktree." />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preload" href="fonts/pixelify-sans-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="site.css" />
@@ -37,13 +37,13 @@
       <div class="wrap hero">
         <div class="intro panel">
           <h1>A pixel office for your Claude Code team.</h1>
-          <p class="lede">You talk to one agent, the CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen. Every agent is a real Claude Code session on your Mac.</p>
+          <p class="lede">You talk to one agent, the CTO. It plans the work, hands tasks to the rest of the team, and you watch all of it happen. Every agent is a real Claude Code session on your machine.</p>
           <div class="install"><code><span class="prompt" aria-hidden="true">$</span>npm install -g @jainil_desai/fleet</code><button type="button" data-copy="npm install -g @jainil_desai/fleet">Copy</button></div>
           <div class="cta">
             <a class="btn primary" href="docs.html">Read the docs</a>
             <a class="btn" href="https://github.com/jainilDesai/fleet">GitHub</a>
           </div>
-          <p class="fine">Then run <code>fleet</code> in a git repo. Free and open source (MIT). macOS, Node 20+, Claude Code and tmux.</p>
+          <p class="fine">Then run <code>fleet</code> in a git repo. Free and open source (MIT). macOS or Linux (Windows through WSL), Node 20+, Claude Code and tmux.</p>
         </div>
         <figure class="shot hero-shot"><img src="office.png" alt="Fleet's pixel office: the team's agents at their desks and the plan wall with tasks" width="1440" height="900" /></figure>
       </div>
@@ -107,7 +107,7 @@
           <div class="text">
             <h3>Real sessions, not a simulation</h3>
             <p>Each agent is <code>claude</code> running in tmux, in its own git worktree on its own branch. Your own checkout is never touched.</p>
-            <p><b>Open in terminal</b> attaches iTerm or Terminal.app to any agent so you can read or type into the real session. Agents keep running if you close Fleet.</p>
+            <p><b>Open in terminal</b> attaches a terminal (iTerm or Terminal.app on macOS) to any agent so you can read or type into the real session. Agents keep running if you close Fleet.</p>
           </div>
           <div class="term panel-dark" role="img" aria-label="Example: the tmux session and worktree for a repo's Implementer agent">
             <p><span class="dim">$</span> tmux attach -t fleet-my-app-implementer</p>
@@ -141,13 +141,13 @@
         <p class="eyebrow">Get started</p>
         <h2>Needs</h2>
         <ul class="reqs">
-          <li class="panel"><b>macOS</b><span>iTerm optional; Terminal.app works.</span></li>
+          <li class="panel"><b>macOS or Linux</b><span>Windows through <a href="docs.html#install-wsl">WSL</a>.</span></li>
           <li class="panel"><b>Node 20+</b><span>No runtime dependencies.</span></li>
           <li class="panel"><b>Claude Code</b><span><code>claude</code>, signed in.</span></li>
           <li class="panel"><b>tmux</b><span>Plus <code>gh</code>, optional, for PRs.</span></li>
         </ul>
         <ol class="steps" style="margin-top: 36px">
-          <li>Install tmux and Fleet.<pre><code>brew install tmux
+          <li>Install tmux and Fleet. On Linux or WSL, <code>sudo apt install tmux</code> instead of brew.<pre><code>brew install tmux
 npm install -g @jainil_desai/fleet</code></pre></li>
           <li>Start it in any git repo, or point it at one. Your browser opens <code>http://localhost:7788</code>.<pre><code>cd ~/code/my-app &amp;&amp; fleet
 fleet --repo ~/code/my-app</code></pre></li>

@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { execFile, execFileSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { enable, disable, staleNode, items, itemsFor, startBackground, stop } from '../src/autostart.js';
 import { running, urlOf, freePort } from '../src/registry.js';
+import { OS, openTarget } from '../src/platform.js';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(name);
@@ -27,8 +28,8 @@ for (let i = 2; i < process.argv.length; i++) {
   } else if (!FLAGS.includes(a)) fail(`Unknown option: ${a}. Run "fleet --help" for the options.`);
 }
 
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 if (has('--version')) {
-  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   console.log(pkg.version);
   process.exit(0);
 }
@@ -49,7 +50,7 @@ Run fleet in each repo you want a team on; each copy gets its own port.
   --repo <path>     The git repo the agent team works on (default: this folder, or FLEET_REPO)
   --port <n>        Serve on this port (default 7788, or the next free one; or FLEET_PORT)
   --no-open         Don't open a browser tab
-  --list            List the Fleet copies running on this Mac, with their URLs
+  --list            List the Fleet copies running on this computer, with their URLs
   --autostart       Start Fleet at login for this repo, in the background, and start it now
   --no-autostart    Stop starting Fleet at login for this repo, and stop its background copy
   --stop            Stop Fleet for this repo now; with auto-start it comes back at the next login
@@ -59,6 +60,18 @@ Run fleet in each repo you want a team on; each copy gets its own port.
   -h, --help        Show this help`);
   process.exit(0);
 }
+
+// Agents run in tmux, which native Windows doesn't have; Fleet runs inside WSL there.
+if (OS === 'windows')
+  fail(`Fleet doesn't run on Windows itself: it needs WSL (Linux inside Windows).
+
+  1. In PowerShell: wsl --install, then restart and open Ubuntu.
+  2. Inside Ubuntu: install Node 20 or newer, tmux (sudo apt install tmux) and Claude Code.
+  3. Inside Ubuntu: npm install -g ${pkg.name}, then run fleet in your repo there.
+
+Step by step: ${pkg.homepage}/docs.html#install-wsl`);
+
+const openBrowser = (url) => openTarget(url) || console.log(`Open ${url} in your browser.`);
 
 if (has('--list')) {
   const list = running();
@@ -103,6 +116,7 @@ if (has('--autostart')) {
     console.log(`Fleet now starts at login on http://localhost:${out.port} for ${out.repo}, and is starting now.
 Log: ${out.log}
 Turn it off with: fleet --no-autostart`);
+    if (out.systemd) console.log('It runs as a systemd user service. To start it at boot, before you log in: loginctl enable-linger "$USER"');
   } catch (e) {
     console.error(`Could not set up auto-start: ${e.stderr?.toString().trim() || e.message}`);
     process.exit(1);
@@ -157,11 +171,11 @@ for (const i of itemsFor(r)) {
 Run "fleet --autostart" again to fix it.`);
 }
 
-// One Fleet per repo: a second one would run the same team twice. Exit 0, so launchd doesn't retry.
+// One Fleet per repo: a second one would run the same team twice. Exit 0, so launchd (or systemd) doesn't retry.
 const already = running().find((e) => e.repo === r);
 if (already) {
   console.log(`Fleet is already running for this repo at ${urlOf(already)}.`);
-  if (!has('--no-open')) execFileSync('open', [urlOf(already)]);
+  if (!has('--no-open')) openBrowser(urlOf(already));
   process.exit(0);
 }
 if (!portGiven) {
@@ -182,7 +196,7 @@ server.hqReady.catch((e) => {
 server.on('listening', () => {
   const url = `http://localhost:${port}`;
   console.log(`Fleet running at ${url}`);
-  if (!has('--no-open')) execFile('open', [url]);
+  if (!has('--no-open')) openBrowser(url);
 });
 server.on('error', (e) => {
   console.error(e.code === 'EADDRINUSE' ? `Port ${port} is in use. Try --port <n>.` : e.message);

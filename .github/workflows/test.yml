@@ -7,9 +7,10 @@ on:
 
 jobs:
   test:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [macos-latest, ubuntu-latest]
         node: [20, 22]
     steps:
       - uses: actions/checkout@v4
@@ -20,3 +21,58 @@ jobs:
       - run: npm run build
       - run: for f in bin/*.js src/*.js dist/*.mjs; do node --check "$f"; done
       - run: npm test
+
+  # Fleet starts on a real Linux box, serves the office and finds tmux.
+  linux-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sudo apt-get update && sudo apt-get install -y tmux
+      - run: npm ci
+      - run: npm run build
+      - name: Run Fleet on a toy repo
+        env:
+          HOME: ${{ runner.temp }}/home
+        run: |
+          mkdir -p "$HOME" toy
+          git -C toy init -q
+          git -C toy -c user.name=ci -c user.email=ci@example.com commit -q --allow-empty -m first
+          node bin/fleet.js --version
+          node bin/fleet.js --repo toy --port 7821 --no-open > fleet.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:7821/ > page.html && break; sleep 1; done
+          grep -qi '<html' page.html
+          # The first event on the team stream is the snapshot, with the setup checks.
+          curl -sN --max-time 5 http://127.0.0.1:7821/api/hq/stream | head -n 1 | sed 's/^data: //' > snapshot.json || true
+          node -e '
+            const s = JSON.parse(require("fs").readFileSync("snapshot.json", "utf8")).snapshot.setup;
+            for (const c of s.checks) console.log(c.status.padEnd(8), c.label, "-", c.detail);
+            const tmux = s.checks.find((c) => c.id === "tmux");
+            if (tmux?.status !== "ok") throw new Error("tmux check is not ok");
+            if (!s.checks.some((c) => c.id === "terminal")) throw new Error("no terminal check");
+          '
+          node bin/fleet.js --list | tee list.txt
+          grep -q 'localhost:7821' list.txt
+          node bin/fleet.js --stop --repo toy
+          sleep 2
+          if curl -sf http://127.0.0.1:7821/ > /dev/null; then echo "still running"; exit 1; fi
+      - if: always()
+        run: cat fleet.log || true
+
+  # Native Windows installs, prints its version, and points everything else to WSL.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: node bin/fleet.js --version
+      - shell: bash
+        run: |
+          if node bin/fleet.js 2> err.txt; then echo "expected a non-zero exit"; exit 1; fi
+          cat err.txt
+          grep -q 'wsl --install' err.txt
