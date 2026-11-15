@@ -57,6 +57,32 @@ export interface SkillFile {
   content: string;
 }
 
+/** A role in the role picker: built in, saved by you in ~/.fleet/roles, or both. Answer to `listRoles`. */
+export interface RoleInfo {
+  /** Its file name in ~/.fleet/roles: "cto" for the lead, else the lowercased role name. */
+  key: string;
+  name: string;
+  builtIn: boolean;
+  lead?: boolean;
+  /** You saved your own version (~/.fleet/roles/<key>.md). */
+  saved: boolean;
+  /** The ROLE.md an agent with this role starts with; null = the generic text (it names the agent). */
+  roleMd: string | null;
+  /** The built-in text, for "Reset to built-in"; null = the generic text. */
+  builtInMd?: string | null;
+  permissionMode?: PermissionMode;
+  /** Skills every agent with this role starts with (~/.fleet/roles/<key>.skills/). */
+  skillFiles: SkillFile[];
+}
+
+/** "Save as my role": the role's name, its ROLE.md and its skills. */
+export interface SaveRoleInput {
+  name: string;
+  lead?: boolean;
+  roleMd: string;
+  skillFiles?: SkillFile[];
+}
+
 /** Limits on attached skills (checked by the server). */
 export const SKILL_LIMITS = { count: 20, bytes: 100_000 } as const;
 

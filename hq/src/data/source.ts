@@ -10,6 +10,8 @@ import type {
   NewAgentInput,
   OfficeSnapshot,
   RemoveAgentOptions,
+  RoleInfo,
+  SaveRoleInput,
   SetupState,
   WelcomeInput,
   WorkspaceInfo,
@@ -23,6 +25,7 @@ export type OfficeEvent =
   | { type: "snapshot"; snapshot: OfficeSnapshot }
   | { type: "setup.updated"; setup: SetupState }
   | { type: "workspace.info"; info: WorkspaceInfo }
+  | { type: "roles"; roles: RoleInfo[] }
   | { type: "config.updated"; config: HqConfig }
   | { type: "agent.updated"; agent: AgentStatus }
   | { type: "agent.removed"; agentId: string }
@@ -80,6 +83,12 @@ export interface OfficeDataSource {
   removeAgent(id: string, opts?: RemoveAgentOptions): void;
   /** Asks what removing would delete; answered with a `workspace.info` event. */
   inspectWorkspace(id: string): void;
+  /** Asks for the role picker's list; answered with a `roles` event (also sent after a save or delete). */
+  listRoles(): void;
+  /** Saves a role's ROLE.md and skills as your own, in ~/.fleet/roles, for every project. */
+  saveRole(input: SaveRoleInput): void;
+  /** Deletes your saved version of a role (its ~/.fleet/roles files only). */
+  deleteRole(key: string): void;
   /** Closes an action item; the agent is told (done: with your note; dismissed: continue without it). */
   resolveActionItem(id: string, decision: "done" | "dismissed", note?: string): void;
 

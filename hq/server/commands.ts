@@ -1,6 +1,6 @@
 // Browser commands → server actions. Names match OfficeDataSource methods.
 
-import { PERMISSION_MODES, SKILL_LIMITS, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type ProjectConfig, type RemoveAgentOptions, type WorkflowPatch } from "../src/data/types";
+import { PERMISSION_MODES, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type ProjectConfig, type RemoveAgentOptions, type SaveRoleInput, type WorkflowPatch } from "../src/data/types";
 import { LEAD_NAME, OFFICE_NAME_MAX } from "../src/data/names";
 import { run } from "./lib/exec";
 import { agentPalette } from "../src/theme/tokens";
@@ -9,7 +9,8 @@ import type { Inbox } from "./inbox";
 import type { Planner } from "./planner";
 import type { Sessions } from "./sessions";
 import { newAgent } from "./store";
-import { skillSlug } from "./agentFiles";
+import { cleanSkills } from "./agentFiles";
+import { deleteRole, listRoles, saveRole } from "./roles";
 import { mergeByNotice } from "./githubSync";
 import { hasIterm } from "./setup";
 import { OS, openTerminal } from "../../src/platform.js";
@@ -114,14 +115,7 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       const p = (patch ?? {}) as AgentPatch;
       for (const k of ["name", "role", "model", "color", "roleMd"] as const) if (typeof p[k] === "string") agent[k] = str(p[k], 8000);
       if (p.workspacePath !== undefined) agent.workspacePath = p.workspacePath ? str(p.workspacePath, 500).trim() || null : null;
-      if (Array.isArray(p.skillFiles)) {
-        const seen = new Set<string>();
-        agent.skillFiles = p.skillFiles
-          .filter((f) => f && typeof f.name === "string" && typeof f.content === "string" && f.content.trim() && Buffer.byteLength(f.content) <= SKILL_LIMITS.bytes)
-          .map((f) => ({ name: skillSlug(f.name), content: f.content }))
-          .filter((f) => !seen.has(f.name) && seen.add(f.name))
-          .slice(0, SKILL_LIMITS.count);
-      }
+      if (Array.isArray(p.skillFiles)) agent.skillFiles = cleanSkills(p.skillFiles);
       if ("permissionMode" in p) {
         if ((PERMISSION_MODES as readonly unknown[]).includes(p.permissionMode)) agent.permissionMode = p.permissionMode;
         else delete agent.permissionMode;
@@ -154,6 +148,28 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       const what = removed.length ? " Deleted their worktree." : "";
       const kept = removed.includes("folder") ? "" : " Their worktree is kept.";
       hub.activity("config", null, `Removed ${agent.name}.${what}${kept}`);
+    },
+
+    listRoles: () => hub.emit({ type: "roles", roles: listRoles() }),
+
+    saveRole: (raw) => {
+      try {
+        const name = saveRole((raw ?? {}) as SaveRoleInput);
+        hub.activity("config", null, `Saved ${name} as your role. Any agent that gets it next, on any project, starts with this ROLE.md and its skills.`);
+      } catch (err) {
+        hub.activity("config", null, `Couldn't save the role: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      hub.emit({ type: "roles", roles: listRoles() });
+    },
+
+    deleteRole: (key) => {
+      try {
+        deleteRole(str(key, 80));
+        hub.activity("config", null, `Removed your saved role ${str(key, 80)} from ~/.fleet/roles.`);
+      } catch (err) {
+        hub.activity("config", null, `Couldn't remove the role: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      hub.emit({ type: "roles", roles: listRoles() });
     },
 
     resolveActionItem: (id, decision, note) => {

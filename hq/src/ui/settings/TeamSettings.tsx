@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
-import { nextAgentName } from "../../data/names";
-import { SKILL_LIMITS, type AgentConfig, type PermissionMode, type SkillFile } from "../../data/types";
+import { genericRoleMd, nextAgentName, ROLE_NAME, roleKey } from "../../data/names";
+import { SKILL_LIMITS, type AgentConfig, type PermissionMode, type RoleInfo, type SkillFile } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { agentPalette } from "../../theme/tokens";
 import { Field, Portrait, SectionTitle } from "../kit";
 import { CommitInput } from "./controls";
 import { RemoveAgentDialog } from "./RemoveAgentDialog";
+import { RolePicker, useRoles } from "./RolePicker";
 
 const PERMISSION_LABEL: Record<PermissionMode | "", string> = {
   "": "Your Claude default",
@@ -15,10 +16,16 @@ const PERMISSION_LABEL: Record<PermissionMode | "", string> = {
   plan: "Plan only (read, no changes)",
 };
 
-export const ROLE_SUGGESTIONS = ["Planner", "Implementer", "QA", "Reviewer", "Deployer", "Developer"];
+/** A role's entry in the list: the lead's (cto), or a worker role by name. */
+const findRole = (roles: RoleInfo[] | null, role: string, lead = false) =>
+  roles?.find((r) => (lead ? r.lead : !r.lead && r.name.toLowerCase() === role.trim().toLowerCase()));
+/** What an agent gets with a role: its ROLE.md (generic if it has none) and its skills. */
+const roleDefaults = (agent: AgentConfig, role: string, info?: RoleInfo) => ({ roleMd: info?.roleMd ?? genericRoleMd(agent.name, role), skillFiles: info?.skillFiles ?? [] });
+const skillNames = (skills: SkillFile[] = []) => skills.map((s) => s.name).sort().join("\n");
 
 export function TeamSettings() {
   const team = useOffice((s) => s.snap?.config.team);
+  const roles = useRoles();
   const [open, setOpen] = useState<string | null>(null);
   const [removing, setRemoving] = useState<AgentConfig | null>(null);
   if (!team) return null;
@@ -30,22 +37,38 @@ export function TeamSettings() {
           Changes to model, folder, role or skills apply the next time the agent starts. One lead plans and assigns work. Every other agent gets its own desk and git worktree, and starts when the lead first gives it work. The office grows as you add agents.
         </p>
         <p className="mb-3 text-[14px] text-muted">
-          Make it your flow: open <b>More</b> on any agent, the CTO included, to rewrite its role or load one from a file, and attach skills. For your own defaults on every new repo, save role texts as <code>~/.fleet/roles/&lt;role&gt;.md</code> (<code>cto.md</code>, <code>planner.md</code>, <code>qa.md</code>…).
+          Make it your flow: pick a built-in role, one you saved, or <b>New role…</b> to name your own. Open <b>More</b> on any agent, the CTO included, to rewrite its ROLE.md and attach skills, then <b>Save as my role</b>: on any project, the next agent that gets that role starts with them. Saved roles live in <code>~/.fleet/roles/</code> (<code>cto.md</code> for the lead, <code>&lt;role&gt;.md</code> for the rest).
         </p>
         <div className="flex flex-col gap-2">
           {team.map((a) => (
-            <AgentRow key={a.id} agent={a} expanded={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => setRemoving(a)} />
+            <AgentRow key={a.id} agent={a} roles={roles} expanded={open === a.id} onToggle={() => setOpen(open === a.id ? null : a.id)} onRemove={() => setRemoving(a)} />
           ))}
         </div>
       </section>
-      <AddAgent />
+      <AddAgent roles={roles} />
       {removing && <RemoveAgentDialog agent={removing} onClose={() => setRemoving(null)} />}
     </div>
   );
 }
 
-function AgentRow({ agent, expanded, onToggle, onRemove }: { agent: AgentConfig; expanded: boolean; onToggle: () => void; onRemove: () => void }) {
+function AgentRow({ agent, roles, expanded, onToggle, onRemove }: { agent: AgentConfig; roles: RoleInfo[] | null; expanded: boolean; onToggle: () => void; onRemove: () => void }) {
   const set = (patch: Parameters<typeof officeActions.updateAgent>[1]) => officeActions.updateAgent(agent.id, patch);
+  const [pending, setPending] = useState<string | null>(null); // a role picked while this agent's text was edited
+  const defaults = roleDefaults(agent, agent.role, findRole(roles, agent.role));
+  const edited = agent.roleMd.trim() !== defaults.roleMd.trim() || skillNames(agent.skillFiles) !== skillNames(defaults.skillFiles);
+  const apply = (role: string, replace: boolean) => {
+    setPending(null);
+    if (!replace) return set({ role });
+    const info = findRole(roles, role);
+    // null (not undefined, which JSON drops) clears the permission mode.
+    set({ role, ...roleDefaults(agent, role, info), permissionMode: (info?.permissionMode ?? null) as PermissionMode | undefined });
+  };
+  const pick = (role: string) => {
+    if (role === agent.role) return;
+    if (!findRole(roles, role) && !expanded) onToggle(); // a new role: open More to write its ROLE.md
+    if (edited) setPending(role);
+    else apply(role, true);
+  };
   return (
     <div className="border-[3px] border-ink bg-white">
       <div className="grid grid-cols-[40px_1fr_1fr_150px_auto] items-end gap-2.5 p-2.5">
@@ -57,7 +80,7 @@ function AgentRow({ agent, expanded, onToggle, onRemove }: { agent: AgentConfig;
           {agent.isLead ? (
             <div className="field flex h-9 items-center bg-cream-2">Lead</div>
           ) : (
-            <CommitInput className="field" value={agent.role} list="role-suggestions" onCommit={(v) => v.trim() && set({ role: v.trim() })} />
+            <RolePicker value={pending ?? agent.role} roles={roles} onChange={pick} />
           )}
         </Field>
         <Field label="Model">
@@ -77,6 +100,22 @@ function AgentRow({ agent, expanded, onToggle, onRemove }: { agent: AgentConfig;
           )}
         </div>
       </div>
+      {pending && (
+        <div className="flex flex-wrap items-center gap-2 border-t-[3px] border-ink bg-cream-2 px-2.5 py-2 text-[14px]" role="alertdialog" aria-label="Replace ROLE.md?">
+          <span className="min-w-0 flex-1">
+            {agent.name}'s ROLE.md or skills were changed. Replace them with what <b>{pending}</b> starts with?
+          </span>
+          <button className="btn px-2 text-[13px]" onClick={() => apply(pending, true)}>
+            Replace
+          </button>
+          <button className="btn px-2 text-[13px]" onClick={() => apply(pending, false)}>
+            Keep mine
+          </button>
+          <button className="btn px-2 text-[13px]" onClick={() => setPending(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
       {expanded && (
         <div className="grid grid-cols-2 gap-3 border-t-[3px] border-ink bg-cream p-3">
           <Field label="Colour">
@@ -124,6 +163,9 @@ function AgentRow({ agent, expanded, onToggle, onRemove }: { agent: AgentConfig;
           </div>
           <div className="col-span-2">
             <SkillsField skills={agent.skillFiles ?? []} onChange={(skillFiles) => set({ skillFiles })} />
+          </div>
+          <div className="col-span-2">
+            <MyRole agent={agent} info={findRole(roles, agent.role, agent.isLead)} onReset={(roleMd) => set({ roleMd })} />
           </div>
         </div>
       )}
@@ -218,13 +260,69 @@ function SkillsField({ skills, onChange }: { skills: SkillFile[]; onChange: (nex
         {error && <span className="text-[12px] text-red">{error}</span>}
       </div>
       <span className="text-[12px] text-muted">
-        Skills in your ~/.claude/skills already work for every agent. Add one here to give it to this agent only. Fleet writes it to .claude/skills/fleet-&lt;name&gt;/ in the agent's folder (never committed).
+        How skills reach agents: skills in your ~/.claude/skills work for every agent. Skills saved with a role (<b>Save as my role</b>) go to every agent that gets that role. Skills added here go to this agent only: Fleet writes them to .claude/skills/fleet-&lt;name&gt;/ in its folder (never committed). The built-in roles tell agents to use a matching skill when they have one, for example for testing, code review or deploys.
       </span>
     </div>
   );
 }
 
-function AddAgent() {
+/** Save this agent's ROLE.md and skills as your own version of its role, or remove yours. */
+function MyRole({ agent, info, onReset }: { agent: AgentConfig; info?: RoleInfo; onReset: (roleMd: string) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const name = agent.isLead ? "Lead" : agent.role.trim();
+  const key = roleKey(name, agent.isLead);
+  const error = agent.isLead || ROLE_NAME.test(name) ? null : "To save it, give the role a name of letters, digits, spaces or dashes (up to 40).";
+  const remove = () => {
+    officeActions.deleteRole(key);
+    // Reset: this agent goes back to the built-in text too. Delete: agents keep the text they have.
+    if (info?.builtIn) onReset(info.builtInMd ?? genericRoleMd(agent.name, name));
+    setConfirming(false);
+  };
+  return (
+    <div className="flex flex-col gap-1.5 border-2 border-ink bg-white p-2">
+      <span className="text-[14px] font-semibold">
+        My role: {name}
+        {info?.saved ? " · saved" : ""}
+      </span>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="btn px-2 text-[13px]"
+          disabled={!!error || !agent.roleMd.trim()}
+          onClick={() => officeActions.saveRole({ name, lead: agent.isLead, roleMd: agent.roleMd, skillFiles: agent.skillFiles ?? [] })}
+        >
+          Save as my role
+        </button>
+        {info?.saved && !confirming && (
+          <button type="button" className="btn px-2 text-[13px] text-red" onClick={() => setConfirming(true)}>
+            {info.builtIn ? "Reset to built-in" : "Delete my role"}
+          </button>
+        )}
+      </div>
+      {confirming && info && (
+        <div className="flex flex-wrap items-center gap-2 border-2 border-red bg-cream-2 p-2 text-[13px]" role="alertdialog" aria-label="Remove saved role?">
+          <span className="min-w-0 flex-1">
+            {info.builtIn
+              ? `Remove your saved ${name} and go back to the built-in text? ${agent.name}'s ROLE.md is reset too; its skills stay.`
+              : `Delete your saved role ${name}? Only ~/.fleet/roles/${key}.md and ${key}.skills/ are removed. Agents that have it keep their text.`}
+          </span>
+          <button type="button" className="btn px-2 text-[13px] text-red" onClick={remove}>
+            {info.builtIn ? "Reset" : "Delete"}
+          </button>
+          <button type="button" className="btn px-2 text-[13px]" onClick={() => setConfirming(false)}>
+            Cancel
+          </button>
+        </div>
+      )}
+      {error && <span className="text-[12px] text-red">{error}</span>}
+      <span className="text-[12px] text-muted">
+        Saves this ROLE.md and the skills above to <code>~/.fleet/roles/{key}.md</code> and <code>{key}.skills/</code>, for every project. The next agent that gets this role, here or in another repo, starts with them. Agents you already have keep their own copy.
+      </span>
+    </div>
+  );
+}
+
+function AddAgent({ roles }: { roles: RoleInfo[] | null }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState("Developer");
   const team = useOffice((s) => s.snap?.config.team) ?? [];
@@ -247,22 +345,17 @@ function AddAgent() {
           <input className="field" value={name} onChange={(e) => setName(e.target.value)} placeholder={suggested} />
         </Field>
         <Field label="Role">
-          <input className="field" value={role} list="role-suggestions" onChange={(e) => setRole(e.target.value)} />
+          <RolePicker value={role} roles={roles} onChange={setRole} />
         </Field>
         <button className="btn" type="submit">
           Add
         </button>
       </form>
-      <p className="mt-2 text-[12px] text-muted">The new agent starts when the lead first gives it work.</p>
+      <p className="mt-2 text-[12px] text-muted">The new agent starts with the role's ROLE.md and skills (yours, if you saved the role), and starts working when the lead first gives it work.</p>
       <datalist id="claude-models">
         <option value="opus" />
         <option value="sonnet" />
         <option value="haiku" />
-      </datalist>
-      <datalist id="role-suggestions">
-        {ROLE_SUGGESTIONS.map((r) => (
-          <option key={r} value={r} />
-        ))}
       </datalist>
     </section>
   );

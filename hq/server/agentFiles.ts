@@ -4,7 +4,7 @@
 import { readdirSync } from "node:fs";
 import { agentPath, agentRead, agentRemove, agentWrite } from "./lib/agentFs";
 import { run } from "./lib/exec";
-import type { AgentConfig, HqConfig, SkillFile } from "../src/data/types";
+import { SKILL_LIMITS, type AgentConfig, type HqConfig, type SkillFile } from "../src/data/types";
 
 /** Team MCP config, passed with `claude --mcp-config` (so the project's own .mcp.json is untouched). */
 export const MCP_CONFIG = ".claude/fleet-mcp.json";
@@ -173,6 +173,16 @@ export function writeMcpConfig(dir: string, agent: AgentConfig, port: number, to
 /** A skill name safe as one folder name: lowercase letters, digits and dashes. */
 export function skillSlug(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "skill";
+}
+
+/** Untrusted skills, checked: name and text present, within SKILL_LIMITS, one per slug. */
+export function cleanSkills(list: unknown[]): SkillFile[] {
+  const seen = new Set<string>();
+  return (list as Partial<SkillFile>[])
+    .filter((f): f is SkillFile => !!f && typeof f.name === "string" && typeof f.content === "string" && !!f.content.trim() && Buffer.byteLength(f.content) <= SKILL_LIMITS.bytes)
+    .map((f) => ({ name: skillSlug(f.name), content: f.content }))
+    .filter((f) => !seen.has(f.name) && seen.add(f.name))
+    .slice(0, SKILL_LIMITS.count);
 }
 
 /** SKILL.md text: as given if it has frontmatter, else with the frontmatter Claude Code needs to load it. */
