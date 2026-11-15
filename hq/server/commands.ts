@@ -44,12 +44,30 @@ async function openInTerminal(session: string) {
   if (!r.ok) throw new Error(r.stderr.trim() || "osascript failed");
 }
 
-export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inbox: Inbox) {
+export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inbox: Inbox, exit = (code: number) => process.exit(code)) {
   const team = () => hub.snap.config.team;
+
+  /** Stops every running agent session at once; one that fails is reported and doesn't stop the rest. */
+  const stopTeam = () =>
+    Promise.all(
+      hub.snap.agents
+        .filter((a) => a.session.state === "running")
+        .map((a) =>
+          sessions.stop(a.agentId).catch((err) => hub.activity("session", a.agentId, `Couldn't stop ${hub.name(a.agentId)}: ${err instanceof Error ? err.message : String(err)}`))
+        )
+    );
 
   const commands: Record<string, (...args: unknown[]) => unknown> = {
     startAgent: (id) => sessions.start(str(id, 80)),
     stopAgent: (id) => sessions.stop(str(id, 80)),
+    stopTeam,
+    quitFleet: async () => {
+      await stopTeam();
+      hub.activity("session", null, "Fleet was quit from the browser.");
+      // Later than the reply, and than history.json's 1 s save. Exit 0, so launchd and systemd don't restart it;
+      // Fleet's exit handler (src/server.js) removes its registry entry and watcher lock.
+      setTimeout(() => exit(0), 1500);
+    },
     openWorkspace: (id) => sessions.openWorkspace(str(id, 80)),
     openInIterm: async (id) => {
       const agentId = str(id, 80);

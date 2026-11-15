@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Stop team.** While any agent runs, the top bar shows **Stop team**. It lists the running
+  agents and offers **Stop agents** (ends their Claude Code sessions, all at once; work,
+  worktrees, branches, plans and the team are kept) or **Stop agents and quit Fleet**, which
+  then exits Fleet with code 0 so the login item doesn't bring it back until the next login or
+  `fleet --start`. The page then says Fleet has stopped and how to start it again.
+- **Docs:** a Stopping section covering the drawer's Stop, Stop team, quitting, `fleet --stop`
+  (`--all`) and Ctrl-C.
+
 ## 0.5.0
 
 - **Linux.** Fleet runs on Linux: `sudo apt install tmux`, then the same `npm install -g` and

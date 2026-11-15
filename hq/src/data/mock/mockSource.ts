@@ -82,6 +82,15 @@ export function createMockSource(): OfficeDataSource {
       world.activity("session", id, `${world.name(id)}'s session stopped`);
     },
 
+    stopTeam() {
+      for (const a of world.snap.agents) if (a.session.state === "running") source.stopAgent(a.agentId);
+    },
+
+    quitFleet() {
+      source.stopTeam();
+      world.activity("session", null, "Demo: there is no Fleet to quit, so only the agents stopped.");
+    },
+
     openWorkspace() {
       // Demo: nothing opens.
     },

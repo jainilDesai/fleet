@@ -36,6 +36,7 @@
         <li><a href="#first-run">First run</a></li>
         <li><a href="#projects">Several projects</a></li>
         <li><a href="#autostart">Start at login</a></li>
+        <li><a href="#stopping">Stopping</a></li>
         <li><a href="#update">Update and uninstall</a></li>
         <li><a href="#the-office">The office</a></li>
         <li><a href="#the-team">The team</a></li>
@@ -155,6 +156,14 @@ fleet --no-autostart       # turn auto-start off and stop the background copy</c
         <li>Install Fleet globally first: <code>--autostart</code> refuses to run from <code>npx</code>, whose cache can be cleared.</li>
       </ul>
       <p class="note">If you update Node through nvm, run <code>fleet --autostart</code> again. Fleet reminds you when you start it by hand. If you set up auto-start before 0.3.0, also run <code>fleet --autostart</code> again from your repo, or the background copy can't start.</p>
+
+      <h2 id="stopping">Stopping</h2>
+      <ul>
+        <li><strong>One agent:</strong> open it and press <strong>Stop</strong> in its drawer.</li>
+        <li><strong>The whole team:</strong> <strong>Stop team</strong> in the top bar (shown while any agent runs) lists who is running and asks first. <strong>Stop agents</strong> ends their Claude Code sessions. Committed work, worktrees, branches, plans and the team stay, and <strong>Start team</strong> brings them back.</li>
+        <li><strong>The team and Fleet:</strong> <strong>Stop agents and quit Fleet</strong> also exits Fleet, and the page says so. Start it again with <code>fleet</code> in the repo, or <code>fleet --start</code> if it starts at login. It exits cleanly, so the login item doesn't restart it before then.</li>
+        <li><strong>From a terminal:</strong> <code>fleet --stop</code> stops this repo's Fleet, <code>fleet --stop --all</code> every one, and Ctrl-C a copy you started in a terminal. These leave the agents running in tmux.</li>
+      </ul>
 
       <h2 id="update">Update and uninstall</h2>
       <pre class="install"><code>npm install -g @jainil_desai/fleet@latest    # update

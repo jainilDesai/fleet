@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SimSpeed } from "../../data/source";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
 import { ui, useUi } from "../../store/ui";
+import { StopTeamDialog } from "./StopTeamDialog";
 
 const SPEEDS: SimSpeed[] = [1, 2, 4];
 
@@ -66,6 +67,8 @@ export function TopBar() {
   const attention = selectAttention(snap).total;
   const debugOpen = useUi((s) => s.debugOpen);
   const live = useOffice((s) => s.live);
+  const quit = useOffice((s) => s.quit);
+  const [stopping, setStopping] = useState(false);
   if (!snap) return null;
   // Only the lead is started by hand; the others start when the lead first gives them work.
   const lead = snap.config.team.find((a) => a.isLead);
@@ -142,11 +145,17 @@ export function TopBar() {
         <i className="led" style={running ? undefined : { background: "#83769c", animation: "none" }} />
       </div>
 
-      {live && lead && leadStopped && (
+      {live && !quit && lead && leadStopped && (
         <button className="btn text-[14px]" onClick={() => officeActions.startAgent(lead.id)} title={`Starts ${lead.name}. The others start when ${lead.name} first gives them work.`}>
           Start team
         </button>
       )}
+      {live && running > 0 && (
+        <button className="btn text-[14px]" onClick={() => setStopping(true)} title="Stop every running agent, and optionally Fleet too">
+          Stop team
+        </button>
+      )}
+      {stopping && <StopTeamDialog onClose={() => setStopping(false)} />}
       <div className="flex gap-1.5">
         <button
           className="btn text-[14px]"

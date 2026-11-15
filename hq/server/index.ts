@@ -102,3 +102,4 @@ export { rolePreset } from "./roles";
 export { isApproval, resolutionMessage } from "./actionItems";
 export { roleMd, skillText, writeSkills } from "./agentFiles";
 export { trustSelected } from "./sessions";
+export { makeCommands } from "./commands";

@@ -163,6 +163,18 @@ when it comes from its own `fleet/<project>/…` branch or the agent reported it
 `set_my_status`; until then the PR shows in both, unclaimed. Agents' own task branches
 (`implementer/…`) look the same in both teams and don't count.
 
+## Stopping
+
+- **One agent:** open it (click its desk or card) and press **Stop** in its drawer.
+- **The whole team:** **Stop team** in the top bar (shown while any agent runs) lists who is
+  running and asks first. **Stop agents** ends their Claude Code sessions; committed work,
+  worktrees, branches, plans and the team stay, and **Start team** brings them back.
+- **The team and Fleet:** **Stop agents and quit Fleet** in the same dialog also exits Fleet. The
+  page then says Fleet has stopped. Start it again with `fleet` in the repo, or `fleet --start`
+  if it starts at login. It exits cleanly, so the login item doesn't restart it before then.
+- **From a terminal:** `fleet --stop` stops this repo's Fleet, `fleet --stop --all` every one, and
+  Ctrl-C stops a copy you started in a terminal. These leave the agents running in tmux.
+
 ## First run
 
 1. **Create team.** The welcome screen shows the requirements check, then the team: a CTO and
