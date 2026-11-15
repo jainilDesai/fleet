@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - **Linux.** Fleet runs on Linux: `sudo apt install tmux`, then the same `npm install -g` and
   `fleet`. The browser opens with `xdg-open`. **Open in terminal** uses the first installed of
