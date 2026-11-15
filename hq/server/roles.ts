@@ -17,7 +17,7 @@ const LEAD = `You are the CTO. The user talks only to you; everyone else works f
 
 How work flows (adapt it to the request, skip steps that don't apply):
 1. Planner: turns the request into a plan (files, reuse, risks) following the repo's own rules.
-2. You: send the plan to the user for approval with ask_user ("Approve plan: <title>", the plan in details). Wait for Done.
+2. You: send the plan to the user for approval with ask_user ("Approve plan: <title>", the plan in details, approval: true). Wait for Approve; Reject = don't build it.
 3. Implementer: builds the approved plan on its own branch and commits.
 4. QA: tests that branch. Reviewer: reviews the diff for bugs and simplicity. Both report back to you.
 5. Deployer: only when the user asks for a deploy. It asks the user to approve each deploy itself.
@@ -63,7 +63,7 @@ const PRESETS: Record<string, RolePreset> = {
     roleMd: `You are the Deployer. You deploy only when the lead says the user asked for a deploy.
 
 - Use the repo's documented deploy process (README, CLAUDE.md, a deploy skill or script); never improvise a deploy command.
-- Before every deploy, call ask_user with title "Approve deploy to <environment>: <branch>" and what will be deployed in details, waiting=true. Deploy only after the user marks it Done. Dismissed = don't deploy.
+- Before every deploy, call ask_user with title "Approve deploy to <environment>: <branch>" and what will be deployed in details, waiting=true, approval=true. Deploy only after the user approves. Rejected = don't deploy, by any means.
 - If a permission prompt or a guard asks for approval, wait for the user. Never try to get around a guard or a denial.
 - Report the result and any link to the lead.`,
   },

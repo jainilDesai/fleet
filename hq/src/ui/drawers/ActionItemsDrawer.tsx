@@ -81,7 +81,7 @@ export function ActionItemsDrawer() {
                 {closed.map((i) => (
                   <li key={i.id} className="border-t-2 border-dashed border-cream-3 py-1">
                     <span className={i.status === "dismissed" ? "line-through" : ""}>{i.title}</span> · {agent(i.fromId)?.name ?? i.fromId} ·{" "}
-                    {i.status} {i.closedAt ? `${ago(i.closedAt, now)} ago` : ""}
+                    {i.approval ? (i.status === "done" ? "approved" : "rejected") : i.status} {i.closedAt ? `${ago(i.closedAt, now)} ago` : ""}
                     {i.note && <div className="pl-3">“{i.note}”</div>}
                   </li>
                 ))}
@@ -110,6 +110,9 @@ function Item({ item, from, now }: { item: ActionItem; from?: { id: string; name
   const [note, setNote] = useState("");
   // A permission prompt: Allow / Deny go back to Claude Code (done = allow, dismissed = deny).
   const perm = item.kind === "permission";
+  // An approval request: Approve / Reject (done = approved, dismissed = rejected).
+  const approval = !perm && !!item.approval;
+  const yesNo = perm || approval;
   const [expanded, setExpanded] = useState(false);
   const long = item.details.split("\n").length > 6 || item.details.length > 400;
   return (
@@ -144,15 +147,15 @@ function Item({ item, from, now }: { item: ActionItem; from?: { id: string; name
         <input
           className="field min-w-0 flex-1 text-[13px]"
           value={note}
-          placeholder={perm ? "Reason, sent to the agent if you deny (optional)" : "Note for the agent (optional, no secrets)"}
+          placeholder={perm ? "Reason, sent to the agent if you deny (optional)" : approval ? "Reason, sent to the agent (optional)" : "Note for the agent (optional, no secrets)"}
           onChange={(e) => setNote(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !perm && officeActions.resolveActionItem(item.id, "done", note)}
+          onKeyDown={(e) => e.key === "Enter" && !yesNo && officeActions.resolveActionItem(item.id, "done", note)}
         />
-        <button className="btn px-2 text-[12px]" style={perm ? { background: "#b8f5c4" } : undefined} onClick={() => officeActions.resolveActionItem(item.id, "done", note)}>
-          {perm ? "Allow" : "Done"}
+        <button className="btn px-2 text-[12px]" style={yesNo ? { background: "#b8f5c4" } : undefined} onClick={() => officeActions.resolveActionItem(item.id, "done", note)}>
+          {perm ? "Allow" : approval ? "Approve" : "Done"}
         </button>
-        <button className="btn px-2 text-[12px]" style={perm ? { background: "#ffc2d1" } : undefined} onClick={() => officeActions.resolveActionItem(item.id, "dismissed", note)}>
-          {perm ? "Deny" : "Dismiss"}
+        <button className="btn px-2 text-[12px]" style={yesNo ? { background: "#ffc2d1" } : undefined} onClick={() => officeActions.resolveActionItem(item.id, "dismissed", note)}>
+          {perm ? "Deny" : approval ? "Reject" : "Dismiss"}
         </button>
       </div>
     </li>

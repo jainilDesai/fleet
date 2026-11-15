@@ -166,7 +166,7 @@ export function createMockSource(): OfficeDataSource {
       item.note = note?.trim() || null;
       item.closedAt = new Date().toISOString();
       world.emit({ type: "action.updated", item: { ...item } });
-      world.message("you", item.fromId, decision === "done" ? `Done: ${item.title}${item.note ? ` (${item.note})` : ""}` : `Dismissed: ${item.title}${item.note ? ` (${item.note})` : ""}`);
+      world.message("you", item.fromId, decision === "done" ? `${item.approval ? "Approved" : "Done"}: ${item.title}${item.note ? ` (${item.note})` : ""}` : `${item.approval ? "Rejected" : "Dismissed"}: ${item.title}${item.note ? ` (${item.note})` : ""}`);
     },
 
     updateWorkflow(patch: WorkflowPatch) {

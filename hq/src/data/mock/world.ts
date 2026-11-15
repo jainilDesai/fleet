@@ -132,12 +132,13 @@ export class World {
           id: `ai-demo-${n}`,
           fromId: a.id,
           taskId: null,
-          title: n === 0 ? "Create a Supabase dev project and add its URL to my env file" : "Add the Clerk webhook secret to Vercel (Preview)",
+          title: n === 0 ? "Create a Supabase dev project and add its URL to my env file" : "Approve deploy to production: main",
           details:
             n === 0
               ? "1. Create a project at supabase.com (dev only).\n2. Settings → Sandbox → App variables for " + a.name + ":\n   NEXT_PUBLIC_SUPABASE_URL=<project URL>\n   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable key>\n3. Restart me."
-              : "Vercel → Project → Settings → Environment Variables → add CLERK_WEBHOOK_SIGNING_SECRET for Preview.",
+              : "Deploys `main` to production with the repo's deploy script: the merged PRs since the last release.",
           waiting: n === 0,
+          ...(n === 1 && { approval: true }),
           status: "open" as const,
           note: null,
           at: now(),

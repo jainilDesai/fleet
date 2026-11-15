@@ -95,4 +95,5 @@ export { draftFromPromptLine } from "./backends/tmuxCli";
 export { branchAgent } from "./github";
 export { passedNotice } from "./githubSync";
 export { rolePreset } from "./roles";
+export { isApproval, resolutionMessage } from "./actionItems";
 export { skillText, writeSkills } from "./agentFiles";

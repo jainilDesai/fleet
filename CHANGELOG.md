@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- Plan and deploy approvals now have Approve / Reject buttons. Rejecting tells the agent to
+  stop, not to find another way.
+
 ## 0.3.1
 
 - The top bar fits at every window width. Below 1536px it hides the repo path and the

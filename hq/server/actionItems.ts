@@ -13,6 +13,23 @@ import type { Planner } from "./planner";
 
 const KEEP_CLOSED = 100;
 
+/** An approval request: the agent said so, or (older agents) the title starts with "Approve". */
+export function isApproval(title: string, flag?: boolean): boolean {
+  return flag ?? /^approve\b/i.test(title.trim());
+}
+
+/** What Fleet tells the agent when the user closes its action item. */
+export function resolutionMessage(item: Pick<ActionItem, "title" | "note" | "approval">, decision: "done" | "dismissed"): string {
+  const n = item.note ? ` Note from the user: ${item.note}` : "";
+  if (item.approval)
+    return decision === "done"
+      ? `The user approved "${item.title}".${n} Go ahead.`
+      : `The user rejected "${item.title}".${n} Do not do it, and do not try another way to do it. Stop that work and tell the lead, or wait for the user.`;
+  return decision === "done"
+    ? `The user did your action item "${item.title}".${n} Continue with it.`
+    : `The user dismissed your action item "${item.title}".${n} Continue without it, or find another way.`;
+}
+
 export type PermissionAnswer = { behavior: "allow" } | { behavior: "deny"; message: string } | null;
 
 export class ActionItems {
@@ -51,7 +68,7 @@ export class ActionItems {
     renameSync(tmp, this.file);
   }
 
-  add(fromId: string, title: string, details: string, waiting: boolean): ActionItem {
+  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean): ActionItem {
     const clean = title.trim().replace(/\s+/g, " ").slice(0, 160);
     if (!clean) throw new Error("Give the action item a short title.");
     const item: ActionItem = {
@@ -62,6 +79,7 @@ export class ActionItems {
       details: details.trim().slice(0, 4000),
       waiting,
       status: "open",
+      ...(isApproval(clean, approval) && { approval: true }),
       note: null,
       at: new Date().toISOString(),
       closedAt: null,
@@ -138,8 +156,6 @@ export class ActionItems {
       this.hub.activity("config", item.fromId, `You ${decision === "done" ? "allowed" : "denied"}: ${item.title}`);
       return;
     }
-    const n = item.note ? ` Note from the user: ${item.note}` : "";
-    if (decision === "done") this.planner.notify(item.fromId, `The user did your action item "${item.title}".${n} Continue with it.`);
-    else this.planner.notify(item.fromId, `The user dismissed your action item "${item.title}".${n} Continue without it, or find another way.`);
+    this.planner.notify(item.fromId, resolutionMessage(item, decision));
   }
 }

@@ -178,17 +178,18 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
     "ask_user",
     {
       description:
-        "Ask the user to do or decide something you can't: create an account, database or API key, change a setting in a dashboard (Vercel, Supabase…), put a value in an env file, or approve a decision (e.g. a deploy, a risky change). It goes to their Action items list. Give a short title and clear steps. Never include secret values; name the variable instead. Fleet messages you when they've done it (Done, with an optional note) or dismissed it.",
+        "Ask the user to do or decide something you can't: create an account, database or API key, change a setting in a dashboard (Vercel, Supabase…), put a value in an env file, or approve a decision (e.g. a deploy, a risky change). It goes to their Action items list. Give a short title and clear steps. Never include secret values; name the variable instead. Fleet messages you when they've done it (Done, with an optional note) or dismissed it. For an approval pass approval: true; the user then sees Approve / Reject.",
       inputSchema: {
         title: z.string().describe("What to do, in a few words"),
         details: z.string().describe("The exact steps: where to go, what to create, which variable name, where to put it, and whether you need a restart. No secret values."),
         waiting: z.boolean().optional().describe("True if you can't continue without it"),
+        approval: z.boolean().optional().describe("true when you need the user to approve or reject something, such as a plan or a deploy"),
       },
     },
-    guard(({ title, details, waiting }: { title: string; details: string; waiting?: boolean }) => {
+    guard(({ title, details, waiting, approval }: { title: string; details: string; waiting?: boolean; approval?: boolean }) => {
       if (!planner.actions) throw new Error("Action items aren't available.");
       if (!details.trim()) throw new Error("Add the steps in details, so the user knows exactly what to do.");
-      const item = planner.actions.add(me, title, details, !!waiting);
+      const item = planner.actions.add(me, title, details, !!waiting, approval);
       return ok(`Added to the user's Action items (${item.id}). ${waiting ? "Wait for Fleet's message, or work on something else meanwhile." : "Keep working; Fleet will message you when it's done."}`);
     }),
   );

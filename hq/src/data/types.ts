@@ -373,6 +373,8 @@ export interface ActionItem {
   status: "open" | "done" | "dismissed";
   /** "permission": Claude Code wants to run a tool; done = Allow, dismissed = Deny. Unset = a request from the agent. */
   kind?: "permission";
+  /** The agent asks the user to approve or reject something (a plan, a deploy): done = approved, dismissed = rejected. */
+  approval?: boolean;
   note: string | null; // the user's note when closing it
   at: string;
   closedAt: string | null;

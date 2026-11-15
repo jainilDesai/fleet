@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, skillText, writeSkills } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, skillText, writeSkills, isApproval, resolutionMessage } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -103,4 +103,31 @@ test('attached skills are written under .claude/skills/fleet-*, kept in the fold
   writeSkills(dir, [{ name: 'ok', content: 'body' }]);
   assert.deepEqual(fs.readdirSync(skills).sort(), ['fleet-ok', 'repo-own'], "only Fleet's own skills are removed");
   assert.match(skillText('x', 'plain'), /^---\nname: x\n/);
+});
+
+test('rejecting an approval tells the agent to stop, not to find another way', () => {
+  const msg = resolutionMessage({ title: 'Approve deploy to production: main', note: 'not today', approval: true }, 'dismissed');
+  assert.match(msg, /rejected "Approve deploy to production: main"/);
+  assert.match(msg, /Do not do it/);
+  assert.match(msg, /not today/);
+  assert.doesNotMatch(msg, /find another way/);
+});
+
+test('approving an approval tells the agent to go ahead', () => {
+  assert.equal(resolutionMessage({ title: 'Approve plan: login', note: null, approval: true }, 'done'), 'The user approved "Approve plan: login". Go ahead.');
+});
+
+test('approval: the flag wins; without it, a title starting with "Approve" counts', () => {
+  assert.equal(isApproval('Approve plan: login'), true);
+  assert.equal(isApproval('approve deploy to staging'), true);
+  assert.equal(isApproval('Approved list of vendors'), false);
+  assert.equal(isApproval('Add the API key to .env'), false);
+  assert.equal(isApproval('Ship it?', true), true);
+  assert.equal(isApproval('Approve plan: login', false), false);
+});
+
+test('a normal action item keeps its Done / Dismiss text', () => {
+  const item = { title: 'Add the API key', note: null };
+  assert.equal(resolutionMessage(item, 'done'), 'The user did your action item "Add the API key". Continue with it.');
+  assert.equal(resolutionMessage(item, 'dismissed'), 'The user dismissed your action item "Add the API key". Continue without it, or find another way.');
 });

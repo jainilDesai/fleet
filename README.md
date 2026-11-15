@@ -106,8 +106,10 @@ pull requests are reviewed and merged.
 **Actions.** One list of everything that needs you:
 
 - **Questions and approvals** an agent asked with `ask_user` (for example "Approve plan: …" or
-  "Approve deploy to production: …"). Mark one **Done** or **Dismiss** it; a waiting agent
-  continues with your answer.
+  "Approve deploy to production: …"). Mark a question **Done** or **Dismiss** it; a waiting
+  agent continues with your answer. An approval shows **Approve** / **Reject** instead, with an
+  optional reason sent to the agent. Reject tells the agent not to do it and not to look for
+  another way.
 - **Permission prompts.** When Claude Code asks to run a command or edit a file, the request
   shows here with the full command. **Allow** or **Deny** it from the browser, or answer in the
   terminal; either one closes the other. A production deploy is labelled

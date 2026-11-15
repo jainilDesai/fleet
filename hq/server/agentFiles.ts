@@ -72,7 +72,7 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
         "If you are blocked or need a decision, call set_my_status blocked with the reason.",
       ];
   rules.push(
-    "When you need the user to do or decide something you can't (create an account, database or API key, change a setting in a dashboard, put a value in an env file, approve a deploy or a risky change), call ask_user with a short title and clear steps, then keep working on what you can. Never put secret values in it; name the variable instead.",
+    "When you need the user to do or decide something you can't (create an account, database or API key, change a setting in a dashboard, put a value in an env file, approve a deploy or a risky change), call ask_user with a short title and clear steps, then keep working on what you can. To ask for approval of a plan, a deploy or a risky change, pass approval: true; if the user rejects it, don't do it. Never put secret values in it; name the variable instead.",
   );
   const tools = agent.isLead
     ? "list_workers, get_status, list_tasks, create_board, create_task, update_task, assign_task, send_message, ask_user"
