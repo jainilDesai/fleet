@@ -62,6 +62,10 @@ export interface OfficeDataSource {
   // agent sessions
   startAgent(id: string): void;
   stopAgent(id: string): void;
+  /** Stops every running agent session. */
+  stopTeam(): void;
+  /** Stops every running agent session, then Fleet itself. */
+  quitFleet(): void;
   openWorkspace(id: string): void; // opens the agent's folder on the host
   /** Opens a terminal (iTerm, else Terminal.app) attached to the agent's tmux session. */
   openInIterm(id: string): void;

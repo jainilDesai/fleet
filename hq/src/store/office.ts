@@ -22,6 +22,7 @@ interface OfficeState {
   live: boolean; // connected to Fleet's server (vs. the demo mock)
   workspaceInfo: Record<string, WorkspaceInfo>; // answers to inspectWorkspace
   connection: ConnectionStatus;
+  quit: boolean; // you quit Fleet from this page
   source: OfficeDataSource;
 }
 
@@ -46,6 +47,7 @@ export const useOffice = create<OfficeState>(() => ({
   live: token !== null,
   workspaceInfo: {},
   connection: "connecting",
+  quit: false,
   source,
 }));
 
@@ -127,6 +129,11 @@ export function connectOffice() {
 export const officeActions = {
   startAgent: (id: string) => source.startAgent(id),
   stopAgent: (id: string) => source.stopAgent(id),
+  stopTeam: () => source.stopTeam(),
+  quitFleet() {
+    if (useOffice.getState().live) useOffice.setState({ quit: true });
+    source.quitFleet();
+  },
   openWorkspace: (id: string) => source.openWorkspace(id),
   openInIterm: (id: string) => source.openInIterm(id),
   trustFolder: (id: string) => source.trustFolder(id),
