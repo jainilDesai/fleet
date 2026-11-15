@@ -34,6 +34,7 @@
       <ul>
         <li><a href="#install">Install</a></li>
         <li><a href="#first-run">First run</a></li>
+        <li><a href="#projects">Several projects</a></li>
         <li><a href="#autostart">Start at login</a></li>
         <li><a href="#update">Update and uninstall</a></li>
         <li><a href="#the-office">The office</a></li>
@@ -75,13 +76,16 @@
 npm install -g @jainil_desai/fleet
 cd ~/code/my-app           # any git repo
 fleet                      # opens http://localhost:7788</code></pre>
-      <p>Fleet works on one git repo per run: the folder you start it in, or the one you pass with <code>--repo</code>.</p>
+      <p>Each copy of Fleet works on one git repo: the folder you start it in, or the one you pass with <code>--repo</code>. For several repos, see <a href="#projects">Several projects</a>.</p>
+      <p class="note">Right after a release, <code>npm install</code> can fail with <code>ETARGET</code>. Add <code>--prefer-online</code> to fetch the fresh version list.</p>
       <table>
         <tr><th>Option</th><th>What it does</th></tr>
         <tr><td><code>--repo &lt;path&gt;</code></td><td>The git repo the team works on. Default: this folder, or <code>FLEET_REPO</code>.</td></tr>
-        <tr><td><code>--port &lt;n&gt;</code></td><td>Serve on another port. Default 7788, or <code>FLEET_PORT</code>.</td></tr>
+        <tr><td><code>--port &lt;n&gt;</code></td><td>Serve on another port. Default 7788, or <code>FLEET_PORT</code>; if 7788 is taken and you set neither, Fleet takes the next free port.</td></tr>
         <tr><td><code>--no-open</code></td><td>Don't open a browser tab.</td></tr>
-        <tr><td><code>--autostart</code>, <code>--no-autostart</code>, <code>--stop</code>, <code>--start</code></td><td>Run Fleet in the background from login. See <a href="#autostart">Start at login</a>.</td></tr>
+        <tr><td><code>--autostart</code>, <code>--no-autostart</code>, <code>--stop</code>, <code>--start</code></td><td>Run Fleet in the background from login, for this repo. Add <code>--all</code> to <code>--stop</code>, <code>--start</code> or <code>--no-autostart</code> for every repo. See <a href="#autostart">Start at login</a>.</td></tr>
+        <tr><td><code>--list</code></td><td>List the running copies of Fleet and their URLs.</td></tr>
+        <tr><td><code>--version</code></td><td>Print Fleet's version.</td></tr>
         <tr><td><code>-h</code>, <code>--help</code></td><td>List the options.</td></tr>
       </table>
       <p>To try it without installing:</p>
@@ -94,25 +98,35 @@ node bin/fleet.js --repo &lt;path&gt;</code></pre>
 
       <h2 id="first-run">First run</h2>
       <ol class="steps">
-        <li>The <strong>Set up your team</strong> window opens. Name the project, the lead and each agent, pick their roles, and choose whether PRs get reviewed before merge. Click <strong>Create team</strong>. This is saved in <code>~/.fleet</code>, never in your repo. You can change all of it later in Settings.</li>
+        <li>The <strong>Set up your team</strong> window opens and checks your Mac: tmux, Claude Code and its sign-in, <code>gh</code>, a GitHub remote and your terminal, each with the command that fixes it. Name the project, the lead and each agent, pick their roles, and choose whether PRs get reviewed before merge. Click <strong>Create team</strong>. This is saved in <code>~/.fleet</code>, never in your repo. You can change all of it later in Settings.</li>
         <li>Click <strong>Start team</strong> in the top bar. It starts only the CTO. The others start the first time the CTO gives them work.</li>
-        <li>Message the CTO with what you want built.</li>
+        <li>The CTO may stop on Claude Code's folder-trust prompt (first start only). Click <strong>Trust folder</strong> in Action items or its drawer.</li>
+        <li>Click the CTO, open the <strong>Messages</strong> tab, and type what you want built. Approvals and questions come to <a href="#actions">Action items</a>.</li>
       </ol>
-      <p>A new agent may stop on Claude Code's folder-trust prompt. It shows up in <a href="#actions">Actions</a> with <strong>Open in iTerm</strong>. Open it and answer the prompt there.</p>
-      <p>The first time you click <strong>Open in iTerm</strong>, macOS asks whether Fleet (your terminal or Node) may control iTerm or Terminal. Allow it once.</p>
+      <p><strong>Open in terminal</strong> attaches iTerm if you have it, else Terminal.app. The first time, macOS asks whether Fleet (your terminal or Node) may control it. Allow it once. If it's blocked, Fleet shows the <code>tmux attach</code> command to run yourself.</p>
+
+      <h2 id="projects">Several projects</h2>
+      <p>Run <code>fleet</code> in each repo. A second copy takes the next free port and says which. <code>fleet</code> in a repo that already has a copy just opens it.</p>
+      <ul>
+        <li><code>fleet --list</code> shows every running copy. The <strong>⇄</strong> switcher in the top bar jumps between them.</li>
+        <li>Each repo gets its own team, tmux sessions and worktrees. Two repos with the same folder name never share one.</li>
+        <li>Two checkouts of the same repo can each run a team: new agent branches are named <code>fleet/&lt;project&gt;/&lt;agent&gt;</code>. Until an agent reports its PR, a PR for a shared task number may show as unclaimed in both teams.</li>
+        <li>Only one copy raises notification banners and writes history.</li>
+      </ul>
 
       <h2 id="autostart">Start at login</h2>
-      <p>Fleet can run in the background for one repo, all the time.</p>
+      <p>Fleet can run in the background from login, one login item per repo.</p>
       <pre class="install"><code>fleet --autostart          # start at login for this repo, in the background, and start it now
-fleet --stop               # stop it for now; it starts again at the next login
+fleet --stop               # stop this repo's copy for now; it starts again at the next login (--all: every repo)
 fleet --start              # start the background copy again now
 fleet --no-autostart       # turn auto-start off and stop the background copy</code></pre>
       <ul>
-        <li>It remembers the repo you set it up from (or <code>--repo &lt;path&gt;</code>). Run <code>fleet --autostart</code> again to switch repos.</li>
+        <li>It's for the repo you set it up from (or <code>--repo &lt;path&gt;</code>). Run it in another repo to start that one at login too.</li>
         <li>Add <code>--port &lt;n&gt;</code> to <code>--autostart</code> to use another port.</li>
         <li>The background copy doesn't open a browser tab. Open <code>http://localhost:7788</code> when you want it.</li>
-        <li>It restarts if it crashes and logs to <code>~/.fleet/fleet.log</code>.</li>
-        <li>It's a standard macOS LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.plist</code>.</li>
+        <li>It restarts if it crashes and logs to <code>~/.fleet/fleet-&lt;project&gt;.log</code>.</li>
+        <li>It's a standard macOS LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.&lt;project&gt;.plist</code>. A login item from an older version keeps working, and is replaced when you run <code>fleet --autostart</code> again.</li>
+        <li>Install Fleet globally first: <code>--autostart</code> refuses to run from <code>npx</code>, whose cache can be cleared.</li>
       </ul>
       <p class="note">If you update Node through nvm, run <code>fleet --autostart</code> again. Fleet reminds you when you start it by hand. If you set up auto-start before 0.3.0, also run <code>fleet --autostart</code> again from your repo, or the background copy can't start.</p>
 
@@ -226,8 +240,8 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
 
       <h2 id="limits">Limits</h2>
       <ul>
-        <li>macOS only. Open in iTerm uses AppleScript.</li>
-        <li>One repo per run. To work on two repos, run two copies on different ports.</li>
+        <li>macOS only for now. Open in terminal uses AppleScript.</li>
+        <li>One repo per copy of Fleet; run one per repo (see <a href="#projects">Several projects</a>).</li>
         <li>Each agent's worktree starts without <code>node_modules</code>. QA installs before it tests.</li>
       </ul>
 
@@ -237,15 +251,17 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
       <h3>"tmux is not installed"</h3>
       <p>Run <code>brew install tmux</code>, then start Fleet again.</p>
       <h3>An agent is stuck and nothing happens</h3>
-      <p>It's probably waiting on Claude Code's folder-trust prompt. Find it in <a href="#actions">Actions</a>, click <strong>Open in iTerm</strong>, and answer the prompt.</p>
-      <h3>Open in iTerm does nothing</h3>
-      <p>macOS blocked Fleet from controlling your terminal. Allow it in System Settings → Privacy &amp; Security → Automation, then try again.</p>
+      <p>It's probably waiting on Claude Code's folder-trust prompt. Find it in <a href="#actions">Actions</a> and click <strong>Trust folder</strong>, or <strong>Open in terminal</strong> and answer it there.</p>
+      <h3>Open in terminal does nothing</h3>
+      <p>macOS blocked Fleet from controlling your terminal. Fleet shows the <code>tmux attach</code> command to run yourself. To fix it, allow it in System Settings → Privacy &amp; Security → Automation, then try again.</p>
+      <h3>"This repo has no commits yet"</h3>
+      <p>Agents' worktrees start from a commit. Make a first commit, then run <code>fleet</code>.</p>
       <h3>"Port 7788 is in use"</h3>
-      <p>Fleet is probably already running. Open <code>http://localhost:7788</code>, or start another copy with <code>--port &lt;n&gt;</code>.</p>
+      <p>You passed <code>--port</code> (or <code>FLEET_PORT</code>) and something else uses it. Leave both out and Fleet picks a free port, or run <code>fleet --list</code> to see the copies already running.</p>
       <h3>A permission prompt disappeared from Actions</h3>
-      <p>Fleet holds a permission request for up to 10 minutes. If you don't answer in time, or Fleet restarts, the agent asks in its terminal instead. Answer it there with <strong>Open in iTerm</strong>.</p>
+      <p>Fleet holds a permission request for up to 10 minutes. If you don't answer in time, or Fleet restarts, the agent asks in its terminal instead. Answer it there with <strong>Open in terminal</strong>.</p>
       <h3>The background copy doesn't start after upgrading</h3>
-      <p>Auto-start now remembers the repo. Run <code>fleet --autostart</code> again from your repo. Do the same after updating Node through nvm.</p>
+      <p>Run <code>fleet --autostart</code> again from your repo. Do the same after updating Node through nvm or reinstalling Fleet. Fleet warns you when the login item points at a Node or Fleet that's gone.</p>
       <h3>"Fleet isn't built yet"</h3>
       <p>You're running from source. Run <code>npm install &amp;&amp; npm run build</code> in the Fleet folder first.</p>
 

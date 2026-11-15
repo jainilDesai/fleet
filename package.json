@@ -1,6 +1,6 @@
 {
   "name": "@jainil_desai/fleet",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "A pixel-art office for a CTO-led team of Claude Code agents on your Mac: real sessions in tmux, one git worktree each, and every question and permission in one Actions list. Built on JSM HQ.",
   "type": "module",
   "bin": {

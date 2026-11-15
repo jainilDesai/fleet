@@ -107,12 +107,12 @@
           <div class="text">
             <h3>Real sessions, not a simulation</h3>
             <p>Each agent is <code>claude</code> running in tmux, in its own git worktree on its own branch. Your own checkout is never touched.</p>
-            <p><b>Open in iTerm</b> attaches to any agent so you can read or type into the real session. Agents keep running if you close Fleet.</p>
+            <p><b>Open in terminal</b> attaches iTerm or Terminal.app to any agent so you can read or type into the real session. Agents keep running if you close Fleet.</p>
           </div>
           <div class="term panel-dark" role="img" aria-label="Example: the tmux session and worktree for a repo's Implementer agent">
             <p><span class="dim">$</span> tmux attach -t fleet-my-app-implementer</p>
             <p><span class="dim">worktree</span> ~/.fleet/projects/my-app/implementer</p>
-            <p><span class="dim">branch&nbsp;&nbsp;</span> <span class="ok">fleet/implementer</span></p>
+            <p><span class="dim">branch&nbsp;&nbsp;</span> <span class="ok">fleet/my-app/implementer</span></p>
           </div>
         </div>
 
@@ -141,7 +141,7 @@
         <p class="eyebrow">Get started</p>
         <h2>Needs</h2>
         <ul class="reqs">
-          <li class="panel"><b>macOS</b><span>Open in iTerm uses AppleScript.</span></li>
+          <li class="panel"><b>macOS</b><span>iTerm optional; Terminal.app works.</span></li>
           <li class="panel"><b>Node 20+</b><span>No runtime dependencies.</span></li>
           <li class="panel"><b>Claude Code</b><span><code>claude</code>, signed in.</span></li>
           <li class="panel"><b>tmux</b><span>Plus <code>gh</code>, optional, for PRs.</span></li>
@@ -151,7 +151,7 @@
 npm install -g @jainil_desai/fleet</code></pre></li>
           <li>Start it in any git repo, or point it at one. Your browser opens <code>http://localhost:7788</code>.<pre><code>cd ~/code/my-app &amp;&amp; fleet
 fleet --repo ~/code/my-app</code></pre></li>
-          <li>Optional: start Fleet at login for this repo, in the background.<pre><code>fleet --autostart</code></pre></li>
+          <li>Optional: start Fleet at login for this repo, in the background. Run it in each repo you want; <code>fleet --list</code> shows them all.<pre><code>fleet --autostart</code></pre></li>
         </ol>
         <p>Options, customising roles and how it all works are in the <a href="docs.html">docs</a>.</p>
       </div>
