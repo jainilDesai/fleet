@@ -26,7 +26,7 @@ exit 0
 process.env.FLEET_SYSTEMCTL = fake;
 process.env.FLEET_SYSTEMD_UNITS = units;
 const systemctlCalls = () => (fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n') : []);
-const { unit, readItem, items, itemsFor, labelFor, enable, disable, jobState, startBackground, stop } = await import('../src/autostart.js');
+const { unit, readItem, items, itemsFor, labelFor, enable, disable, jobState, startBackground, stop, moveOff, enableHome, homeItem, HOME_LABEL } = await import('../src/autostart.js');
 
 const sample = { node: '/opt/node 22/bin/node', script: '/lib/fleet/bin/fleet.js', port: 7788, pathEnv: '/usr/bin:/home/a/.local/bin', log: '/home/a/.fleet/fleet-app.log' };
 
@@ -59,7 +59,7 @@ test('one service per project: --autostart replaces this repo\'s, --no-autostart
   assert.ok(!fs.existsSync(path.join(units, 'fleet-app-old.service')), 'older item for this repo removed');
   const item = itemsFor('/code/app')[0];
   assert.deepEqual([item.label, item.port, item.node, item.script.endsWith(path.join('bin', 'fleet.js')), item.log], ['fleet-app', 7788, process.execPath, true, r.log]);
-  assert.deepEqual(systemctlCalls(), ['--user show-environment', '--user disable --now fleet-app-old.service', '--user daemon-reload', '--user enable --now fleet-app.service']);
+  assert.deepEqual(systemctlCalls(), ['--user show-environment', '--user disable --now fleet-app-old.service', '--user daemon-reload', '--user enable fleet-app.service', '--user restart fleet-app.service']);
   assert.equal(itemsFor('/code/site').length, 1, 'other projects untouched');
 
   fs.rmSync(calls, { force: true });
@@ -109,4 +109,26 @@ test('--autostart without systemd says how to turn it on (WSL) and writes nothin
     assert.match(r.stderr, message);
   }
   assert.deepEqual(fs.readdirSync(units), before);
+});
+
+test('upgrading: a service pinned to the home port is rewritten to a free port and restarted in place, keeping tmux', async () => {
+  fs.mkdirSync(units, { recursive: true });
+  const free = 7880;
+  fs.writeFileSync(path.join(units, 'fleet-shop.service'), unit({ ...sample, port: free, repo: '/code/shop' }));
+  fs.rmSync(calls, { force: true });
+  const moved = await moveOff(free, () => 'shop');
+  assert.deepEqual(moved, [{ repo: '/code/shop', from: free, to: free + 1 }]);
+  const text = fs.readFileSync(path.join(units, 'fleet-shop.service'), 'utf8');
+  assert.match(text, new RegExp(`"--port" "${free + 1}" "--repo" "/code/shop"`));
+  assert.match(text, /^KillMode=process$/m, 'stopping Fleet leaves the agents\' tmux sessions running');
+  // Not stopped under the old unit (whose default KillMode would kill tmux): reloaded, then restarted.
+  assert.deepEqual(systemctlCalls(), ['--user show-environment', '--user daemon-reload', '--user enable fleet-shop.service', '--user restart fleet-shop.service']);
+
+  enableHome(free);
+  assert.equal(HOME_LABEL, 'fleet-home');
+  assert.deepEqual([homeItem().port, homeItem().repo], [free, null]);
+  assert.match(fs.readFileSync(path.join(units, 'fleet-home.service'), 'utf8'), /^Description=Fleet home page$/m);
+  assert.equal(disable(null, [homeItem()]), 1);
+  assert.equal(homeItem(), null);
+  assert.equal(itemsFor('/code/shop').length, 1, 'the project keeps its service');
 });

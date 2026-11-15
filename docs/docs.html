@@ -37,6 +37,8 @@
         <li><a href="#projects">Several projects</a></li>
         <li><a href="#autostart">Start at login</a></li>
         <li><a href="#stopping">Stopping</a></li>
+        <li><a href="#home-page">Home page</a></li>
+        <li><a href="#install-app">Install as an app</a></li>
         <li><a href="#update">Update and uninstall</a></li>
         <li><a href="#the-office">The office</a></li>
         <li><a href="#the-team">The team</a></li>
@@ -77,12 +79,13 @@
       <pre class="install"><code>brew install tmux          # and optionally: brew install gh
 npm install -g @jainil_desai/fleet
 cd ~/code/my-app           # any git repo
-fleet                      # opens http://localhost:7788</code></pre>
+fleet                      # opens this repo's Fleet, http://localhost:7789
+fleet home                 # the home page, http://localhost:7788</code></pre>
       <h3 id="install-linux">Linux</h3>
       <pre class="install"><code>sudo apt install tmux      # Fedora: sudo dnf install tmux; Arch: sudo pacman -S tmux
 npm install -g @jainil_desai/fleet
 cd ~/code/my-app
-fleet                      # opens http://localhost:7788 with xdg-open</code></pre>
+fleet                      # opens http://localhost:7789 with xdg-open</code></pre>
       <p>Install Claude Code with <code>curl -fsSL https://claude.ai/install.sh | bash</code> and run <code>claude</code> once to sign in. For <code>gh</code>, see <a href="https://github.com/cli/cli/blob/trunk/docs/install_linux.md">its Linux install page</a> (apt, dnf, pacman and more).</p>
       <h3 id="install-wsl">Windows (via WSL)</h3>
       <p>Fleet doesn't run on Windows itself, because agents run in tmux. It runs inside WSL, and you use it from your Windows browser. Running <code>fleet</code> in PowerShell or cmd prints these steps.</p>
@@ -94,14 +97,15 @@ fleet                      # opens http://localhost:7788 with xdg-open</code></p
         <li>Optional: <code>gh</code>, from <a href="https://github.com/cli/cli/blob/trunk/docs/install_linux.md">its Linux install page</a>, then <code>gh auth login</code>.</li>
         <li><code>npm install -g @jainil_desai/fleet</code></li>
         <li>Keep your repo in the Linux file system (for example <code>~/code/my-app</code>), not under <code>/mnt/c</code>: git and agents are much faster there, and file watching works. Then <code>cd ~/code/my-app</code> and run <code>fleet</code>.</li>
-        <li>Open <code>http://localhost:7788</code> in your Windows browser. Fleet tries to open it for you, with <code>wslview</code> or <code>explorer.exe</code>.</li>
+        <li>Open <code>http://localhost:7789</code> in your Windows browser (the <a href="#home-page">home page</a> is <code>http://localhost:7788</code>). Fleet tries to open it for you, with <code>wslview</code> or <code>explorer.exe</code>.</li>
       </ol>
       <p>Each copy of Fleet works on one git repo: the folder you start it in, or the one you pass with <code>--repo</code>. For several repos, see <a href="#projects">Several projects</a>.</p>
       <p class="note">Right after a release, <code>npm install</code> can fail with <code>ETARGET</code>. Add <code>--prefer-online</code> to fetch the fresh version list.</p>
       <table>
         <tr><th>Option</th><th>What it does</th></tr>
         <tr><td><code>--repo &lt;path&gt;</code></td><td>The git repo the team works on. Default: this folder, or <code>FLEET_REPO</code>.</td></tr>
-        <tr><td><code>--port &lt;n&gt;</code></td><td>Serve on another port. Default 7788, or <code>FLEET_PORT</code>; if 7788 is taken and you set neither, Fleet takes the next free port.</td></tr>
+        <tr><td><code>--port &lt;n&gt;</code></td><td>Serve on another port. Default 7789, or <code>FLEET_PORT</code>; if 7789 is taken and you set neither, Fleet takes the next free port. 7788 is the <a href="#home-page">home page</a>'s.</td></tr>
+        <tr><td><code>fleet home</code>, <code>fleet open</code></td><td>Open the <a href="#home-page">home page</a>, starting it if needed. <code>fleet</code> outside a git repo does the same.</td></tr>
         <tr><td><code>--no-open</code></td><td>Don't open a browser tab.</td></tr>
         <tr><td><code>--autostart</code>, <code>--no-autostart</code>, <code>--stop</code>, <code>--start</code></td><td>Run Fleet in the background from login, for this repo. Add <code>--all</code> to <code>--stop</code>, <code>--start</code> or <code>--no-autostart</code> for every repo. See <a href="#autostart">Start at login</a>.</td></tr>
         <tr><td><code>--list</code></td><td>List the running copies of Fleet and their URLs.</td></tr>
@@ -133,7 +137,7 @@ node bin/fleet.js --repo &lt;path&gt;</code></pre>
       <h2 id="projects">Several projects</h2>
       <p>Run <code>fleet</code> in each repo. A second copy takes the next free port and says which. <code>fleet</code> in a repo that already has a copy just opens it.</p>
       <ul>
-        <li><code>fleet --list</code> shows every running copy. The <strong>⇄</strong> switcher in the top bar jumps between them.</li>
+        <li><code>fleet --list</code> shows every running copy, and the <a href="#home-page">home page</a> every project. The <strong>⇄</strong> switcher in the top bar jumps between them, and <strong>Home</strong> goes to the home page.</li>
         <li>Each repo gets its own team, tmux sessions and worktrees. Two repos with the same folder name never share one.</li>
         <li>Two checkouts of the same repo can each run a team: new agent branches are named <code>fleet/&lt;project&gt;/&lt;agent&gt;</code>. Until an agent reports its PR, a PR for a shared task number may show as unclaimed in both teams.</li>
         <li>Only one copy raises notification banners and writes history.</li>
@@ -148,7 +152,8 @@ fleet --no-autostart       # turn auto-start off and stop the background copy</c
       <ul>
         <li>It's for the repo you set it up from (or <code>--repo &lt;path&gt;</code>). Run it in another repo to start that one at login too.</li>
         <li>Add <code>--port &lt;n&gt;</code> to <code>--autostart</code> to use another port.</li>
-        <li>The background copy doesn't open a browser tab. Open <code>http://localhost:7788</code> when you want it.</li>
+        <li>The background copy doesn't open a browser tab. The <a href="#home-page">home page</a> links to it.</li>
+        <li>The first <code>fleet --autostart</code> also starts the home page at login (<code>fleet home --no-autostart</code> turns that off).</li>
         <li>It restarts if it crashes and logs to <code>~/.fleet/fleet-&lt;project&gt;.log</code>.</li>
         <li>On macOS it's a standard LaunchAgent at <code>~/Library/LaunchAgents/com.jainildesai.fleet.&lt;project&gt;.plist</code>. A login item from an older version keeps working, and is replaced when you run <code>fleet --autostart</code> again.</li>
         <li>On Linux it's a systemd user service at <code>~/.config/systemd/user/fleet-&lt;project&gt;.service</code> (<code>systemctl --user status fleet-&lt;project&gt;</code>). To start it at boot without logging in, run <code>loginctl enable-linger "$USER"</code> once.</li>
@@ -164,6 +169,28 @@ fleet --no-autostart       # turn auto-start off and stop the background copy</c
         <li><strong>The team and Fleet:</strong> <strong>Stop agents and quit Fleet</strong> also exits Fleet, and the page says so. Start it again with <code>fleet</code> in the repo, or <code>fleet --start</code> if it starts at login. It exits cleanly, so the login item doesn't restart it before then.</li>
         <li><strong>From a terminal:</strong> <code>fleet --stop</code> stops this repo's Fleet, <code>fleet --stop --all</code> every one, and Ctrl-C a copy you started in a terminal. These leave the agents running in tmux.</li>
       </ul>
+
+      <h2 id="home-page">Home page</h2>
+      <p><code>fleet home</code> (or <code>fleet open</code>, or <code>fleet</code> outside a git repo) opens Fleet's home page at <strong><code>http://localhost:7788</code></strong>, the one address to remember. It runs in the background, starts if it isn't running, and also starts whenever you run <code>fleet</code> in a repo. It's light: no repo, no agents, no tmux.</p>
+      <ul>
+        <li><strong>Header:</strong> how many projects Fleet knows, how many run, and the total cost.</li>
+        <li><strong>A card per project</strong> (every repo Fleet has run in): repo path, running or stopped, its URL, agents running, how many things need you (its Action items), open PRs and cost. <strong>Open</strong> goes to the project, <strong>Start</strong> starts it in the background (its login item if it has one), <strong>Stop</strong> is <code>fleet --stop</code> for that repo.</li>
+        <li>A project whose repo folder is gone is dimmed, with <strong>Forget</strong>: after asking, it deletes only Fleet's folder for it (<code>~/.fleet/projects/&lt;project&gt;</code>), never a repo.</li>
+        <li><strong>Cost</strong> is the API-equivalent cost of the project's agents' sessions (subagents included), for today, the last 7 days and all time, from <code>~/.fleet/history.json</code>. On a Claude plan you don't pay this per session. A session counts on the day it last ran.</li>
+        <li>It updates every few seconds. Every project's top bar has a <strong>Home</strong> link back to it.</li>
+      </ul>
+      <pre class="install"><code>fleet home --autostart     # start the home page at login (the first fleet --autostart does this for you)
+fleet home --no-autostart  # stop starting it at login, and stop it</code></pre>
+      <p>Its login item is <code>com.jainildesai.fleet.home</code> on macOS and <code>fleet-home.service</code> on Linux and WSL. <code>fleet --stop --all</code> and <code>fleet --no-autostart --all</code> include it. <code>FLEET_HOME_PORT</code> moves it to another port.</p>
+      <p class="note"><strong>Upgrading from 0.5 or earlier:</strong> projects used to start at 7788, so a project's login item may be pinned there. The first time the home page starts, Fleet moves that login item to the next free port from 7789, restarts it, and says what moved. Its agents keep running in tmux. Agents started before the move still call 7788 for their hooks and Team MCP; the home page passes those calls on to their project, so they keep working while it runs. They use the new port from their next start.</p>
+
+      <h2 id="install-app">Install as an app</h2>
+      <p>The home page installs as an app with its own window, Dock or taskbar icon, and Spotlight entry.</p>
+      <ul>
+        <li><strong>Chrome or Edge:</strong> open <code>http://localhost:7788</code> and click the install icon in the address bar (or ⋮ → Cast, save and share → Install page as app).</li>
+        <li><strong>Safari (macOS Sonoma or later):</strong> File → Add to Dock.</li>
+      </ul>
+      <p>Then open it like any app, for example Spotlight → "Fleet". Projects open in your browser, since each runs on its own port.</p>
 
       <h2 id="update">Update and uninstall</h2>
       <pre class="install"><code>npm install -g @jainil_desai/fleet@latest    # update
@@ -288,7 +315,7 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
 
       <h2 id="troubleshooting">Troubleshooting</h2>
       <h3>"… is not inside a git repository"</h3>
-      <p>Run <code>fleet</code> from your project folder, or pass <code>--repo &lt;path&gt;</code>.</p>
+      <p>You passed <code>--repo</code> (or <code>FLEET_REPO</code>) with a folder that isn't in a git repo. Run <code>fleet</code> from your project folder, or pass the right path. Plain <code>fleet</code> outside a repo opens the <a href="#home-page">home page</a>.</p>
       <h3>"tmux is not installed"</h3>
       <p>Run <code>brew install tmux</code> (Linux and WSL: <code>sudo apt install tmux</code>), then start Fleet again.</p>
       <h3>An agent is stuck and nothing happens</h3>
@@ -306,7 +333,7 @@ systemd=true</code></pre>
       <p>Move the repo from <code>/mnt/c/…</code> into the Linux file system (for example <code>~/code</code>). Windows drives are much slower from WSL, and file watching doesn't work there.</p>
       <h3>"This repo has no commits yet"</h3>
       <p>Agents' worktrees start from a commit. Make a first commit, then run <code>fleet</code>.</p>
-      <h3>"Port 7788 is in use"</h3>
+      <h3>"Port 7789 is in use"</h3>
       <p>You passed <code>--port</code> (or <code>FLEET_PORT</code>) and something else uses it. Leave both out and Fleet picks a free port, or run <code>fleet --list</code> to see the copies already running.</p>
       <h3>A permission prompt disappeared from Actions</h3>
       <p>Fleet holds a permission request for up to 10 minutes. If you don't answer in time, or Fleet restarts, the agent asks in its terminal instead. Answer it there with <strong>Open in terminal</strong>.</p>
@@ -320,7 +347,7 @@ systemd=true</code></pre>
 npm run build              # hq/ → public/ (the office UI) and dist/hq.mjs (the team server)
 npm test                   # node --test
 node bin/fleet.js --repo &lt;path&gt; --port 7799 --no-open
-npm run dev                # Vite dev server for the UI, proxied to Fleet on 7788</code></pre>
+npm run dev                # Vite dev server for the UI, proxied to Fleet on 7789</code></pre>
       <p>The office UI (React, pixi.js) and the team server (TypeScript, MCP SDK) live in <code>hq/</code>. <code>npm run build</code> bundles both, so the published package has no runtime dependencies. <code>public/</code> and <code>dist/</code> are build output and aren't committed. This site lives in <code>docs/</code>. Issues and pull requests are welcome on <a href="https://github.com/jainilDesai/fleet">GitHub</a>.</p>
 
       <h2 id="credits">Credits and license</h2>

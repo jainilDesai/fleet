@@ -49,6 +49,10 @@ export const unregister = (pid = process.pid) => fs.rmSync(path.join(dir(), `${p
 
 export const urlOf = (e) => `http://localhost:${e.port}`;
 
+// The home page's fixed port (FLEET_HOME_PORT for tests); project copies take the ports after it.
+export const HOME_PORT = Number(process.env.FLEET_HOME_PORT) || 7788;
+export const homeUrl = () => `http://localhost:${HOME_PORT}`;
+
 const free = (port) =>
   new Promise((resolve) => {
     const s = net.createServer().once('error', () => resolve(false));

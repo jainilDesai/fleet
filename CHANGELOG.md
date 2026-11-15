@@ -9,6 +9,24 @@
   `fleet --start`. The page then says Fleet has stopped and how to start it again.
 - **Docs:** a Stopping section covering the drawer's Stop, Stop team, quitting, `fleet --stop`
   (`--all`) and Ctrl-C.
+- **Home page.** `fleet home` (or `fleet open`, or `fleet` outside a git repo) opens Fleet's
+  home page at `http://localhost:7788`: every project Fleet knows, running or stopped, its URL,
+  agents running, what needs you, open PRs, and API-equivalent cost for today, 7 days and all
+  time. **Open**, **Start** and **Stop** per project; **Forget** for a project whose repo is
+  gone. It runs in the background, starts whenever `fleet` runs in a repo, and starts at login
+  once any repo does (`com.jainildesai.fleet.home`, `fleet-home.service`; `fleet home
+  --autostart` / `--no-autostart`). Each project's top bar links back to it with **Home**.
+- **Install as an app.** The home page has a web app manifest and pixel icons: install it from
+  Chrome or Edge, or Safari's File → Add to Dock.
+- **Projects start at port 7789** (7788 is the home page's). A login item pinned to 7788 by an
+  earlier version moves to the next free port the first time the home page starts, and says so.
+  Its agents keep running; until they restart, the home page passes their hooks and Team MCP
+  calls on to their project.
+- **A repo folder named `home`** now gets the project name `home-<hash>`: `home` belongs to the
+  home page's login item. A team set up earlier under `~/.fleet/projects/home` isn't picked up
+  again; move it to the new folder name, or start the team again.
+- **Linux:** the systemd service now has `KillMode=process`, so stopping or restarting Fleet
+  leaves the agents' tmux sessions running, as on macOS.
 
 ## 0.5.0
 

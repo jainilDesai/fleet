@@ -2,22 +2,10 @@ import { useEffect, useState } from "react";
 import type { SimSpeed } from "../../data/source";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
 import { ui, useUi } from "../../store/ui";
+import { Logo } from "../Logo";
 import { StopTeamDialog } from "./StopTeamDialog";
 
 const SPEEDS: SimSpeed[] = [1, 2, 4];
-
-function Logo() {
-  return (
-    <svg className="h-[30px] w-[30px] shrink-0" viewBox="0 0 10 10" shapeRendering="crispEdges" aria-hidden>
-      <rect x="1" y="1" width="8" height="8" fill="#241a2e" />
-      <rect x="2" y="2" width="6" height="6" fill="#29adff" />
-      <rect x="3" y="3" width="1" height="2" fill="#fff6e9" />
-      <rect x="6" y="3" width="1" height="2" fill="#fff6e9" />
-      <rect x="3" y="6" width="4" height="1" fill="#1d2b53" />
-      <rect x="4" y="0" width="2" height="1" fill="#ffec27" />
-    </svg>
-  );
-}
 
 interface Fleet {
   slug: string;
@@ -26,6 +14,10 @@ interface Fleet {
   url: string;
   current: boolean;
 }
+
+/** The home page's URL, written into the page by Fleet's server (unset in `npm run dev`). */
+const home = (window as { __FLEET_HOME__?: string }).__FLEET_HOME__;
+const homeUrl = home && !home.startsWith("__") ? home : "http://localhost:7788";
 
 /** The other Fleet projects running on this Mac (from Fleet's registry), as links. Hidden when there are none. */
 function ProjectSwitcher() {
@@ -89,11 +81,16 @@ export function TopBar() {
             Demo data
           </span>
         )}
-        {/* The project name keeps its room; the repo path only shows on wide screens (hover shows both). */}
-        <span className="max-w-[24ch] shrink-0 truncate text-[16px] text-muted 2xl:max-w-none 2xl:shrink" title={`${snap.config.project.name} · ${snap.config.project.repo}`}>
+        {/* The project name gives way first at 1280px (Home and ⇄ stay whole); the repo path only shows on wide screens (hover shows both). */}
+        <span className="min-w-[6ch] max-w-[24ch] truncate text-[16px] text-muted 2xl:max-w-none 2xl:shrink" title={`${snap.config.project.name} · ${snap.config.project.repo}`}>
           — <em className="font-semibold not-italic text-ink">{snap.config.project.name}</em>{" "}
           <span className="hidden font-term text-[17px] 2xl:inline">{snap.config.project.repo}</span>
         </span>
+        {live && (
+          <a className="btn shrink-0 px-2 text-[14px] no-underline" href={homeUrl} title="Fleet's home page: every project, what's running, cost">
+            Home
+          </a>
+        )}
         {live && <ProjectSwitcher />}
       </div>
       <div className="flex-1" />

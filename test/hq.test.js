@@ -92,6 +92,12 @@ test('two repos with the same folder name get separate projects; a known root ke
     assert.match(projectSlug('/new/site'), /^site-/);
     assert.equal(projectSlug('/old/site'), 'site');
     assert.equal(fs.readFileSync(path.join(legacy, 'repo-root'), 'utf8'), '/old/site\n');
+    // "home" is the home page's login item, so a repo named home always gets the hashed form.
+    const homeRepo = projectSlug('/work/home');
+    assert.match(homeRepo, /^home-[0-9a-f]{6}$/);
+    assert.equal(projectSlug('/work/home'), homeRepo, 'stable');
+    assert.match(projectSlug('/work/Home'), /^home-[0-9a-f]{6}$/);
+    assert.ok(!fs.existsSync(path.join(process.env.HOME, '.fleet', 'projects', 'home')), 'never claims projects/home');
   } finally {
     process.env.HOME = home;
   }

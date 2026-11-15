@@ -3,6 +3,7 @@
 
 import { resolve } from "node:path";
 import { userInfo } from "node:os";
+import { selectAttention } from "../src/data/attention";
 import { ActionItems } from "./actionItems";
 import { makeCommands } from "./commands";
 import { GitHubSync } from "./githubSync";
@@ -31,6 +32,8 @@ export interface Hq {
   handle: HqHandler;
   repoRoot: string;
   slug: string;
+  /** What the home page shows for this project (GET /api/summary). No secrets. */
+  summary(): { slug: string; name: string; repo: string; agents: number; agentsRunning: number; needsYou: number; openPrs: number };
   stop(): void;
 }
 
@@ -83,6 +86,15 @@ export async function startHq(o: HqOptions): Promise<Hq> {
     handle,
     repoRoot: repo.root,
     slug,
+    summary: () => ({
+      slug,
+      name: hub.snap.config.project.name,
+      repo: repo.root,
+      agents: hub.snap.config.team.length,
+      agentsRunning: hub.snap.agents.filter((a) => a.session.state === "running").length,
+      needsYou: selectAttention(hub.snap).total,
+      openPrs: hub.snap.pullRequests.filter((p) => !p.merged && !p.closed).length,
+    }),
     stop() {
       // tmux keeps the agents running.
       sessions.shutdown();

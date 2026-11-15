@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en" class="home">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#1d2b53" />
+    <meta name="apple-mobile-web-app-title" content="Fleet" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Fleet</title>
+    <!-- The home server swaps in its per-run token for Start, Stop and Forget. -->
+    <script>window.__FLEET_PAGE_TOKEN__ = "__FLEET_TOKEN__";</script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/home/main.tsx"></script>
+  </body>
+</html>
