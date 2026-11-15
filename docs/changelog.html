@@ -33,6 +33,21 @@
 
     <div class="release">
       <div>
+        <h2>0.5.0</h2>
+        <time datetime="2026-11-15">15 November 2026</time>
+      </div>
+      <div>
+        <ul>
+          <li><strong>Linux.</strong> Install tmux (<code>sudo apt install tmux</code>), then the same <code>npm install -g</code> and <code>fleet</code>. The browser opens with <code>xdg-open</code>, <strong>Open in terminal</strong> uses your terminal app (gnome-terminal, konsole, kitty, xterm and others), and banners use <code>notify-send</code>.</li>
+          <li><strong>Windows through WSL.</strong> Fleet runs inside WSL and opens in your Windows browser; <strong>Open in terminal</strong> opens a Windows Terminal tab. On Windows without WSL, <code>fleet</code> explains how to set it up.</li>
+          <li><strong>Start at login on Linux and WSL</strong> uses a systemd user service, with <code>--stop</code>, <code>--start</code>, <code>--no-autostart</code> and <code>--all</code> working as on macOS.</li>
+          <li>Setup checks show the terminal and the install commands for your platform. macOS is unchanged.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="release">
+      <div>
         <h2>0.4.0</h2>
         <time datetime="2026-11-15">15 November 2026</time>
       </div>
