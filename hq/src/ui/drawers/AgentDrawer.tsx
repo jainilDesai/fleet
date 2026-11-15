@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { HUMAN_ID, type AgentConfig, type AgentStatus, type OfficeSnapshot } from "../../data/types";
+import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentStatus, type OfficeSnapshot } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, type AgentTab } from "../../store/ui";
 import { ago, Dot, Portrait, ReviewChip, SectionTitle, StateChip, Tabs, useNow } from "../kit";
 import { DrawerHeader } from "./Drawer";
 import { Markdown } from "../Markdown";
+import { TerminalFallback } from "../setup/SetupChecks";
 
 export function AgentDrawer({ id, initialTab }: { id: string; initialTab?: AgentTab }) {
   const snap = useOffice((s) => s.snap);
@@ -38,11 +39,12 @@ export function AgentDrawer({ id, initialTab }: { id: string; initialTab?: Agent
       </DrawerHeader>
       <SessionBar agent={agent} status={status} />
       {status.note && (
-        <div className={`border-b-[3px] border-ink px-3 py-1.5 text-[14px] ${status.state === "needs-input" ? "bg-[#ffe1ea] text-red" : "bg-cream-2"}`}>
-          {status.note}
-          {status.state === "needs-input" && <span className="ml-2 text-muted">— answer it in iTerm</span>}
+        <div className={`flex items-center gap-2 border-b-[3px] border-ink px-3 py-1.5 text-[14px] ${status.state === "needs-input" ? "bg-[#ffe1ea] text-[#a3002f]" : "bg-cream-2"}`}>
+          <span className="flex-1">{status.note}</span>
+          {status.note === TRUST_NOTE && !agent.workspacePath && <TrustButton id={agent.id} />}
         </div>
       )}
+      {status.session.terminalError && <TerminalFallback error={status.session.terminalError} />}
       <div className="border-b-[3px] border-ink px-3 py-2">
         <Tabs
           value={tab}
@@ -63,7 +65,16 @@ export function AgentDrawer({ id, initialTab }: { id: string; initialTab?: Agent
 
 const SESSION_COLOR = { running: "#00e436", starting: "#29adff", stopped: "#83769c", failed: "#ff004d" } as const;
 
-/** Session state + Start/Stop + the agent's folder + its tmux session in iTerm. */
+/** Answers the folder-trust prompt with "Yes, I trust this folder". */
+export function TrustButton({ id }: { id: string }) {
+  return (
+    <button className="btn shrink-0 px-2 text-[12px]" style={{ background: "#b8f5c4" }} onClick={() => officeActions.trustFolder(id)} title="Answer Claude Code's prompt with “Yes, I trust this folder” (a worktree Fleet made for this agent)">
+      Trust folder
+    </button>
+  );
+}
+
+/** Session state + Start/Stop + the agent's folder + its tmux session in a terminal. */
 function SessionBar({ agent, status }: { agent: AgentConfig; status: AgentStatus }) {
   const s = status.session;
   const live = useOffice((st) => st.live);
@@ -81,8 +92,8 @@ function SessionBar({ agent, status }: { agent: AgentConfig; status: AgentStatus
         </button>
       )}
       {s.state === "running" && live && (
-        <button className="btn px-2 text-[12px]" onClick={() => officeActions.openInIterm(agent.id)} title="Attach iTerm to the agent's tmux session">
-          Open in iTerm
+        <button className="btn px-2 text-[12px]" onClick={() => officeActions.openInIterm(agent.id)} title="Attach a terminal window (iTerm, else Terminal.app) to the agent's tmux session">
+          Open in terminal
         </button>
       )}
       {s.state === "running" || s.state === "starting" ? (

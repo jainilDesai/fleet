@@ -35,7 +35,7 @@ function save() {
 
 // Re-reads only transcripts whose size changed since the last scan.
 export async function scan() {
-  if (scanning) return;
+  if (scanning || !fs.existsSync(PROJECTS)) return; // no ~/.claude/projects until Claude Code first runs
   scanning = true;
   let changed = 0;
   try {

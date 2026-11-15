@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- **Requirements in the UI.** The welcome screen and Settings → Project show each check
+  (tmux, Claude Code, Claude Code sign-in, `gh`, GitHub remote, terminal) with ✓/✗, its fix
+  command and **Check again**.
+- **No GitHub remote or `gh`:** a new team starts with PR review off, and agents are told
+  there are no PRs: commit on a branch, don't push.
+- **Trust folder.** Claude Code's first-start folder-trust prompt can be answered from Action
+  items or the agent's drawer (worktrees Fleet made only). Fleet presses Enter only once
+  "Yes, I trust this folder" is highlighted.
+- **Sign-in.** Fleet checks `claude auth status`, and notices Claude Code's login screen in an
+  agent's terminal.
+- **Terminal.** "Open in iTerm" is now **Open in terminal**: iTerm if installed, else
+  Terminal.app (which failed before: zsh expanded the `=session` target). If macOS blocks it,
+  Fleet shows the `tmux attach` command with Copy and how to allow it.
+- **CLI.** `fleet --version`; a bad or missing `--port` value and unknown flags stop with a
+  clear message; a repo with no commits stops with "Make a first commit".
+- No `~/.claude` yet (Claude Code never run) no longer logs an error every 1.5 seconds.
+- A permission prompt counts once in Action items, not also as "asking in its terminal".
+- The "Needs input" badge stays readable (only its dot blinks), the activity panel is opaque,
+  and the team list is hidden behind the welcome screen.
+- README: a First run walkthrough, the permission-mode note, the terminal, and the `ETARGET` fix.
+
 ## 0.3.2
 
 - Plan and deploy approvals now have Approve / Reject buttons. Rejecting tells the agent to

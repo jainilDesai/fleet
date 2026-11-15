@@ -129,6 +129,8 @@ export const officeActions = {
   stopAgent: (id: string) => source.stopAgent(id),
   openWorkspace: (id: string) => source.openWorkspace(id),
   openInIterm: (id: string) => source.openInIterm(id),
+  trustFolder: (id: string) => source.trustFolder(id),
+  recheckSetup: () => source.recheckSetup(),
   assignTask: (taskId: string, agentId: string) => source.assignTask(taskId, agentId),
   sendMessage: (toId: string, text: string) => source.sendMessage(toId, text),
   addAgent: source.addAgent.bind(source),
@@ -180,7 +182,8 @@ export const deployToolLabel = { instacloud: "InstaCloud", vercel: "Vercel", cus
 export function selectAttention(snap: OfficeSnapshot | null) {
   if (!snap) return { items: [], asking: [], readyPrs: [], total: 0 };
   const items = (snap.actionItems ?? []).filter((i) => i.status === "open");
-  const asking = snap.agents.filter((a) => a.state === "needs-input");
+  // An open permission item is the same prompt the terminal shows: count it once.
+  const asking = snap.agents.filter((a) => a.state === "needs-input" && !items.some((i) => i.kind === "permission" && i.fromId === a.agentId));
   const readyPrs = snap.pullRequests.filter((p) => p.review === "passed" && p.mergeable && !p.merged && !p.closed);
   return { items, asking, readyPrs, total: items.length + asking.length + readyPrs.length };
 }

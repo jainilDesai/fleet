@@ -1,5 +1,5 @@
 // Each agent runs in a tmux session, so it keeps running when Fleet or the browser closes.
-// You watch or answer it by attaching iTerm to the session (Fleet's "Open in iTerm").
+// You watch or answer it by attaching a terminal (iTerm, else Terminal.app) to the session ("Open in terminal").
 
 import { run, shq } from "../lib/exec";
 import * as tmux from "./tmuxCli";
@@ -46,6 +46,10 @@ export const tmuxBackend: SessionBackend = {
 
   async enter(name) {
     return (await run("tmux", ["send-keys", "-t", `=${name}:`, "Enter"], { timeoutMs: 5000 })).ok;
+  },
+
+  async key(name, key) {
+    return (await run("tmux", ["send-keys", "-t", `=${name}:`, key], { timeoutMs: 5000 })).ok;
   },
 
   exitInfo: (name) => tmux.paneInfo(name),

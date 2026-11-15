@@ -1,10 +1,12 @@
-import { useState } from "react";
-import type { ActionItem } from "../../data/types";
+import { useState, type ReactNode } from "react";
+import { TRUST_NOTE, type ActionItem } from "../../data/types";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
 import { ui } from "../../store/ui";
 import { ago, Dot, SectionTitle, useNow } from "../kit";
 import { DrawerHeader } from "./Drawer";
 import { Markdown } from "../Markdown";
+import { TrustButton } from "./AgentDrawer";
+import { TerminalFallback } from "../setup/SetupChecks";
 
 /** Everything waiting on the user: agents' action items first, then the other things that need them. */
 export function ActionItemsDrawer() {
@@ -44,15 +46,20 @@ export function ActionItemsDrawer() {
           <>
             <SectionTitle>Also waiting on you</SectionTitle>
             <ul className="mb-4 flex flex-col gap-1.5 text-[14px]">
-              {a.asking.map((s) => (
-                <Row
-                  key={`ask-${s.agentId}`}
-                  color={agent(s.agentId)?.color}
-                  text={`${agent(s.agentId)?.name ?? s.agentId} is asking you something in its terminal`}
-                  button="Open in iTerm"
-                  onOpen={() => officeActions.openInIterm(s.agentId)}
-                />
-              ))}
+              {a.asking.map((s) => {
+                const trust = s.note === TRUST_NOTE && !agent(s.agentId)?.workspacePath;
+                return (
+                  <Row
+                    key={`ask-${s.agentId}`}
+                    color={agent(s.agentId)?.color}
+                    text={trust ? `${agent(s.agentId)?.name ?? s.agentId} asks you to trust its new worktree (first start only)` : `${agent(s.agentId)?.name ?? s.agentId} is asking you something in its terminal`}
+                    button="Open in terminal"
+                    onOpen={() => officeActions.openInIterm(s.agentId)}
+                    extra={trust ? <TrustButton id={s.agentId} /> : undefined}
+                    below={s.session.terminalError ? <TerminalFallback error={s.session.terminalError} /> : undefined}
+                  />
+                );
+              })}
               {a.readyPrs.map((p) =>
                 p.url ? (
                   <li key={`pr-${p.number}`} className="flex items-center gap-2 border-[3px] border-ink bg-white px-2.5 py-1.5">
@@ -94,14 +101,16 @@ export function ActionItemsDrawer() {
   );
 }
 
-function Row({ text, color, button = "Open", onOpen }: { text: string; color?: string; button?: string; onOpen: () => void }) {
+function Row({ text, color, button = "Open", onOpen, extra, below }: { text: string; color?: string; button?: string; onOpen: () => void; extra?: ReactNode; below?: ReactNode }) {
   return (
-    <li className="flex items-center gap-2 border-[3px] border-ink bg-white px-2.5 py-1.5">
+    <li className="flex flex-wrap items-center gap-2 border-[3px] border-ink bg-white px-2.5 py-1.5">
       {color && <Dot color={color} size={8} />}
       <span className="flex-1">{text}</span>
+      {extra}
       <button className="btn px-2 text-[12px]" onClick={onOpen}>
         {button}
       </button>
+      {below && <div className="basis-full">{below}</div>}
     </li>
   );
 }

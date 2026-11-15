@@ -28,6 +28,8 @@ export interface SessionBackend {
   /** Types text literally (no Enter). */
   type(name: string, text: string): Promise<boolean>;
   enter(name: string): Promise<boolean>;
+  /** Presses one named key (tmux key name, e.g. "Down"). */
+  key(name: string, key: string): Promise<boolean>;
   /** Whether the agent's process has exited (the session is kept so HQ can say why). */
   exitInfo(name: string): Promise<ExitInfo | null>;
   /** Your unsent text at the agent's prompt ("" when empty or only a suggestion is shown). */

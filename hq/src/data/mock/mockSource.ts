@@ -90,6 +90,14 @@ export function createMockSource(): OfficeDataSource {
       // Demo: there is no tmux session to attach to.
     },
 
+    trustFolder() {
+      // Demo: there is no trust prompt.
+    },
+
+    recheckSetup() {
+      // Demo: the checks are fixed.
+    },
+
     assignTask(taskId, agentId) {
       const task = world.task(taskId);
       const agent = world.cfg(agentId);

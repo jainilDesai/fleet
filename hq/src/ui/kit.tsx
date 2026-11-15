@@ -8,7 +8,7 @@ import { reviewStyle, stateStyle } from "../theme/tokens";
 export function StateChip({ state, blink = true }: { state: AgentState; blink?: boolean }) {
   const st = stateStyle[state];
   return (
-    <span className={`chip chip-dot ${blink && state === "needs-input" ? "blink" : ""}`} style={{ ["--c" as string]: st.color }}>
+    <span className={`chip chip-dot ${blink && state === "needs-input" ? "blink-dot" : ""}`} style={{ ["--c" as string]: st.color }}>
       {st.label}
     </span>
   );

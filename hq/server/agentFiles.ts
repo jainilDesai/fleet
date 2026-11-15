@@ -19,6 +19,8 @@ export const HQ_FILES = [ROLE_FILE, ".claude/settings.local.json", MCP_CONFIG, `
 export interface RoleExtras {
   ownRole?: string | null;
   hasEnvFile?: boolean;
+  /** No GitHub remote, or no signed-in gh: there are no PRs. */
+  noGitHub?: boolean;
 }
 
 /** A role file Fleet generated, if one ever ends up named ROLE.md; recognised so it can be cleaned up. */
@@ -71,6 +73,12 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
         "set_my_status tells the lead automatically. Don't also send_message the same news.",
         "If you are blocked or need a decision, call set_my_status blocked with the reason.",
       ];
+  if (extras.noGitHub)
+    rules.push(
+      agent.isLead
+        ? "This repo has no GitHub remote (or the GitHub CLI isn't signed in), so there are no PRs. Workers commit on their task branch and don't push; when a task is done, tell the user which branch is ready to merge locally, and in what order."
+        : "This repo has no GitHub remote (or the GitHub CLI isn't signed in), so there are no PRs: commit on your task branch, don't push, then call set_my_status done with the branch name.",
+    );
   rules.push(
     "When you need the user to do or decide something you can't (create an account, database or API key, change a setting in a dashboard, put a value in an env file, approve a deploy or a risky change), call ask_user with a short title and clear steps, then keep working on what you can. To ask for approval of a plan, a deploy or a risky change, pass approval: true; if the user rejects it, don't do it. Never put secret values in it; name the variable instead.",
   );

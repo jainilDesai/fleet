@@ -78,7 +78,7 @@ html[data-font] .font-term {
       0 4px 0 rgba(36, 26, 46, 0.45);
   }
   .panel-dark {
-    background: rgba(29, 43, 83, 0.94);
+    background: var(--color-navy);
     color: var(--color-cream);
     border: 3px solid var(--color-ink);
     box-shadow:
@@ -169,6 +169,10 @@ html[data-font] .font-term {
 .blink {
   animation: blink 0.5s steps(1) infinite;
 }
+/* Only the chip's dot blinks: a whole chip at 25% opacity can't be read. */
+.blink-dot::before {
+  animation: blink 0.5s steps(1) infinite;
+}
 .led {
   width: 8px;
   height: 8px;
@@ -179,6 +183,7 @@ html[data-font] .font-term {
 
 @media (prefers-reduced-motion: reduce) {
   .blink,
+  .blink-dot::before,
   .led {
     animation: none;
   }

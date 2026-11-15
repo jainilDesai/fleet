@@ -1,9 +1,9 @@
 // Agent sessions: Claude Code in a tmux session per agent, in its own git worktree.
 // Fleet types messages into a session and reads its screen; you watch or answer it by
-// attaching iTerm to the session ("Open in iTerm").
+// attaching a terminal (iTerm, else Terminal.app) to the session ("Open in terminal").
 
 import { existsSync } from "node:fs";
-import type { WorkspaceInfo } from "../src/data/types";
+import { TRUST_NOTE, type WorkspaceInfo } from "../src/data/types";
 import { launchArgs, writeAgentFiles } from "./adapters";
 import type { Hub } from "./hub";
 import { tmuxBackend } from "./backends/tmux";
@@ -17,9 +17,11 @@ import { ensureWorkspace, removeWorktree, workspaceFor } from "./workspace";
 const BUSY = /esc to interrupt/i; // the footer while a turn runs
 const DIALOG = /Enter to select|↑\/↓ to navigate|Do you want to (proceed|make this edit|create)|Would you like to|^\s*[❯›]\s*1\.\s/im;
 const PROMPT_READY = /⏵⏵|\? for shortcuts/; // the input prompt is up
-// First start in a new worktree: Claude Code asks you to trust the folder. Fleet never answers it for you.
+// First start in a new worktree: Claude Code asks you to trust the folder. Fleet answers only when you press Trust folder.
 const TRUST = /Yes, I trust this folder/;
-const TRUST_NOTE = "Asking: trust this new worktree (first start only). Answer it in iTerm.";
+// Not signed in: Claude Code's first-run screens (theme, then login method).
+const LOGIN = /Select login method|Let's get started\.|Syntax theme:/;
+const LOGIN_NOTE = "Asking: sign in to Claude Code. Open it in the terminal and log in (or run `claude` once and log in).";
 const SCREEN_QUIET_MS = 4000; // only second-guess hooks after this much silence
 const STALE_WORKING_MS = 15_000; // "working" with an idle screen this long = a missed Stop
 
@@ -34,7 +36,7 @@ export class Sessions {
   private polling: NodeJS.Timeout | null = null;
   /** Consecutive polls that saw a "working" agent's screen sitting idle. */
   private idleScreens = new Map<string, number>();
-  /** Agents whose prompt holds your unsent text (from iTerm): Fleet has said so once and is waiting. */
+  /** Agents whose prompt holds your unsent text (from the terminal): Fleet has said so once and is waiting. */
   private drafts = new Set<string>();
 
   constructor(private hub: Hub, private agentToken: string) {}
@@ -64,7 +66,7 @@ export class Sessions {
     try {
       hub.setSession(id, { state: "starting", detail: "Preparing worktree…", workspace: workspaceFor(agent, hub.slug) });
       const dir = await ensureWorkspace(agent, hub.slug, hub.repo);
-      await writeAgentFiles(dir, agent, hub.snap.config, this.agentToken);
+      await writeAgentFiles(dir, agent, hub.snap.config, this.agentToken, { noGitHub: !hub.repo.github || check("gh") !== "ok" });
       if (!(await this.backend.exists(name))) {
         hub.setSession(id, { detail: "Starting Claude Code…" });
         await this.backend.create(name, dir, { file: "claude", args: launchArgs(agent), envFile: null }, { cols: 200, rows: 50 });
@@ -121,7 +123,7 @@ export class Sessions {
 
   /**
    * Types a line into an agent's prompt and submits it. Not if you've typed something there yourself
-   * (in iTerm) and not sent it: the message would land on top of yours. It stays queued instead.
+   * (in the terminal) and not sent it: the message would land on top of yours. It stays queued instead.
    */
   async typeInto(agentId: string, text: string): Promise<boolean> {
     const draft = await this.backend.promptDraft(this.name(agentId));
@@ -129,8 +131,8 @@ export class Sessions {
       if (!this.drafts.has(agentId)) {
         this.drafts.add(agentId);
         const quote = draft.length > 50 ? `${draft.slice(0, 49)}…` : draft;
-        this.hub.setStatus(agentId, { note: `Holding a message for you to see first: send or clear what you typed in iTerm ("${quote}")` });
-        this.hub.activity("agent.needs-input", agentId, `Fleet is holding a message for ${this.hub.name(agentId)}: there's unsent text at its prompt in iTerm`);
+        this.hub.setStatus(agentId, { note: `Holding a message for you to see first: send or clear what you typed in its terminal ("${quote}")` });
+        this.hub.activity("agent.needs-input", agentId, `Fleet is holding a message for ${this.hub.name(agentId)}: there's unsent text at its prompt in its terminal`);
       }
       return false;
     }
@@ -142,6 +144,26 @@ export class Sessions {
 
   async pressEnter(agentId: string): Promise<boolean> {
     return this.backend.enter(this.name(agentId));
+  }
+
+  /**
+   * Answers Claude Code's folder-trust prompt with "Yes, I trust this folder", only in a worktree Fleet made.
+   * The highlighted default is "No, exit", so Enter is pressed only once the screen shows Yes selected.
+   */
+  async trustFolder(id: string): Promise<boolean> {
+    const agent = this.hub.cfg(id);
+    if (!agent || agent.workspacePath || this.hub.status(id)?.session.state !== "running") return false;
+    const name = this.name(id);
+    const screen = await this.backend.screenText(name, 12);
+    if (!TRUST.test(screen)) return false;
+    if (!trustSelected(screen)) {
+      await this.backend.key(name, "Down");
+      await new Promise((r) => setTimeout(r, 400));
+    }
+    if (!trustSelected(await this.backend.screenText(name, 12))) return false;
+    const ok = await this.backend.enter(name);
+    if (ok) this.hub.activity("session", id, `Trusted ${agent.name}'s new worktree`);
+    return ok;
   }
 
   async openWorkspace(id: string) {
@@ -205,10 +227,17 @@ export class Sessions {
     const dialog = DIALOG.test(screen);
     const set = (state: "idle" | "working" | "needs-input", note: string) => this.hub.setStatus(agentId, { state, note });
 
+    if (LOGIN.test(screen)) {
+      if (st.note !== LOGIN_NOTE) {
+        set("needs-input", LOGIN_NOTE);
+        this.hub.activity("agent.needs-input", agentId, `${this.hub.name(agentId)} needs you: Claude Code isn't signed in. Log in in its terminal`);
+      }
+      return;
+    }
     if (TRUST.test(screen)) {
       if (st.note !== TRUST_NOTE) {
         set("needs-input", TRUST_NOTE);
-        this.hub.activity("agent.needs-input", agentId, `${this.hub.name(agentId)} needs you: trust its new worktree in iTerm`);
+        this.hub.activity("agent.needs-input", agentId, `${this.hub.name(agentId)} needs you: trust its new worktree (Trust folder, or in its terminal)`);
       }
       return;
     }
@@ -220,7 +249,7 @@ export class Sessions {
       if (PROMPT_READY.test(screen)) set("idle", "Waiting for you");
       return;
     }
-    if (dialog) return set("needs-input", "Asking: answer it in iTerm");
+    if (dialog) return set("needs-input", "Asking: answer it in the terminal");
     // A missed UserPromptSubmit: the agent is busy, so don't type into it.
     if (st.state === "idle" && busy) return set("working", "Working");
     if (st.state === "working" && !busy) {
@@ -247,3 +276,6 @@ export class Sessions {
     if (this.polling) clearInterval(this.polling);
   }
 }
+
+/** The folder-trust prompt with "Yes, I trust this folder" highlighted (❯), so Enter answers yes. */
+export const trustSelected = (screen: string) => /^\s*❯\s*Yes, I trust this folder/m.test(screen);
