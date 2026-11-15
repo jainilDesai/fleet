@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 - **Several projects at once.** Run `fleet` in each repo. Without `--port`, a taken 7788 means
   the next free port (Fleet says which); `fleet` in a repo that already has a copy opens that
@@ -23,7 +23,6 @@
   warning also checks Fleet's own path.
 - **One set of banners.** Only one copy watches every Claude session (banners,
   `events.jsonl`, `history.json`); another takes over when it stops.
-
 - **Requirements in the UI.** The welcome screen and Settings → Project show each check
   (tmux, Claude Code, Claude Code sign-in, `gh`, GitHub remote, terminal) with ✓/✗, its fix
   command and **Check again**.

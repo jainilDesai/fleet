@@ -33,6 +33,24 @@
 
     <div class="release">
       <div>
+        <h2>0.4.0</h2>
+        <time datetime="2026-11-15">15 November 2026</time>
+      </div>
+      <div>
+        <ul>
+          <li><strong>Several projects at once.</strong> Run <code>fleet</code> in each repo: a second copy takes the next free port, <code>fleet --list</code> shows them all, and the <strong>⇄</strong> switcher in the top bar jumps between them. Each repo gets its own team, even two repos with the same folder name.</li>
+          <li><strong>Two teams on one repo.</strong> New agent branches are named <code>fleet/&lt;project&gt;/&lt;agent&gt;</code>, so two checkouts of the same repo can each run a team.</li>
+          <li><strong>Start at login per repo.</strong> <code>fleet --autostart</code> makes one login item per repo; <code>--stop</code>, <code>--start</code> and <code>--no-autostart</code> act on this repo only (<code>--all</code> for every one). Older login items keep working.</li>
+          <li><strong>Setup checks in the app.</strong> The welcome screen and Settings → Project show tmux, Claude Code and its sign-in, <code>gh</code>, the GitHub remote and your terminal, each with the command that fixes it. With no remote or <code>gh</code>, agents commit on branches and don't push.</li>
+          <li><strong>Trust folder.</strong> Answer Claude Code's first-start folder-trust prompt from Action items or the agent's drawer.</li>
+          <li><strong>Open in terminal.</strong> iTerm is optional: Terminal.app works now (it didn't before). If macOS blocks it, Fleet shows the <code>tmux attach</code> command to run yourself.</li>
+          <li>Clear messages for a repo with no commits, a bad <code>--port</code> and unknown options; <code>fleet --version</code>. Only one copy raises banners. No more errors on a Mac where Claude Code never ran. A permission prompt counts once.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="release">
+      <div>
         <h2>0.3.2</h2>
         <time datetime="2026-11-15">15 November 2026</time>
       </div>
