@@ -1,7 +1,7 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 export const slugify = (s: string) =>
   s
@@ -16,6 +16,39 @@ export function projectHome(projectSlug: string): string {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
   return dir;
+}
+
+/** The repo root in a project's config.json, from before the repo-root file. */
+function configRoot(dir: string): string | null {
+  try {
+    return JSON.parse(readFileSync(join(dir, "config.json"), "utf8")).project?.path ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Claims a project folder for `root` (atomically: copies can start together at login), or says whose it is. */
+function claim(slug: string, root: string): boolean {
+  const dir = projectHome(slug);
+  const file = join(dir, "repo-root");
+  const old = configRoot(dir);
+  if (old && old !== root && !existsSync(file)) return false;
+  try {
+    writeFileSync(file, root + "\n", { flag: "wx" });
+    return true;
+  } catch {
+    return readFileSync(file, "utf8").trim() === root;
+  }
+}
+
+/**
+ * The project's slug, from the repo folder's name. Another repo with the same folder name already owns
+ * that slug? Then <name>-<short hash of the root>, so two repos never share a team.
+ */
+export function projectSlug(root: string): string {
+  const base = slugify(basename(root));
+  const hashed = `${base}-${createHash("sha256").update(root).digest("hex").slice(0, 6)}`;
+  return claim(base, root) ? base : (claim(hashed, root), hashed);
 }
 
 export function managedWorkspace(projectSlug: string, agentId: string): string {

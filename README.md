@@ -41,7 +41,7 @@ fleet                      # opens http://localhost:7788
 ```
 
 Fleet works on one git repo per run (with at least one commit): the folder you start it in,
-or `--repo <path>`. Other options: `--port 8000`, `--no-open`, `--version`. To try it without
+or `--repo <path>`. Other options: `--port 8000`, `--no-open`, `--list`, `--version`. To try it without
 installing: `npx @jainil_desai/fleet --repo ~/code/my-app`.
 
 Fleet checks what it needs when it starts (tmux, Claude Code and its sign-in, `gh`, a GitHub
@@ -64,17 +64,49 @@ From source: `git clone https://github.com/jainilDesai/fleet.git && cd fleet && 
 
 ```bash
 fleet --autostart          # start Fleet at login for this repo, in the background, and start it now
-fleet --stop               # stop it for now; it starts again at the next login
-fleet --start              # start the background copy again now
-fleet --no-autostart       # turn auto-start off and stop the background copy
+fleet --stop               # stop this repo's Fleet for now; it starts again at the next login
+fleet --start              # start this repo's background copy again now
+fleet --no-autostart       # turn auto-start off for this repo and stop its background copy
 ```
 
 Fleet then runs without opening a browser tab (open `http://localhost:7788` when you want
-it), restarts if it crashes, and logs to `~/.fleet/fleet.log`. It's a standard macOS
-LaunchAgent at `~/Library/LaunchAgents/com.jainildesai.fleet.plist`. It runs on the repo you
-set it up from (or `--repo <path>`); run `fleet --autostart` again to switch repos. Add
-`--port <n>` to `--autostart` to use another port. If you update Node through nvm, run `fleet --autostart`
-again; Fleet reminds you when you start it by hand.
+it), restarts if it crashes, and logs to `~/.fleet/fleet-<project>.log`. Each repo gets its
+own standard macOS LaunchAgent, `~/Library/LaunchAgents/com.jainildesai.fleet.<project>.plist`,
+with its own fixed port: the one you pass with `--port`, else the one it had, else the first
+free port from 7788. Install Fleet globally first (`npm install -g`); `--autostart` refuses to
+run from the npx cache, which npm can clear. If you update Node through nvm, or move Fleet, run
+`fleet --autostart` again; Fleet reminds you when you start it by hand.
+
+Set up with Fleet 0.3? Your `com.jainildesai.fleet` item still counts as that repo's item:
+`--stop`, `--start` and `--no-autostart` find it, and `fleet --autostart` in that repo replaces
+it with the per-project one on the same port.
+
+## Several projects
+
+Run `fleet` in each repo you want a team on. Each copy is its own project: its own team, plan,
+port and tmux sessions.
+
+- **Ports.** The first copy gets 7788. When 7788 is taken and you didn't pass `--port` (or
+  `FLEET_PORT`), Fleet takes the next free port and says which. Running `fleet` again in a repo
+  that already has one opens that one instead of starting a second.
+- **`fleet --list`** prints every running copy with its URL, project and repo.
+- **Switcher.** When other copies are running, the top bar shows **⇄ n** next to the project
+  name: a list of the other projects, linking to each one.
+- **Start at login** works per repo: run `fleet --autostart` in each. `--stop`, `--start` and
+  `--no-autostart` act on the repo you run them in (or `--repo`); add `--all` for every repo.
+- **Same folder name.** Projects are named after the repo folder. A second repo with a name
+  that's taken (say two `app` folders) gets `app-<hash>`, so the two never share a team.
+- **Banners and history.** Only one copy at a time watches every Claude session on the Mac,
+  raises banners and writes `~/.fleet/events.jsonl` and `history.json`; another copy takes over
+  when it stops.
+
+**Two teams on one repo.** You can run Fleet on two checkouts of the same git repo (for example
+`~/code/app` and a worktree `~/code/app-hotfix`). Agents' worktrees then sit on branches
+`fleet/<project>/<agent>`, so the two teams never want the same branch. Limits: both teams use
+the same GitHub PR list and number tasks the same way (`B1-T01`…), so a team only takes a PR
+when it comes from its own `fleet/<project>/…` branch or the agent reported its number with
+`set_my_status`; until then the PR shows in both, unclaimed. Agents' own task branches
+(`implementer/…`) look the same in both teams and don't count.
 
 ## First run
 
@@ -190,10 +222,11 @@ You are QA. You test the branch the lead names and report pass/fail with evidenc
 ## How it works
 
 - **Agents.** Each one is `claude` running in a tmux session named
-  `fleet-<repo>-<agent>`, started through your login shell so it has your usual `PATH`. The CTO
+  `fleet-<project>-<agent>`, started through your login shell so it has your usual `PATH`. The CTO
   starts with **Start team**; the others start the first time they get a task or a message.
-- **Worktrees.** Each agent works in its own git worktree at `~/.fleet/projects/<repo>/<agent>`,
-  on a branch `fleet/<agent>` taken from the default branch. Your own checkout is never
+- **Worktrees.** Each agent works in its own git worktree at `~/.fleet/projects/<project>/<agent>`,
+  on a branch `fleet/<project>/<agent>` taken from the default branch (worktrees made by Fleet
+  0.3 keep their `fleet/<agent>` branch). Your own checkout is never
   touched.
 - **Team tools.** Agents talk to Fleet through a small MCP server at
   `http://127.0.0.1:<port>/mcp`: `list_workers`, `get_status`, `list_tasks`, `create_board`,
@@ -208,7 +241,7 @@ You are QA. You test the branch the lead names and report pass/fail with evidenc
   `.claude/fleet-mcp.json` (the MCP connection) and `.claude/skills/fleet-*/` (skills you
   attached). The last two hold the agents' access token,
   so they are written readable by you only.
-- **State** lives in `~/.fleet/projects/<repo>/`: team config, plan, action items, the inbox
+- **State** lives in `~/.fleet/projects/<project>/` (its `repo-root` file says which repo it's for): team config, plan, action items, the inbox
   and recent message history, so a restart picks up where it left off.
 
 ## Privacy
@@ -241,7 +274,7 @@ issue](https://github.com/jainilDesai/fleet/issues) with your `claude --version`
 ## Limits
 
 - macOS only (Open in terminal uses AppleScript).
-- One repo per run. To work on two repos, run two copies on different ports.
+- One repo per run. To work on two repos, run `fleet` in each (see Several projects).
 - Each agent's worktree starts without `node_modules`; QA installs before it tests.
 - 0.3.0 replaces the old dashboard pages (Agents, History, Usage, MCP, Plugins) with the
   office. History is still recorded in `~/.fleet/history.json`, but isn't shown in the UI.

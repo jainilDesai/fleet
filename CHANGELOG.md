@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- **Several projects at once.** Run `fleet` in each repo. Without `--port`, a taken 7788 means
+  the next free port (Fleet says which); `fleet` in a repo that already has a copy opens that
+  one. `fleet --list` shows every running copy, and the top bar has a **⇄** switcher to the
+  others. Running copies are kept in `~/.fleet/running/`.
+- **Unique projects.** A project's home records its repo root (`repo-root`). A second repo with
+  the same folder name gets `<name>-<hash>` instead of sharing the first one's team. Existing
+  projects keep their name, tmux sessions and worktrees.
+- **Two teams on one repo.** New agent worktrees use `fleet/<project>/<agent>` branches, so two
+  checkouts of the same repo don't fight over `fleet/<agent>`. Existing worktrees and branches
+  keep working. PR sync ignores other projects' `fleet/…` branches, and on a shared repo only
+  claims a task's PR once the agent reported it.
+- **Start at login per repo.** `fleet --autostart` writes `com.jainildesai.fleet.<project>`
+  with its own port and log (`~/.fleet/fleet-<project>.log`); the older `com.jainildesai.fleet`
+  item is recognised as its repo's and replaced on the same port. `--stop`, `--start` and
+  `--no-autostart` act on this repo only; `--all` for every one. `--autostart` refuses to run
+  from the npx cache. `--start` checks launchd's real state, so a copy that keeps exiting is
+  restarted and its last exit code shown, not reported as running. A background copy whose repo
+  already has a Fleet exits cleanly instead of being restarted forever. The stale-install
+  warning also checks Fleet's own path.
+- **One set of banners.** Only one copy watches every Claude session (banners,
+  `events.jsonl`, `history.json`); another takes over when it stops.
+
 - **Requirements in the UI.** The welcome screen and Settings → Project show each check
   (tmux, Claude Code, Claude Code sign-in, `gh`, GitHub remote, terminal) with ✓/✗, its fix
   command and **Check again**.

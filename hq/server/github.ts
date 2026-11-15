@@ -171,9 +171,16 @@ export function taskIdOf(pr: Pick<GhPr, "title" | "headRefName">): string | null
   return inBranch ? inBranch[1].toUpperCase() : null;
 }
 
-/** `fleet/alice` (Fleet's worktree branch) or `alice/UI-T11-redesign` → alice */
-export function branchAgent(branch: string): string | null {
-  const m = branch.match(/^fleet\/([a-z0-9][a-z0-9-]*)$/i) ?? branch.match(/^([a-z0-9][a-z0-9-]*)\//i);
+/**
+ * The agent a PR branch belongs to: `fleet/<project>/alice` (this project's worktree branch), the older
+ * `fleet/alice`, or `alice/UI-T11-redesign` → alice. Another project's `fleet/<other>/…` → null.
+ * `shared`: another Fleet team works on this repo too, so only this project's own branches count.
+ */
+export function branchAgent(branch: string, projectSlug: string, shared = false): string | null {
+  const own = branch.match(/^fleet\/([^/]+)\/([a-z0-9][a-z0-9-]*)$/i);
+  if (own) return own[1].toLowerCase() === projectSlug ? own[2].toLowerCase() : null;
+  if (shared) return null; // fleet/alice and alice/… look the same in every team
+  const m = branch.match(/^fleet\/([a-z0-9][a-z0-9-]*)$/i) ?? (/^fleet\//i.test(branch) ? null : branch.match(/^([a-z0-9][a-z0-9-]*)\//i));
   return m ? m[1].toLowerCase() : null;
 }
 
