@@ -79,6 +79,9 @@ test('one login item per project; the older com.jainildesai.fleet item still cou
 });
 
 test('--start checks the real state: a crash-looping job is kicked, not reported as running', () => {
+  // The same item the test above leaves, written here too because that one is skipped off macOS.
+  fs.mkdirSync(agents, { recursive: true });
+  fs.writeFileSync(path.join(agents, `${labelFor('site')}.plist`), plist({ ...sample, label: labelFor('site'), port: 7790, repo: '/code/site' }));
   const item = itemsFor('/code/site')[0];
   fs.rmSync(calls, { force: true });
   process.env.FAKE_STATE = 'running';

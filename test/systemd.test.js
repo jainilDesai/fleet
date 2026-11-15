@@ -83,7 +83,8 @@ test('--start and --stop read the real state: a restarting service is restarted,
   assert.deepEqual(startBackground(site), { state: 'started', lastExit: '1' });
   assert.equal(systemctlCalls().at(-1), '--user restart fleet-site.service');
 
-  assert.deepEqual(stop({ repo: '/code/site' }), { background: 1, manual: 0, unknown: 0 });
+  // `unknown` counts any Fleet the other test files are running at the same moment, so it isn't checked.
+  assert.deepEqual({ ...stop({ repo: '/code/site' }), unknown: 0 }, { background: 1, manual: 0, unknown: 0 });
   assert.equal(systemctlCalls().at(-1), '--user stop fleet-site.service');
   process.env.FAKE_ACTIVE = 'inactive';
   fs.rmSync(calls, { force: true });
