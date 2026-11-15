@@ -243,16 +243,24 @@ npm uninstall -g @jainil_desai/fleet         # remove</code></pre>
       </figure>
 
       <h2 id="customise">Customise your team</h2>
-      <p>Out of the box every agent is generic. Make it work the way you do in <strong>Settings → Team → More</strong>, for any agent, the CTO included.</p>
+      <p>Out of the box every agent is generic. Make it work the way you do in <strong>Settings → Team</strong>.</p>
+      <p><strong>Pick a role.</strong> The <strong>Role</strong> menu (in Settings → Team, <strong>Add an agent</strong> and <strong>Set up your team</strong>) lists the built-in roles (Planner, Implementer, QA, Reviewer, Deployer, Developer), the roles you saved, and <strong>New role…</strong> to name your own. Picking a role gives the agent that role's ROLE.md, skills and permission mode. If you changed the agent's ROLE.md or skills, Fleet asks first: <strong>Replace</strong> or <strong>Keep mine</strong>.</p>
+      <p>Then open <strong>More</strong>, for any agent, the CTO included:</p>
       <ul>
         <li><strong>Role.</strong> Rewrite what the agent does, or click <strong>Load role from file…</strong> to use a Markdown file. Fleet adds the team, the rules and the tools around it.</li>
         <li><strong>Skills.</strong> Paste a <code>SKILL.md</code> or click <strong>Load SKILL.md…</strong>, give it a name, and click <strong>Add skill</strong>. Fleet writes it to <code>.claude/skills/fleet-&lt;name&gt;/SKILL.md</code> in that agent's worktree, where Claude Code loads it. It's never committed, and the repo's own skills are never touched. A skill without frontmatter gets a <code>name</code> and <code>description</code> added. Each agent can have up to 20 skills of up to 100 KB each.</li>
+        <li><strong>Save as my role.</strong> Saves the agent's ROLE.md and its skills as your own version of the role, for every project. On any repo, the next agent that gets that role (a new team, an agent you add, or picking the role in the menu) starts with that text and those skills. Agents you already have keep their own copy. <strong>Delete my role</strong> removes a role you named; <strong>Reset to built-in</strong> removes your version of a built-in role. Both ask first.</li>
       </ul>
       <p>Changes apply the next time the agent starts.</p>
-      <h3>Skills for every agent</h3>
-      <p>Skills in <code>~/.claude/skills</code> (or the repo's <code>.claude/skills</code>) already work for all agents. Point to them by name in a role, for example "Test UI changes with the <code>browser-test</code> skill."</p>
-      <h3>Your defaults for every repo</h3>
-      <p>Save role texts as <code>~/.fleet/roles/&lt;role&gt;.md</code>: <code>cto.md</code> for the lead, and <code>planner.md</code>, <code>implementer.md</code>, <code>qa.md</code>, <code>reviewer.md</code>, <code>deployer.md</code>, or any role name you use. A new team, or an agent you add, starts from your file instead of the built-in text. Teams you already have keep their saved text.</p>
+      <h3>How skills reach agents</h3>
+      <ul>
+        <li>Skills in <code>~/.claude/skills</code> (or the repo's <code>.claude/skills</code>) work for every agent.</li>
+        <li>A role's own skills (saved with <strong>Save as my role</strong>) go to every agent that gets that role.</li>
+        <li>Skills added under <strong>Skills for this agent</strong> go to that agent only.</li>
+        <li>The built-in role texts tell agents to use a matching skill when they have one, for example for testing, code review or deploys. You can also name a skill in a role: "Test UI changes with the <code>browser-test</code> skill."</li>
+      </ul>
+      <h3>Where saved roles live</h3>
+      <p>In <code>~/.fleet/roles/</code>: <code>&lt;role&gt;.md</code> is the ROLE.md (<code>cto.md</code> for the lead, otherwise the role name in lowercase without spaces, such as <code>qa.md</code> or <code>datascientist.md</code>), and <code>&lt;role&gt;.skills/&lt;skill&gt;/SKILL.md</code> holds its skills. A role you named in Fleet keeps its display name in the file's first line (<code>&lt;!-- fleet-role: Data Scientist --&gt;</code>). You can write these files by hand too: a plain <code>qa.md</code> works as before.</p>
       <p>For example, <code>~/.fleet/roles/qa.md</code>:</p>
       <pre><code>You are QA. You test the branch the lead names and report pass/fail with evidence.
 

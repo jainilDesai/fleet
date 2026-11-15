@@ -306,8 +306,15 @@ are no banners; the events still show in Fleet.
 
 ![Settings, Team: an agent's role text, Load role from file, and Skills for this agent (demo data)](docs/team.png)
 
-Out of the box every agent is generic. Make it work the way you do in **Settings → Team →
-More**, for any agent, the CTO included:
+Out of the box every agent is generic. Make it work the way you do in **Settings → Team**.
+
+**Pick a role.** The **Role** menu (in Settings → Team, **Add an agent** and **Set up your team**)
+lists the built-in roles (Planner, Implementer, QA, Reviewer, Deployer, Developer), the roles
+you saved, and **New role…** to name your own. Picking a role gives the agent that role's
+ROLE.md, skills and permission mode. If you changed the agent's ROLE.md or skills, Fleet asks
+first: **Replace** or **Keep mine**.
+
+Then open **More**, for any agent, the CTO included:
 
 - **Role.** Rewrite what the agent does, or **Load role from file…** to use a Markdown file.
   Fleet adds the team, the rules and the tools around it.
@@ -316,16 +323,28 @@ More**, for any agent, the CTO included:
   Claude Code loads it. It's never committed, and the repo's own skills are never touched.
   A skill without frontmatter gets a `name` and `description` added.
 
+- **Save as my role.** Saves the agent's ROLE.md and its skills as your own version of the
+  role, for every project. On any repo, the next agent that gets that role (a new team, an
+  agent you add, or picking the role in the menu) starts with that text and those skills.
+  Agents you already have keep their own copy. **Delete my role** removes a role you named;
+  **Reset to built-in** removes your version of a built-in role. Both ask first.
+
 Changes apply the next time the agent starts.
 
-**Skills for every agent.** Skills in `~/.claude/skills` (or the repo's `.claude/skills`)
-already work for all agents. Point to them by name in a role, for example
-"Test UI changes with the `browser-test` skill."
+**How skills reach agents.**
 
-**Your defaults for every repo.** Save role texts as `~/.fleet/roles/<role>.md`:
-`cto.md` for the lead, and `planner.md`, `implementer.md`, `qa.md`, `reviewer.md`,
-`deployer.md`, or any role name you use. A new team, or an agent you add, starts from
-your file in place of the built-in text. Teams you already have keep their saved text.
+- Skills in `~/.claude/skills` (or the repo's `.claude/skills`) work for every agent.
+- A role's own skills (saved with **Save as my role**) go to every agent that gets that role.
+- Skills added under **Skills for this agent** go to that agent only.
+- The built-in role texts tell agents to use a matching skill when they have one, for example
+  for testing, code review or deploys. You can also name a skill in a role: "Test UI changes
+  with the `browser-test` skill."
+
+**Where saved roles live.** In `~/.fleet/roles/`: `<role>.md` is the ROLE.md (`cto.md` for the
+lead, otherwise the role name in lowercase without spaces, such as `qa.md` or
+`datascientist.md`), and `<role>.skills/<skill>/SKILL.md` holds its skills. A role you named in
+Fleet keeps its display name in the file's first line (`<!-- fleet-role: Data Scientist -->`).
+You can write these files by hand too: a plain `qa.md` works as before.
 
 For example, a `~/.fleet/roles/qa.md`:
 

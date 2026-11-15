@@ -7,6 +7,17 @@
   worktrees, branches, plans and the team are kept) or **Stop agents and quit Fleet**, which
   then exits Fleet with code 0 so the login item doesn't bring it back until the next login or
   `fleet --start`. The page then says Fleet has stopped and how to start it again.
+- **Role picker.** The Role field in Settings → Team, Add an agent and Set up your team is a
+  real menu now: the built-in roles, the roles you saved, and **New role…** to name your own.
+  It used to be a text box with suggestions that only ever showed the role already typed in.
+  Picking a role gives the agent that role's ROLE.md, skills and permission mode, and asks
+  before replacing a ROLE.md or skills you changed.
+- **Saved roles.** **Save as my role** (Settings → Team → More) saves an agent's ROLE.md and
+  skills to `~/.fleet/roles/<role>.md` and `<role>.skills/`. On any project, the next agent that
+  gets that role starts with them. **Delete my role** and **Reset to built-in** remove only that
+  role's files. Existing `~/.fleet/roles/*.md` files keep working, and now show in the menu.
+- **Docs:** how skills reach agents: `~/.claude/skills` for everyone, a role's skills for every
+  agent with that role, and per-agent skills for one agent.
 - **Docs:** a Stopping section covering the drawer's Stop, Stop team, quitting, `fleet --stop`
   (`--all`) and Ctrl-C.
 - **Home page.** `fleet home` (or `fleet open`, or `fleet` outside a git repo) opens Fleet's

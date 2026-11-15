@@ -4,7 +4,7 @@ import type { ReviewTool } from "../../data/types";
 import { officeActions, reviewToolLabel, useOffice } from "../../store/office";
 import { agentPalette } from "../../theme/tokens";
 import { Field, Portrait } from "../kit";
-import { ROLE_SUGGESTIONS } from "../settings/TeamSettings";
+import { RolePicker, useRoles } from "../settings/RolePicker";
 import { SetupChecks } from "./SetupChecks";
 
 interface WorkerDraft {
@@ -26,6 +26,7 @@ export function WelcomeModal() {
   const [reviewEnabled, setReviewEnabled] = useState((snap?.config.workflow.review.enabled ?? true) && github);
   const [reviewTool, setReviewTool] = useState<ReviewTool>(snap?.config.workflow.review.tool ?? "human");
   const [sending, setSending] = useState(false);
+  const roles = useRoles();
   if (!snap) return null;
 
   const setWorker = (i: number, patch: Partial<WorkerDraft>) => setWorkers((ws) => ws.map((w, j) => (j === i ? { ...w, ...patch } : w)));
@@ -79,13 +80,8 @@ export function WelcomeModal() {
           <section>
             <h3 className="mb-1 text-[16px] font-bold">Team · {workers.length}</h3>
             <p className="mb-2 text-[13px] text-muted">
-              Each one gets its own desk and git worktree, and starts when the lead first gives it work.
+              Each one gets its own desk and git worktree, and starts when the lead first gives it work. A role you saved (Settings → Team → Save as my role) brings its ROLE.md and skills.
             </p>
-            <datalist id="welcome-roles">
-              {ROLE_SUGGESTIONS.map((r) => (
-                <option key={r} value={r} />
-              ))}
-            </datalist>
             <div className="flex flex-col gap-2">
               {workers.map((w, i) => (
                 <div key={i} className="grid grid-cols-[40px_1fr_1fr_auto] items-end gap-2">
@@ -94,7 +90,7 @@ export function WelcomeModal() {
                     <input className="field w-full" value={w.name} maxLength={40} onChange={(e) => setWorker(i, { name: e.target.value })} />
                   </Field>
                   <Field label="Role">
-                    <input className="field w-full" list="welcome-roles" value={w.role} maxLength={40} onChange={(e) => setWorker(i, { role: e.target.value })} />
+                    <RolePicker value={w.role} roles={roles} onChange={(role) => setWorker(i, { role })} />
                   </Field>
                   <button
                     className="btn px-2 text-[13px]"

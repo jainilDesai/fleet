@@ -1,6 +1,7 @@
 import { agentPalette } from "../../theme/tokens";
 import type { OfficeDataSource, OfficeEvent, SimSpeed } from "../source";
-import { AgentConfig, AgentPatch, Board, NewAgentInput, ProjectConfig, WorkflowPatch } from "../types";
+import { BUILT_IN_ROLES, roleKey } from "../names";
+import { AgentConfig, AgentPatch, Board, NewAgentInput, ProjectConfig, RoleInfo, WorkflowPatch } from "../types";
 import { defaultPresetId, presets, type Preset } from "./presets";
 import { Simulation } from "./simulation";
 import * as T from "./terminalScripts";
@@ -15,6 +16,8 @@ export function createMockSource(): OfficeDataSource {
   let listener: ((e: OfficeEvent) => void) | null = null;
   let timers: number[] = [];
   let last = 0;
+  // Demo: roles you "save" live in memory only; nothing is written.
+  let saved: RoleInfo[] = [];
 
   function findPreset(id: string): Preset {
     return presets.find((p) => p.id === id) ?? presets[0];
@@ -160,6 +163,29 @@ export function createMockSource(): OfficeDataSource {
         type: "workspace.info",
         info: { agentId: id, path: st.session.workspace ?? "", managed: true, exists: true, changedFiles: 1, unpushedCommits: 2, sandboxName: null, sandboxExists: false },
       });
+    },
+
+    listRoles() {
+      const builtIn = [{ name: "Lead", key: "cto", lead: true }, ...BUILT_IN_ROLES.map((name) => ({ name, key: roleKey(name), lead: false }))].map(
+        ({ name, key, lead }): RoleInfo => saved.find((r) => r.key === key) ?? { key, name, builtIn: true, ...(lead ? { lead } : {}), saved: false, roleMd: null, builtInMd: null, skillFiles: [] },
+      );
+      listener?.({ type: "roles", roles: [...builtIn, ...saved.filter((r) => !r.builtIn)] });
+    },
+
+    saveRole(input) {
+      const name = input.lead ? "Lead" : input.name.trim();
+      const key = roleKey(name, input.lead);
+      if (!key || !input.roleMd.trim()) return;
+      const builtIn = input.lead || BUILT_IN_ROLES.some((r) => roleKey(r) === key);
+      const role: RoleInfo = { key, name, builtIn, ...(input.lead ? { lead: true } : {}), saved: true, roleMd: input.roleMd.trim(), ...(builtIn ? { builtInMd: null } : {}), skillFiles: input.skillFiles ?? [] };
+      saved = [...saved.filter((r) => r.key !== key), role];
+      world.activity("config", null, `Demo: saved ${name} as your role (in this page only).`);
+      source.listRoles();
+    },
+
+    deleteRole(key) {
+      saved = saved.filter((r) => r.key !== key);
+      source.listRoles();
     },
 
     removeAgent(id) {

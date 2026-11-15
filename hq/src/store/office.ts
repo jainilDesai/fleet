@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { createMockSource } from "../data/mock/mockSource";
 import type { ConnectionStatus, DataPreset, OfficeDataSource, OfficeEvent, SimSpeed } from "../data/source";
 import { createSseSource } from "../data/sse/sseSource";
-import type { AgentConfig, AgentStatus, OfficeSnapshot, RemoveAgentOptions, WelcomeInput, WorkspaceInfo } from "../data/types";
+import type { AgentConfig, AgentStatus, OfficeSnapshot, RemoveAgentOptions, RoleInfo, SaveRoleInput, WelcomeInput, WorkspaceInfo } from "../data/types";
 
 export interface LoggedEvent {
   n: number;
@@ -21,6 +21,7 @@ interface OfficeState {
   presets: DataPreset[] | null;
   live: boolean; // connected to Fleet's server (vs. the demo mock)
   workspaceInfo: Record<string, WorkspaceInfo>; // answers to inspectWorkspace
+  roles: RoleInfo[] | null; // answer to listRoles
   connection: ConnectionStatus;
   quit: boolean; // you quit Fleet from this page
   source: OfficeDataSource;
@@ -46,6 +47,7 @@ export const useOffice = create<OfficeState>(() => ({
   presets: source.dev?.presets ?? null,
   live: token !== null,
   workspaceInfo: {},
+  roles: null,
   connection: "connecting",
   quit: false,
   source,
@@ -66,6 +68,7 @@ function reduce(snap: OfficeSnapshot, e: OfficeEvent): OfficeSnapshot {
     case "snapshot":
       return e.snapshot;
     case "workspace.info":
+    case "roles":
       return snap;
     case "setup.updated":
       return { ...snap, setup: e.setup };
@@ -101,6 +104,7 @@ function handle(e: OfficeEvent) {
     useOffice.setState((s) => ({ workspaceInfo: { ...s.workspaceInfo, [e.info.agentId]: e.info } }));
     return;
   }
+  if (e.type === "roles") return void useOffice.setState({ roles: e.roles });
   useOffice.setState((s) => {
     const base = s.snap ?? (e.type === "snapshot" ? e.snapshot : null);
     if (!base) return {};
@@ -144,6 +148,9 @@ export const officeActions = {
   updateAgent: source.updateAgent.bind(source),
   removeAgent: (id: string, opts?: RemoveAgentOptions) => source.removeAgent(id, opts),
   inspectWorkspace: (id: string) => source.inspectWorkspace(id),
+  listRoles: () => source.listRoles(),
+  saveRole: (input: SaveRoleInput) => source.saveRole(input),
+  deleteRole: (key: string) => source.deleteRole(key),
   updateWorkflow: source.updateWorkflow.bind(source),
   updateProject: source.updateProject.bind(source),
   createBoard: source.createBoard.bind(source),
