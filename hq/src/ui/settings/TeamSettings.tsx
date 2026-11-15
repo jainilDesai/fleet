@@ -5,6 +5,7 @@ import { officeActions, useOffice } from "../../store/office";
 import { agentPalette } from "../../theme/tokens";
 import { Field, Portrait, SectionTitle } from "../kit";
 import { CommitInput } from "./controls";
+import { StopTeamDialog } from "../hud/StopTeamDialog";
 import { RemoveAgentDialog } from "./RemoveAgentDialog";
 import { RolePicker, useRoles } from "./RolePicker";
 
@@ -46,6 +47,7 @@ export function TeamSettings() {
         </div>
       </section>
       <AddAgent roles={roles} />
+      <StopTeam />
       {removing && <RemoveAgentDialog agent={removing} onClose={() => setRemoving(null)} />}
     </div>
   );
@@ -319,6 +321,27 @@ function MyRole({ agent, info, onReset }: { agent: AgentConfig; info?: RoleInfo;
         Saves this ROLE.md and the skills above to <code>~/.fleet/roles/{key}.md</code> and <code>{key}.skills/</code>, for every project. The next agent that gets this role, here or in another repo, starts with them. Agents you already have keep their own copy.
       </span>
     </div>
+  );
+}
+
+function StopTeam() {
+  const running = useOffice((s) => s.snap?.agents.filter((a) => a.session.state === "running").length ?? 0);
+  const live = useOffice((s) => s.live);
+  const [stopping, setStopping] = useState(false);
+  return (
+    <section className="border-[3px] border-ink bg-white p-3">
+      <SectionTitle>Stop team</SectionTitle>
+      <p className="mb-2 text-[13px] text-muted">
+        Ends every running agent's Claude Code session at once, and optionally quits Fleet too. Committed work, worktrees, branches, plans and the team are kept; Start team brings them back. To stop one agent, use Stop in its drawer.
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button className="btn text-[14px] text-red" disabled={!live || !running} onClick={() => setStopping(true)}>
+          Stop team…
+        </button>
+        <span className="text-[12px] text-muted">{!live ? "Not in the demo." : running ? `${running} running` : "No agent is running."}</span>
+      </div>
+      {stopping && <StopTeamDialog onClose={() => setStopping(false)} />}
+    </section>
   );
 }
 

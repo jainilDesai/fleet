@@ -1,4 +1,4 @@
-import type { DeployTool, ReviewTool } from "../../data/types";
+import { IDLE_STOP_DAYS, type DeployTool, type ReviewTool } from "../../data/types";
 import { deployToolLabel, officeActions, reviewToolLabel, useOffice } from "../../store/office";
 import { Field, SectionTitle } from "../kit";
 import { CommitInput, Toggle } from "./controls";
@@ -83,6 +83,22 @@ export function WorkflowSettings() {
           ))}
         </div>
         <p className="mt-2 text-[12px] text-muted">The lead always sets the merge order and handles conflicts between PRs.</p>
+      </section>
+
+      <section className="border-[3px] border-ink bg-white p-3">
+        <SectionTitle>Idle agents</SectionTitle>
+        <Field
+          label="Stop idle agents after"
+          hint="An idle agent doesn't act on its own, but its session holds memory, and waking it days later re-sends a long context that's no longer cached, which is expensive. Fleet checks every 15 minutes and stops a running agent that has done nothing that long: no turn, no question waiting, no open Action item, no unsent text at its prompt. Start team or a new task starts it again as a fresh session with its role and task."
+        >
+          <select className="field w-[200px]" value={wf.stopIdleAfterDays} onChange={(e) => officeActions.updateWorkflow({ stopIdleAfterDays: Number(e.target.value) })}>
+            {IDLE_STOP_DAYS.map((d) => (
+              <option key={d} value={d}>
+                {d === 0 ? "Never" : `${d} day${d === 1 ? "" : "s"}`}
+              </option>
+            ))}
+          </select>
+        </Field>
       </section>
 
       {live ? (

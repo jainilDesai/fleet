@@ -217,6 +217,7 @@ export function createMockSource(): OfficeDataSource {
       Object.assign(wf.review, patch.review);
       Object.assign(wf.merge, patch.merge);
       Object.assign(wf.deploy, patch.deploy);
+      if (patch.stopIdleAfterDays !== undefined) wf.stopIdleAfterDays = patch.stopIdleAfterDays;
       world.configChanged();
       world.syncEnvironments();
       sim.workflowChanged();

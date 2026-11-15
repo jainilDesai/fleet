@@ -9,6 +9,7 @@ import { makeCommands } from "./commands";
 import { GitHubSync } from "./githubSync";
 import { makeHandler, type HqHandler } from "./http";
 import { Hub } from "./hub";
+import { IDLE_CHECK_MS, stopIdleAgents } from "./idleStop";
 import { Inbox } from "./inbox";
 import { run } from "./lib/exec";
 import { log } from "./lib/log";
@@ -81,6 +82,8 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   sessions.startPolling();
   const github = new GitHubSync(hub, planner, repo.github);
   github.start();
+  const idleDeps = { stop: (id: string) => sessions.stop(id), hasDraft: (id: string) => sessions.hasDraft(id), pending: (id: string) => inbox.pending(id) };
+  const idleCheck = setInterval(() => void stopIdleAgents(hub, idleDeps).catch((e) => log.warn("idle stop:", e)), IDLE_CHECK_MS);
 
   return {
     handle,
@@ -99,6 +102,7 @@ export async function startHq(o: HqOptions): Promise<Hq> {
       // tmux keeps the agents running.
       sessions.shutdown();
       github.stop();
+      clearInterval(idleCheck);
     },
   };
 }
@@ -116,3 +120,5 @@ export { isApproval, resolutionMessage } from "./actionItems";
 export { roleMd, skillText, writeSkills } from "./agentFiles";
 export { trustSelected } from "./sessions";
 export { makeCommands } from "./commands";
+export { stopIdleAgents } from "./idleStop";
+export { Hub } from "./hub";

@@ -67,6 +67,7 @@ function defaultConfig(repo: RepoInfo, port: number): HqConfig {
       review: { enabled: true, tool: repo.hasCodeRabbit ? "coderabbit" : "human", command: "" },
       merge: { by: "human" },
       deploy: { enabled: repo.hasInsta, tool: "instacloud", command: "", perAgentEnvironments: repo.hasInsta },
+      stopIdleAfterDays: 3,
     },
   };
 }
@@ -88,6 +89,7 @@ export function loadConfig(home: string, repo: RepoInfo, port: number): { config
       delete old.proxy;
       delete old.secrets;
     }
+    found.workflow.stopIdleAfterDays ??= 3;
     // Configs from before project.id: their resources are named after the current name.
     // Slugified again in case the file was edited by hand: it ends up in paths and sandbox names.
     found.project.id = slugify(found.project.id ?? found.project.name);

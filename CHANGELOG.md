@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **The logo goes home.** The Fleet logo and name in the top bar link to the home page
+  (localhost:7788); the separate **Home** button is gone, which gives the project name more room.
+  The **⇄** switcher stays.
+- **Stop team moved to Settings → Team.** The top bar no longer has **Stop team**; the Team tab
+  ends with a **Stop team…** button that opens the same dialog (**Stop agents**, **Stop agents and
+  quit Fleet**, **Cancel**). It's disabled, with a note, while no agent runs.
+- **Auto-stop idle agents.** New in Settings → Workflow: **Stop idle agents after** 1, 3 (the
+  default) or 7 days, or Never. Every 15 minutes Fleet stops a running agent that's been idle that
+  long, with no open Action item, no question waiting, no queued message and no unsent text at its
+  prompt, and says so in the activity feed. An idle agent doesn't act on its own, but it holds
+  memory, and waking it days later re-sends a long, uncached context. Start team or a new task
+  brings it back as a fresh session. Each agent's last activity is now saved in the project's
+  `history.json`, so the idle clock survives a Fleet restart.
+
 ## 0.6.0
 
 - **Stop team.** While any agent runs, the top bar shows **Stop team**. It lists the running

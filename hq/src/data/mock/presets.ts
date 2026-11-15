@@ -76,6 +76,7 @@ const askwell: Preset = {
       review: { enabled: true, tool: "coderabbit", command: "" },
       merge: { by: "human" },
       deploy: { enabled: true, tool: "instacloud", command: "", perAgentEnvironments: true },
+      stopIdleAfterDays: 3,
     },
   },
   boards: [
@@ -134,6 +135,7 @@ const bigTeam: Preset = {
       review: { enabled: true, tool: "greptile", command: "" },
       merge: { by: "lead" },
       deploy: { enabled: true, tool: "vercel", command: "", perAgentEnvironments: false },
+      stopIdleAfterDays: 3,
     },
   },
   boards: [
@@ -180,6 +182,7 @@ const duo: Preset = {
       review: { enabled: true, tool: "human", command: "" },
       merge: { by: "human" },
       deploy: { enabled: false, tool: "custom", command: "", perAgentEnvironments: false },
+      stopIdleAfterDays: 3,
     },
   },
   boards: [{ id: "MVP", title: "MVP", status: "active", order: 0 }],

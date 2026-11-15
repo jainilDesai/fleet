@@ -143,6 +143,10 @@ export class Sessions {
     return this.backend.enter(this.name(agentId));
   }
 
+  async hasDraft(agentId: string): Promise<boolean> {
+    return !!(await this.backend.promptDraft(this.name(agentId)));
+  }
+
   async pressEnter(agentId: string): Promise<boolean> {
     return this.backend.enter(this.name(agentId));
   }
