@@ -31,7 +31,7 @@ interface UiState {
   hover: HoverInfo | null;
   focus: { target: FocusTarget; nonce: number } | null;
   zoomRequest: { delta: number; nonce: number } | null;
-  planBoardId: string | null; // board shown on the plan wall; null = first active
+  planBoardId: string | null; // board shown on the plan wall; null = newest active (wallBoard)
   debugOpen: boolean;
   /** Side drawer width in px, remembered per browser; `maximized` fills the screen. */
   drawerWidth: number;
@@ -57,6 +57,10 @@ function savedWidth(): number {
     return DRAWER_DEFAULT;
   }
 }
+
+/** The board the plan wall shows unless you pick one: the newest active board, so New work shows up there. */
+export const wallBoard = <B extends { status: string; order: number }>(boards: B[]): B | undefined =>
+  boards.filter((b) => b.status === "active").sort((a, b) => b.order - a.order)[0];
 
 export const useUi = create<UiState>(() => ({
   drawer: null,

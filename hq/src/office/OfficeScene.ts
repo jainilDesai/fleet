@@ -5,7 +5,7 @@ import { Application, Container, Graphics, Sprite, TextureStyle, type Texture } 
 import type { AgentState, HqConfig, PullRequest, ReviewState } from "../data/types";
 import { mulberry32 } from "../lib/random";
 import { selectTeam, useOffice } from "../store/office";
-import { useUi, type FocusTarget } from "../store/ui";
+import { useUi, wallBoard, type FocusTarget } from "../store/ui";
 import { think, type Bot } from "./actors/bots";
 import { Effects } from "./actors/effects";
 import { BeltPath, parcelPos, updateParcels, type Parcel } from "./actors/parcels";
@@ -236,7 +236,7 @@ export class OfficeScene {
     const p = new GfxPen(g);
 
     // plan wall
-    const planId = useUi.getState().planBoardId ?? snap.boards.filter((b) => b.status === "active").sort((a, b) => a.order - b.order)[0]?.id ?? null;
+    const planId = useUi.getState().planBoardId ?? wallBoard(snap.boards)?.id ?? null;
     const board = snap.boards.find((b) => b.id === planId);
     if (board) live.drawPlanTitle(p, l, board.title);
     this.notes.update(snap.tasks, planId, l.plan.board, this.dt, t);
