@@ -13,6 +13,7 @@ export function NewWorkDialog() {
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState(() => useUi.getState().newWorkPrompt);
   const [investigate, setInvestigate] = useState(false);
+  const [freshLead, setFreshLead] = useState(true);
   const [extra, setExtra] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({ Implementer: 1 });
   useEffect(() => officeActions.listRoles(), []);
@@ -24,7 +25,7 @@ export function NewWorkDialog() {
   const crew = extra ? Object.entries(counts).filter(([, n]) => n > 0).map(([role, count]) => ({ role, count })) : [];
   const set = (role: string, n: number) => setCounts((c) => ({ ...c, [role]: Math.max(0, Math.min(3, n, (c[role] ?? 0) + CREW_MAX - total)) }));
   const submit = (startNow: boolean) => {
-    officeActions.newWork({ title: title.trim() || undefined, prompt: prompt.trim(), investigate, crew, startNow });
+    officeActions.newWork({ title: title.trim() || undefined, prompt: prompt.trim(), investigate, crew, startNow, freshLead });
     ui.closeNewWork();
     if (!startNow) ui.openBoards();
   };
@@ -53,6 +54,16 @@ export function NewWorkDialog() {
           <span>
             <b>Investigation only</b>
             <span className="block text-[13px] text-muted">Find out and report back with evidence: no code changes, no branches, no PRs.</span>
+          </span>
+        </label>
+
+        <label className="mb-3 flex items-start gap-2 text-[14px]">
+          <input type="checkbox" className="mt-1" checked={freshLead} onChange={(e) => setFreshLead(e.target.checked)} />
+          <span>
+            <b>Fresh {lead} session</b>
+            <span className="block text-[13px] text-muted">
+              {lead} starts this work with a clean context and the current plan from Fleet. Untick for follow-up work that needs the last conversation. If {lead} is busy, it keeps its session.
+            </span>
           </span>
         </label>
 

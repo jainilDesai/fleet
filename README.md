@@ -298,6 +298,11 @@ opens a prompt for the CTO. Each one gets its own board, and you choose:
   **Add agents for this work**: up to 3 per role and 6 in all. Each new agent gets its own
   worktree and branch from main, so the work runs next to what the team is already doing.
   Remove them in Settings → Team when it's done.
+- **Fresh CTO session** (on by default): the CTO starts this work with a clean context, so a
+  long history can't crowd it or leave it guessing. Nothing is lost: boards, tasks, who's on
+  what and open Action items live in Fleet, and every new CTO session starts with them (so does
+  a session Claude Code compacts). If the CTO is mid-turn, or you have unsent text at its
+  prompt, it keeps its session. Untick it for follow-up work that needs the last conversation.
 - **Send to the CTO** now, or **Save for later**: the board waits as planned, and **Start now** on
   it in Boards sends it whenever you want.
 

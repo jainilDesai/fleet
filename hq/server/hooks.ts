@@ -12,6 +12,8 @@ export interface HookPayload {
   message?: string;
   notification_type?: string;
   transcript_path?: string;
+  /** SessionStart: startup, resume, clear or compact. */
+  source?: string;
 }
 
 /** What a permission request is for, in words: a title and the details you decide on. */
@@ -69,6 +71,24 @@ export function lastAssistantText(transcriptPath: string): string | null {
   return null;
 }
 
+/** The plan as Fleet has it, for the lead at session start: open boards, their unfinished tasks, the team, open action items. */
+export function leadBriefing(hub: Hub, source = "startup"): string {
+  const snap = hub.snap;
+  const why = source === "compact" ? "Your context was just compacted, so details of earlier conversation may be gone or wrong" : "This is a new session";
+  const lines = [`[Fleet] ${why}. Fleet's state below is the truth; trust it over memory, and call get_status / list_tasks for live updates.`];
+  for (const b of snap.boards.filter((b) => b.status !== "done")) {
+    const ts = snap.tasks.filter((t) => t.boardId === b.id);
+    lines.push("", `Board ${b.id} "${b.title}" (${b.status}, ${ts.filter((t) => t.status === "done").length}/${ts.length} tasks done)`);
+    if (b.brief?.startedAt) lines.push(`  Request: ${clip(b.brief.prompt.replace(/\s+/g, " "), 300)}`);
+    for (const t of ts.filter((t) => t.status !== "done"))
+      lines.push(`  - ${t.id} [${t.status}] ${t.title} · ${t.ownerId ? hub.name(t.ownerId) : "unassigned"}${t.prNumber ? ` · PR #${t.prNumber}` : ""}${t.note ? ` · ${clip(t.note, 100)}` : ""}`);
+  }
+  lines.push("", "Team:", ...snap.agents.map((a) => `- ${hub.name(a.agentId)} (${a.agentId}): ${a.session.state === "running" ? a.state : a.session.state}${a.currentTaskId ? `, on ${a.currentTaskId}` : ""}`));
+  const open = (snap.actionItems ?? []).filter((i) => i.status === "open" && !i.kind);
+  if (open.length) lines.push("", "Waiting on the user (Action items):", ...open.map((i) => `- ${clip(i.title, 120)} (from ${hub.name(i.fromId)})`));
+  return lines.join("\n").slice(0, 8000);
+}
+
 const clip = (s: string, n = 80) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
 /**
@@ -96,6 +116,9 @@ export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: strin
     case "SessionStart":
       turnOpen.set(agentId, false);
       hub.setStatus(agentId, { state: "idle", note: "Ready" });
+      // The lead's memory of the plan is lost on a fresh start and blurred by compaction: hand it Fleet's.
+      if (hub.cfg(agentId)?.isLead)
+        return { ok: true, response: { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: leadBriefing(hub, body.source) } } };
       break;
     case "UserPromptSubmit":
       turnOpen.set(agentId, true);
