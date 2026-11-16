@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BUILT_IN_ROLES, LEAD_NAME } from "../../data/names";
 import { officeActions, useOffice } from "../../store/office";
-import { ui } from "../../store/ui";
+import { ui, useUi } from "../../store/ui";
 
 /** Matches CREW_MAX in hq/server/commands.ts. */
 const CREW_MAX = 6;
@@ -11,7 +11,7 @@ export function NewWorkDialog() {
   const snap = useOffice((s) => s.snap);
   const saved = useOffice((s) => s.roles);
   const [title, setTitle] = useState("");
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(() => useUi.getState().newWorkPrompt);
   const [investigate, setInvestigate] = useState(false);
   const [extra, setExtra] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({ Implementer: 1 });

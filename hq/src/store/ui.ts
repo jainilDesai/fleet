@@ -38,6 +38,8 @@ interface UiState {
   drawerMaximized: boolean;
   /** The New work dialog is open (also opened by the home page with #new-work). */
   newWork: boolean;
+  /** The first task from the home page's New project (#new-work=<prompt>), put in the New work dialog. */
+  newWorkPrompt: string;
 }
 
 const WIDTH_KEY = "fleet.drawerWidth";
@@ -58,6 +60,14 @@ function savedWidth(): number {
   }
 }
 
+function safeDecode(s: string) {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return "";
+  }
+}
+
 /** The board the plan wall shows unless you pick one: the newest active board, so New work shows up there. */
 export const wallBoard = <B extends { status: string; order: number }>(boards: B[]): B | undefined =>
   boards.filter((b) => b.status === "active").sort((a, b) => b.order - a.order)[0];
@@ -72,7 +82,8 @@ export const useUi = create<UiState>(() => ({
   debugOpen: false,
   drawerWidth: savedWidth(),
   drawerMaximized: false,
-  newWork: typeof location !== "undefined" && location.hash === "#new-work",
+  newWork: typeof location !== "undefined" && /^#new-work(=|$)/.test(location.hash),
+  newWorkPrompt: typeof location !== "undefined" && location.hash.startsWith("#new-work=") ? safeDecode(location.hash.slice("#new-work=".length)) : "",
 }));
 
 let nonce = 0;
@@ -115,8 +126,8 @@ export const ui = {
     useUi.setState({ newWork: true });
   },
   closeNewWork() {
-    useUi.setState({ newWork: false });
-    if (location.hash === "#new-work") history.replaceState(null, "", location.pathname + location.search);
+    useUi.setState({ newWork: false, newWorkPrompt: "" });
+    if (location.hash.startsWith("#new-work")) history.replaceState(null, "", location.pathname + location.search);
   },
   setHover(hover: HoverInfo | null) {
     useUi.setState({ hover });

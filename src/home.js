@@ -6,10 +6,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { running, urlOf, alive, HOME_PORT } from './registry.js';
 import { items, itemsFor, homeItem, enableHome, moveOff, startBackground, stop, fromNpx } from './autostart.js';
+import { recentProjects } from './inventory.js';
+import { OS, which } from './platform.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = path.join(ROOT, 'bin', 'fleet.js');
@@ -137,6 +139,67 @@ export function startProject(p) {
   else spawnFleet(['--repo', p.repo, '--no-open'], `fleet-${p.slug}.log`);
 }
 
+// Folders you've used Claude Code in, newest first, for the New project picker: not ones Fleet already has.
+export function folderSuggestions(known = projects().map((p) => p.repo)) {
+  const fleetDir_ = fleetDir() + path.sep;
+  return recentProjects([])
+    .map((f) => f.path)
+    .filter((p) => !known.includes(p) && !p.startsWith(fleetDir_))
+    .slice(0, 30);
+}
+
+const git = (args, cwd) => {
+  try {
+    return execFileSync('git', args, { cwd, stdio: 'pipe' }).toString().trim();
+  } catch {
+    return null;
+  }
+};
+
+// Starts Fleet on a folder from the home page. A folder that isn't a git repo yet (or has no commit) is
+// set up only when you ticked `init`: git init and a first commit of what's there, as Fleet's agents work
+// in worktrees made from a commit. Resolves with the project's URL once it runs.
+function launch(root) {
+  const known = projects().find((p) => p.repo === root);
+  if (running().some((e) => e.repo === root)) return;
+  if (known) startProject(known);
+  else spawnFleet(['--repo', root, '--no-open'], `fleet-${path.basename(root).replace(/[^\w.-]/g, '_')}.log`);
+}
+
+export async function createProject({ folder, init } = {}, { waitMs = 30_000, start = launch } = {}) {
+  let dir = String(folder ?? '').trim().replace(/^~(?=$|\/)/, os.homedir());
+  if (!dir || !path.isAbsolute(dir)) return { error: 'Give the full path of the folder, for example ~/code/my-app.' };
+  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) return { error: `There's no folder at ${dir}.` };
+  dir = fs.realpathSync(dir);
+  let root = git(['rev-parse', '--show-toplevel'], dir);
+  const hasCommit = (r) => git(['rev-parse', '--verify', '--quiet', 'HEAD'], r) !== null;
+  if (!root || !hasCommit(root)) {
+    if (!init) return root ? { error: `${root} has no commits yet.`, needsInit: 'commit' } : { error: `${dir} isn't a git repository.`, needsInit: 'repo' };
+    if (!root && git(['init', '--quiet'], dir) === null) return { error: `git init failed in ${dir}.` };
+    root = git(['rev-parse', '--show-toplevel'], dir);
+    if (git(['add', '-A'], root) === null || git(['commit', '--quiet', '--allow-empty', '-m', 'Initial commit'], root) === null)
+      return { error: 'The first commit failed. Check that git has your name and email set (git config user.name / user.email).' };
+  }
+  start(root);
+  for (const end = Date.now() + waitMs; Date.now() < end; await new Promise((r) => setTimeout(r, 500))) {
+    const copy = running().find((e) => e.repo === root && e.port !== HOME_PORT);
+    if (copy) return { url: urlOf(copy), repo: root };
+  }
+  return { error: `Fleet didn't start on ${root} within ${waitMs / 1000} s. Its log is in ~/.fleet/.` };
+}
+
+// The system's folder picker, opened by the home page's Choose… button. null when cancelled or there's none.
+export const canPickFolder = () => OS === 'mac' || !!which('zenity');
+export function pickFolder() {
+  const [cmd, args] =
+    OS === 'mac'
+      ? ['osascript', ['-e', 'tell application "System Events" to activate', '-e', 'tell application "System Events" to return POSIX path of (choose folder with prompt "Choose the project folder for Fleet")']]
+      : ['zenity', ['--file-selection', '--directory', '--title=Choose the project folder for Fleet']];
+  return new Promise((resolve) =>
+    execFile(cmd, args, { timeout: 5 * 60_000 }, (err, out) => resolve(err ? null : String(out).trim().replace(/(.)\/$/, '$1') || null)),
+  );
+}
+
 // Byte lengths, not string lengths: timingSafeEqual throws on buffers of different sizes.
 const safeEqual = (a, b) => {
   const A = Buffer.from(a);
@@ -199,15 +262,18 @@ export function handler(req, res) {
   (async () => {
     if (url.pathname.startsWith('/hook/') || url.pathname === '/mcp') return forward(req, res);
     if (req.method === 'GET' && url.pathname === '/api/home') return send(res, 200, await state());
+    if (req.method === 'GET' && url.pathname === '/api/home/folders') return send(res, 200, { folders: folderSuggestions(), canPick: canPickFolder() });
     if (req.method === 'POST') {
       if (req.headers['x-fleet-token'] !== TOKEN) return send(res, 403, { error: 'bad token' });
-      let slug;
+      let body;
       try {
-        ({ slug } = JSON.parse((await readBody(req)) || '{}'));
+        body = JSON.parse((await readBody(req)) || '{}');
       } catch {
         return send(res, 400, { error: 'bad request' });
       }
-      const p = projects().find((x) => x.slug === slug);
+      if (url.pathname === '/api/home/pick') return send(res, 200, { path: canPickFolder() ? await pickFolder() : null });
+      if (url.pathname === '/api/home/create') return send(res, 200, await createProject({ folder: body.folder, init: body.init === true }));
+      const p = projects().find((x) => x.slug === body.slug);
       if (!p) return send(res, 404, { error: 'no such project' });
       if (url.pathname === '/api/home/start') {
         if (p.missing) return send(res, 400, { error: 'repo folder is gone' });
