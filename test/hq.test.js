@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -376,6 +376,60 @@ test('New work saved for later adds nobody until Start, and starts only once', (
     assert.match(pushed[0].text, /No new agents: use the current team/);
     cmd.newWork({ prompt: '   ', crew: [], startNow: true });
     assert.equal(hub.snap.boards.length, 1, 'an empty prompt makes no board');
+  }));
+
+test('New work restarts an idle lead in a fresh session; a busy lead or an unticked box keeps its session', async () => {
+    const { hub, planner, pushed, activity } = teamHub();
+    const calls = [];
+    let draft = false;
+    const sessions = { hasDraft: async () => draft, stop: async (id) => { calls.push(id); hub.status(id).session.state = 'stopped'; } };
+    const inbox = { pending: () => 0 };
+    const cmd = makeCommands(hub, sessions, planner, inbox);
+    const lead = hub.status('cto');
+    lead.state = 'idle';
+    await cmd.newWork({ prompt: 'One', crew: [], startNow: true });
+    assert.deepEqual(calls, ['cto'], 'idle lead: stopped first');
+    assert.equal(pushed.length, 1, 'then the work is sent (which starts it)');
+    assert.ok(activity.some((a) => /fresh session/.test(a)));
+
+    lead.session.state = 'running';
+    lead.state = 'working';
+    await cmd.newWork({ prompt: 'Two', crew: [], startNow: true });
+    assert.equal(calls.length, 1, 'mid-turn: not restarted');
+    assert.equal(pushed.length, 2);
+    assert.ok(activity.some((a) => /keeps its current session/.test(a)));
+
+    lead.state = 'idle';
+    draft = true;
+    await cmd.newWork({ prompt: 'Three', crew: [], startNow: true });
+    assert.equal(calls.length, 1, 'your unsent text at its prompt: not restarted');
+
+    draft = false;
+    await cmd.newWork({ prompt: 'Four', crew: [], startNow: true, freshLead: false });
+    assert.equal(calls.length, 1, 'unticked: keeps its session');
+    assert.equal(pushed.length, 4);
+    assert.equal(hub.snap.boards.at(-1).brief.freshLead, false);
+});
+
+test("the lead's SessionStart gets Fleet's plan as context; a worker's doesn't", () =>
+  withTempHome(() => {
+    const { hub } = teamHub();
+    hub.snap.config.team.push(newAgent('implementer', 'Implementer', 'Implementer', '#111', false));
+    hub.snap.agents.push({ agentId: 'implementer', state: 'working', currentTaskId: 'T1', session: { state: 'running' } });
+    hub.snap.boards.push({ id: 'B', title: 'Health', status: 'active', order: 0, brief: { prompt: 'Add /health', investigate: false, crew: [], startedAt: 'x' } });
+    hub.snap.tasks.push({ id: 'T1', boardId: 'B', title: 'Endpoint', status: 'in-progress', ownerId: 'implementer', needs: [] }, { id: 'T2', boardId: 'B', title: 'Old', status: 'done', ownerId: null, needs: [] });
+    hub.snap.actionItems.push({ id: 'A1', fromId: 'cto', title: 'Approve plan: Health', status: 'open' });
+    const inbox = { noteHook() {} };
+    const r = handleHook(hub, inbox, 'cto', 'SessionStart', { source: 'compact' });
+    const ctx = r.response.hookSpecificOutput.additionalContext;
+    assert.equal(r.response.hookSpecificOutput.hookEventName, 'SessionStart');
+    assert.match(ctx, /compacted/);
+    assert.match(ctx, /Board B "Health" \(active, 1\/2 tasks done\)/);
+    assert.match(ctx, /T1 \[in-progress\] Endpoint · Implementer/);
+    assert.doesNotMatch(ctx, /T2/, 'done tasks are only counted');
+    assert.match(ctx, /Approve plan: Health/);
+    assert.equal(handleHook(hub, inbox, 'implementer', 'SessionStart', {}).response, undefined);
+    assert.match(hookCommand('http://x', 't', 'cto', 'SessionStart'), /2>\/dev\/null \|\|/, 'its output reaches Claude Code');
   }));
 
 test("the lead's add_agent request adds the agent only when you approve it", () =>

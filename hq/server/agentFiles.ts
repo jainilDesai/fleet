@@ -65,6 +65,7 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
           ? "You merge PRs once they pass review (`gh pr merge <number> --squash --delete-branch`), one at a time, in an order that avoids conflicts. Fleet tells you when each one passes."
           : "The user merges PRs; never merge one yourself. Decide the order they should land in, and tell the user if one blocks another.",
         "If the user changes who merges, Fleet tells you. Follow the latest message.",
+        "Fleet's plan is the truth, not your memory: call get_status or list_tasks before you assign work or report progress. Each new session (and each compaction) starts with Fleet's current state.",
       ]
     : [
         "Work only on the task you were given. When Fleet tells you to start one, call get_my_task first.",
@@ -115,7 +116,8 @@ type Settings = { hooks?: Record<string, HookEntry[]>; permissions?: { allow?: s
 
 export function hookCommand(url: string, token: string, agentId: string, event: string): string {
   // Stop prints Fleet's reply: {"decision":"block","reason":…} hands over queued messages.
-  const out = event === "Stop" ? "2>/dev/null" : ">/dev/null 2>&1";
+  // SessionStart prints the lead's briefing (additionalContext): the plan as Fleet has it.
+  const out = event === "Stop" || event === "SessionStart" ? "2>/dev/null" : ">/dev/null 2>&1";
   return `curl -sf -m 4 -X POST -H 'Authorization: Bearer ${token}' -H 'Content-Type: application/json' --data-binary @- '${url}/hook/${agentId}/${event}' ${out} || true ${MARK}`;
 }
 

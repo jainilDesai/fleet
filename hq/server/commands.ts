@@ -96,6 +96,11 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
         )
     );
 
+  const keepSession = (name: string, send: () => void) => {
+    hub.activity("session", null, `${name} was busy, so it keeps its current session for this work`);
+    send();
+  };
+
   const commands: Record<string, (...args: unknown[]) => unknown> = {
     startAgent: (id) => sessions.start(str(id, 80)),
     stopAgent: (id) => sessions.stop(str(id, 80)),
@@ -285,11 +290,11 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
         })
         .filter((c) => c.count);
       const board = planner.createBoard(str(i.title, 80).trim() || prompt.split("\n")[0].slice(0, 60), "planned");
-      board.brief = { prompt, investigate: i.investigate === true, crew, startedAt: null };
+      board.brief = { prompt, investigate: i.investigate === true, crew, startedAt: null, freshLead: i.freshLead !== false };
       hub.emit({ type: "board.updated", board: structuredClone(board) });
       hub.planChanged();
       if (i.startNow === false) return hub.activity("config", null, `Saved "${board.title}" on board ${board.id} for later. Start it from Boards.`);
-      commands.startWork(board.id);
+      return commands.startWork(board.id);
     },
 
     startWork: (id) => {
@@ -301,8 +306,17 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       board.status = "active";
       hub.emit({ type: "board.updated", board: structuredClone(board) });
       hub.planChanged();
-      // Starts the lead if it's stopped; the crew starts on its first task.
-      planner.message("you", lead.id, workMessage(board, added), 6000);
+      const send = () => planner.message("you", lead.id, workMessage(board, added), 6000); // starts the lead if it's stopped
+      const st = hub.status(lead.id);
+      if (board.brief.freshLead === false || st?.session.state !== "running") return void send();
+      // Mid-turn, holding queued messages or your unsent text: restarting would cut that off, so it keeps its session.
+      if (st.state !== "idle" || inbox.pending(lead.id)) return keepSession(lead.name, send);
+      return sessions.hasDraft(lead.id).then(async (draft) => {
+        if (draft) return keepSession(lead.name, send);
+        await sessions.stop(lead.id);
+        hub.activity("session", lead.id, `${lead.name} starts "${board.title}" in a fresh session, with the current plan from Fleet`);
+        send();
+      });
     },
 
     updateBoard: (id, patch) => {

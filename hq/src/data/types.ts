@@ -213,6 +213,8 @@ export interface WorkBrief {
   crew: CrewSlot[];
   /** When it was handed to the lead; null = saved for later. */
   startedAt: string | null;
+  /** false = the lead keeps its current session. Default: a fresh session for this work. */
+  freshLead?: boolean;
 }
 
 export type TaskStatus = "todo" | "in-progress" | "in-review" | "done" | "blocked";
@@ -450,6 +452,8 @@ export interface NewWorkInput {
   crew: CrewSlot[];
   /** false = save it on a planned board and start it later. */
   startNow: boolean;
+  /** false = the lead keeps its current session (follow-up work). Default true. */
+  freshLead?: boolean;
 }
 
 export interface NewAgentInput {
