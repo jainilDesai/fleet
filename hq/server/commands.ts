@@ -1,6 +1,6 @@
 // Browser commands → server actions. Names match OfficeDataSource methods.
 
-import { IDLE_STOP_DAYS, PERMISSION_MODES, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type ProjectConfig, type RemoveAgentOptions, type SaveRoleInput, type WorkflowPatch } from "../src/data/types";
+import { IDLE_STOP_DAYS, PERMISSION_MODES, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type NewWorkInput, type ProjectConfig, type RemoveAgentOptions, type SaveRoleInput, type WorkflowPatch } from "../src/data/types";
 import { LEAD_NAME, OFFICE_NAME_MAX } from "../src/data/names";
 import { run } from "./lib/exec";
 import { agentPalette } from "../src/theme/tokens";
@@ -17,6 +17,44 @@ import { OS, openTerminal } from "../../src/platform.js";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "agent";
 const str = (v: unknown, max = 2000) => (typeof v === "string" ? v.slice(0, max) : "");
+
+/** New work's crew is capped, so one click can't start a dozen sessions. */
+export const CREW_MAX = 6;
+
+/** Adds a worker to the team (its own worktree is made on first start). Used by Settings, New work and the lead's add_agent. */
+export function addTeamAgent(hub: Hub, name: string, role: string, model = "") {
+  const team = hub.snap.config.team;
+  const cleanRole = role.trim().slice(0, 40) || "Developer";
+  // "Implementer", then "Implementer 2", … so a second one of a role is easy to tell apart.
+  let clean = name.trim().slice(0, 40) || cleanRole;
+  const taken = (n: string) => team.some((a) => a.name.toLowerCase() === n.toLowerCase());
+  if (!name.trim()) for (let i = 2; taken(clean); i++) clean = `${cleanRole} ${i}`;
+  let id = slug(clean);
+  for (let i = 2; team.some((a) => a.id === id); i++) id = `${slug(clean)}-${i}`;
+  const used = new Set(team.map((a) => a.color));
+  const color = agentPalette.find((c) => !used.has(c)) ?? agentPalette[team.length % agentPalette.length];
+  const agent = newAgent(id, clean, cleanRole, color, false);
+  agent.model = model;
+  team.push(agent);
+  const status = Hub.freshStatus(id);
+  hub.snap.agents.push(status);
+  hub.configChanged();
+  hub.emit({ type: "agent.updated", agent: structuredClone(status) });
+  hub.activity("config", null, `Added ${agent.name} (${agent.role}). They start when the lead first gives them work.`);
+  return agent;
+}
+
+/** What the lead is told when New work starts. */
+export function workMessage(board: Board, added: AgentConfig[]): string {
+  const b = board.brief!;
+  const crew = added.length
+    ? `Fleet added ${added.map((a) => `${a.name} (id ${a.id}, ${a.role})`).join(", ")} for this work, each in its own new worktree: give this board's tasks to them.`
+    : "No new agents: use the current team.";
+  const kind = b.investigate
+    ? "This is an investigation: find out and report back to the user, with evidence. No code changes, no branches, no PRs."
+    : "Plan it and get the user's approval as usual, then create the tasks on this board.";
+  return `New work from the user, board ${board.id} "${board.title}": ${b.prompt}\n\n${crew} ${kind} If it needs more agents, ask with add_agent.`;
+}
 
 /** AppleScript string literal (same escaping as JSON for what we pass). */
 const osaString = (s: string) => JSON.stringify(s);
@@ -94,19 +132,7 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
 
     addAgent: (raw) => {
       const input = (raw ?? {}) as Partial<NewAgentInput>;
-      const name = str(input.name, 40).trim() || "Agent";
-      let id = slug(name);
-      for (let i = 2; team().some((a) => a.id === id); i++) id = `${slug(name)}-${i}`;
-      const used = new Set(team().map((a) => a.color));
-      const color = agentPalette.find((c) => !used.has(c)) ?? agentPalette[team().length % agentPalette.length];
-      const agent = newAgent(id, name, str(input.role, 40).trim() || "Developer", color, false);
-      agent.model = str(input.model, 60).trim();
-      team().push(agent);
-      const status = Hub.freshStatus(id);
-      hub.snap.agents.push(status);
-      hub.configChanged();
-      hub.emit({ type: "agent.updated", agent: structuredClone(status) });
-      hub.activity("config", null, `Added ${agent.name} (${agent.role}). They start when the lead first gives them work.`);
+      addTeamAgent(hub, str(input.name, 40).trim() || "Agent", str(input.role, 40), str(input.model, 60).trim());
     },
 
     updateAgent: (id, patch) => {
@@ -243,6 +269,41 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
     },
 
     createBoard: (title) => planner.createBoard(str(title, 80)),
+
+    newWork: (raw) => {
+      const i = (raw ?? {}) as Partial<NewWorkInput>;
+      const prompt = str(i.prompt, 4000).trim();
+      if (!prompt) return hub.activity("config", null, "New work needs a prompt.");
+      let room = CREW_MAX;
+      const crew = (Array.isArray(i.crew) ? i.crew : [])
+        .map((c) => ({ role: str(c?.role, 40).trim(), count: Math.max(0, Math.min(3, Math.floor(Number(c?.count) || 0))) }))
+        .filter((c) => c.role && c.count)
+        .map((c) => {
+          const count = Math.min(c.count, room);
+          room -= count;
+          return { ...c, count };
+        })
+        .filter((c) => c.count);
+      const board = planner.createBoard(str(i.title, 80).trim() || prompt.split("\n")[0].slice(0, 60), "planned");
+      board.brief = { prompt, investigate: i.investigate === true, crew, startedAt: null };
+      hub.emit({ type: "board.updated", board: structuredClone(board) });
+      hub.planChanged();
+      if (i.startNow === false) return hub.activity("config", null, `Saved "${board.title}" on board ${board.id} for later. Start it from Boards.`);
+      commands.startWork(board.id);
+    },
+
+    startWork: (id) => {
+      const board = hub.snap.boards.find((b) => b.id === str(id, 20));
+      const lead = team().find((a) => a.isLead);
+      if (!board?.brief || board.brief.startedAt || !lead) return;
+      const added = board.brief.crew.flatMap((c) => Array.from({ length: c.count }, () => addTeamAgent(hub, "", c.role)));
+      board.brief.startedAt = new Date().toISOString();
+      board.status = "active";
+      hub.emit({ type: "board.updated", board: structuredClone(board) });
+      hub.planChanged();
+      // Starts the lead if it's stopped; the crew starts on its first task.
+      planner.message("you", lead.id, workMessage(board, added), 6000);
+    },
 
     updateBoard: (id, patch) => {
       const p = (patch ?? {}) as Partial<Board>;

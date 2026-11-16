@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 import { userInfo } from "node:os";
 import { selectAttention } from "../src/data/attention";
 import { ActionItems } from "./actionItems";
-import { makeCommands } from "./commands";
+import { addTeamAgent, makeCommands } from "./commands";
 import { GitHubSync } from "./githubSync";
 import { makeHandler, type HqHandler } from "./http";
 import { Hub } from "./hub";
@@ -79,6 +79,7 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   planner.actions = new ActionItems(hub, planner);
 
   const handle = makeHandler({ hub, inbox, planner, pageToken: o.pageToken, agentToken: token, commands: makeCommands(hub, sessions, planner, inbox) });
+  planner.actions.onAddAgent = (r) => addTeamAgent(hub, r.name, r.role);
   sessions.startPolling();
   const github = new GitHubSync(hub, planner, repo.github);
   github.start();
@@ -119,6 +120,8 @@ export { newAgent } from "./store";
 export { isApproval, resolutionMessage } from "./actionItems";
 export { roleMd, skillText, writeSkills } from "./agentFiles";
 export { trustSelected } from "./sessions";
-export { makeCommands } from "./commands";
+export { addTeamAgent, makeCommands, workMessage } from "./commands";
+export { Planner } from "./planner";
+export { ActionItems } from "./actionItems";
 export { stopIdleAgents } from "./idleStop";
 export { Hub } from "./hub";

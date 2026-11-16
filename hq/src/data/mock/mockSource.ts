@@ -249,6 +249,26 @@ export function createMockSource(): OfficeDataSource {
       world.emit({ type: "board.updated", board: { ...board } });
     },
 
+    newWork(input) {
+      const title = input.title?.trim() || input.prompt.trim().split("\n")[0].slice(0, 60) || "New work";
+      const base = title.split(/\s+/).map((w) => w[0]).join("").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 3) || "B";
+      let id = base;
+      for (let i = 2; world.snap.boards.some((b) => b.id === id); i++) id = `${base}${i}`;
+      const board: Board = { id, title, status: input.startNow ? "active" : "planned", order: world.snap.boards.length, brief: { prompt: input.prompt, investigate: input.investigate, crew: input.crew, startedAt: null } };
+      world.snap.boards.push(board);
+      world.emit({ type: "board.updated", board: { ...board } });
+      if (input.startNow) this.startWork(id);
+    },
+
+    startWork(boardId) {
+      const board = world.snap.boards.find((b) => b.id === boardId);
+      if (!board?.brief || board.brief.startedAt) return;
+      board.brief.startedAt = new Date().toISOString();
+      board.status = "active";
+      world.emit({ type: "board.updated", board: { ...board } });
+      world.message("you", world.lead().id, board.brief.prompt);
+    },
+
     completeWelcome() {
       // The demo never shows the welcome screen.
     },

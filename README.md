@@ -240,8 +240,8 @@ when it comes from its own `fleet/<project>/…` branch or the agent reported it
 3. **Trust the folder.** On an agent's first start, Claude Code asks whether you trust its new
    worktree. Press **Trust folder** in Action items (or the agent's drawer), or answer it with
    **Open in terminal**.
-4. **Open the CTO.** Click the CTO's card or desk, then the **Messages** tab.
-5. **Type a task**, for example "Add a /health endpoint that returns ok", and send it.
+4. **Give it work.** Open **Boards** and press **+ New work**, or click the CTO and type in its
+   **Messages** tab. For example "Add a /health endpoint that returns ok".
 6. **Watch Action items.** Plans to approve, questions and permission prompts land there; the
    plan wall and the agents' desks show the rest.
 
@@ -279,6 +279,25 @@ your flow.
 **The plan wall.** Boards and tasks the CTO creates, with status (to do, in progress, in
 review, done, blocked) and owner. Tasks update themselves as agents report back and as their
 pull requests are reviewed and merged.
+The top bar's **Wall shows** picker only changes which board the wall displays; it gives
+nobody work.
+
+**New work.** **Boards → + New work** (or **New work** on a running project on the home page)
+opens a prompt for the CTO. Each one gets its own board, and you choose:
+
+- **Investigation only:** the team finds out and reports back, with no code changes, branches
+  or PRs.
+- **Agents:** **Current team** (no new agents or worktrees; it waits behind the current work), or
+  **Add agents for this work**: up to 3 per role and 6 in all. Each new agent gets its own
+  worktree and branch from main, so the work runs next to what the team is already doing.
+  Remove them in Settings → Team when it's done.
+- **Send to the CTO** now, or **Save for later**: the board waits as planned, and **Start now** on
+  it in Boards sends it whenever you want.
+
+The CTO can also ask for more agents, of any role, with the `add_agent` tool. Each request
+lands in Action items as **Approve new agent: …**; Approve adds the agent in its own worktree
+and tells the CTO its id. Agents never share a folder: each one's hooks and Team MCP identity
+live in its own worktree.
 
 ![The Action items list: requests from agents with steps, Done and Dismiss (demo data)](docs/actions.png)
 
@@ -375,7 +394,7 @@ You are QA. You test the branch the lead names and report pass/fail with evidenc
   touched.
 - **Team tools.** Agents talk to Fleet through a small MCP server at
   `http://127.0.0.1:<port>/mcp`: `list_workers`, `get_status`, `list_tasks`, `create_board`,
-  `create_task`, `update_task`, `assign_task` (lead only), `get_my_task`, `set_my_status`,
+  `create_task`, `update_task`, `assign_task`, `add_agent` (lead only), `get_my_task`, `set_my_status`,
   `ask_user` and `send_message`.
 - **Live state.** Claude Code hooks in each worktree post to Fleet when an agent starts a turn,
   uses a tool, needs input or stops. A message for a busy agent is held and handed over when

@@ -10,6 +10,7 @@ import { WelcomeModal } from "./ui/setup/WelcomeModal";
 import { TeamPanel } from "./ui/hud/TeamPanel";
 import { Tooltip } from "./ui/hud/Tooltip";
 import { TopBar } from "./ui/hud/TopBar";
+import { NewWorkDialog } from "./ui/hud/NewWorkDialog";
 import { SettingsModal } from "./ui/settings/SettingsModal";
 
 function useKeyboard() {
@@ -46,6 +47,7 @@ export function App() {
   useKeyboard();
   const ready = useOffice((s) => s.snap !== null);
   const welcome = useOffice((s) => s.live && !!s.snap?.welcome);
+  const newWork = useUi((s) => s.newWork);
 
   return (
     <>
@@ -61,6 +63,7 @@ export function App() {
           <DebugPanel />
           <SettingsModal />
           {welcome && <WelcomeModal />}
+          {newWork && !welcome && <NewWorkDialog />}
           <Tooltip />
         </>
       )}

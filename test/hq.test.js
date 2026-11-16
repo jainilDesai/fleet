@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -316,3 +316,83 @@ test('without GitHub, agents are told there are no PRs and not to push', () => {
   }
 });
 
+
+// A Hub with just what Planner, ActionItems and the New work commands use.
+function teamHub() {
+  const activity = [];
+  const hub = {
+    slug: 'nw-test',
+    repo: { root: '/repo' },
+    snap: { config: { team: [newAgent('cto', 'CTO', 'Lead', '#000', true)], workflow: {} }, agents: [{ agentId: 'cto', session: { state: 'running' } }], boards: [], tasks: [], messages: [], actionItems: [] },
+    emit() {},
+    activity: (_t, _a, text) => activity.push(text),
+    planChanged() {},
+    configChanged() {},
+    historyChanged() {},
+    setStatus() {},
+    name: (id) => hub.snap.config.team.find((a) => a.id === id)?.name ?? id,
+    cfg: (id) => hub.snap.config.team.find((a) => a.id === id),
+    status: (id) => hub.snap.agents.find((a) => a.agentId === id),
+  };
+  const pushed = [];
+  const planner = new Planner(hub, { push: (to, item) => pushed.push({ to, ...item }) });
+  return { hub, planner, pushed, activity };
+}
+
+test('New work: a board with the prompt, the crew added (numbered, capped), and the prompt sent to the lead', () =>
+  withTempHome(() => {
+    const { hub, planner, pushed } = teamHub();
+    const cmd = makeCommands(hub, {}, planner, {});
+    hub.snap.config.team.push(newAgent('implementer', 'Implementer', 'Implementer', '#111', false));
+    cmd.newWork({ prompt: 'Add a /health endpoint\nthat returns ok', investigate: false, crew: [{ role: 'Implementer', count: 9 }, { role: 'QA', count: 3 }, { role: 'Reviewer', count: 2 }, { role: '', count: 1 }], startNow: true });
+    const board = hub.snap.boards[0];
+    assert.equal(board.title, 'Add a /health endpoint');
+    assert.equal(board.status, 'active');
+    assert.ok(board.brief.startedAt);
+    const added = hub.snap.config.team.slice(2).map((a) => a.name);
+    assert.deepEqual(added, ['Implementer 2', 'Implementer 3', 'Implementer 4', 'QA', 'QA 2', 'QA 3'], 'up to 3 per role, 6 in all; a taken name gets a number');
+    assert.equal(hub.snap.agents.length, 7);
+    assert.equal(pushed.length, 1);
+    assert.equal(pushed[0].to, 'cto');
+    assert.match(pushed[0].text, /board .* "Add a \/health endpoint": Add a \/health endpoint\nthat returns ok/);
+    assert.match(pushed[0].text, /Implementer 2 \(id implementer-2, Implementer\)/);
+    assert.match(pushed[0].text, /add_agent/);
+  }));
+
+test('New work saved for later adds nobody until Start, and starts only once', () =>
+  withTempHome(() => {
+    const { hub, planner, pushed } = teamHub();
+    const cmd = makeCommands(hub, {}, planner, {});
+    cmd.newWork({ title: 'Why is checkout slow', prompt: 'Find out why', investigate: true, crew: [], startNow: false });
+    const board = hub.snap.boards[0];
+    assert.equal(board.status, 'planned');
+    assert.equal(board.brief.startedAt, null);
+    assert.equal(pushed.length, 0);
+    cmd.startWork(board.id);
+    cmd.startWork(board.id);
+    assert.equal(pushed.length, 1);
+    assert.equal(hub.snap.config.team.length, 1, 'current team only');
+    assert.match(pushed[0].text, /investigation.*No code changes/);
+    assert.match(pushed[0].text, /No new agents: use the current team/);
+    cmd.newWork({ prompt: '   ', crew: [], startNow: true });
+    assert.equal(hub.snap.boards.length, 1, 'an empty prompt makes no board');
+  }));
+
+test("the lead's add_agent request adds the agent only when you approve it", () =>
+  withTempHome(() => {
+    const { hub, planner, pushed } = teamHub();
+    const actions = new ActionItems(hub, planner);
+    planner.actions = actions;
+    actions.onAddAgent = (r) => addTeamAgent(hub, r.name, r.role); // as in hq/server/index.ts
+    const a = actions.add('cto', 'Approve new agent: Reviewer (Reviewer)', 'Second review', false, true, { name: '', role: 'Reviewer' });
+    assert.equal(a.approval, true);
+    assert.deepEqual(a.addAgent, { name: '', role: 'Reviewer' });
+    const b = actions.add('cto', 'Approve new agent: QA (QA)', 'More tests', false, true, { name: '', role: 'QA' });
+    actions.resolve(b.id, 'dismissed');
+    assert.equal(hub.snap.config.team.length, 1, 'rejected: nobody added');
+    assert.match(pushed.at(-1).text, /rejected/);
+    actions.resolve(a.id, 'done');
+    assert.equal(hub.snap.config.team.length, 2);
+    assert.equal(hub.snap.config.team[1].role, 'Reviewer');
+    assert.match(pushed.at(-1).text, /Fleet added them: id reviewer, role Reviewer/);
+  }));

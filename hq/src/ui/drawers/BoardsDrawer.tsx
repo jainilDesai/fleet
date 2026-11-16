@@ -31,6 +31,9 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
       <DrawerHeader>
         <b className="text-[18px]">Boards</b>
         <span className="text-[14px] text-muted">{boards.length} in {snap.config.project.name}</span>
+        <button className="btn ml-auto px-2 text-[14px]" onClick={() => ui.openNewWork()} title="Send a prompt to the lead, on a new board, optionally with extra agents">
+          + New work
+        </button>
       </DrawerHeader>
       <div className="flex flex-wrap gap-1.5 border-b-[3px] border-ink px-3 py-2">
         {boards.map((b) => (
@@ -58,6 +61,25 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
           <button className="btn ml-auto px-2 text-[13px]" disabled={shownOnWall} onClick={() => ui.showBoardOnWall(board.id)}>
             {shownOnWall ? "On the wall" : "Show on wall"}
           </button>
+        </div>
+      )}
+      {board?.brief && (
+        <div className="border-b-[3px] border-ink px-3 py-2 text-[13px]">
+          <div className="flex items-center gap-2">
+            <b>{board.brief.investigate ? "Investigation" : "New work"}</b>
+            <span className="text-muted">
+              {board.brief.startedAt ? `sent to the lead ${new Date(board.brief.startedAt).toLocaleString()}` : "saved, not started"}
+              {board.brief.crew.length > 0 && ` · agents: ${board.brief.crew.map((c) => `${c.count}× ${c.role}`).join(", ")}`}
+            </span>
+            {!board.brief.startedAt && (
+              <button className="btn ml-auto px-2 text-[13px]" onClick={() => officeActions.startWork(board.id)}>
+                Start now
+              </button>
+            )}
+          </div>
+          <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-muted" title={board.brief.prompt}>
+            {board.brief.prompt}
+          </p>
         </div>
       )}
       <div className="scroll-thin grid min-h-0 flex-1 auto-cols-[minmax(200px,1fr)] grid-flow-col gap-2 overflow-auto bg-[#f7f3ea] p-3">
