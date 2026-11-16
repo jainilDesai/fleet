@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0
+
+- **New work.** Boards → **+ New work** (or **New work** on a running project on the home page)
+  sends a prompt to the CTO on a board of its own. Choose **Investigation only** (report back, no
+  code changes or PRs), and **Current team** or **Add agents for this work**: up to 3 per role
+  and 6 in all, each in its own new worktree, so it runs next to the current work. **Send to the
+  CTO** now, or **Save for later** and press **Start now** on the board whenever you want.
+- **The CTO can ask for agents.** New Team MCP tool `add_agent` (lead only): the request shows in
+  Action items as **Approve new agent: …**; Approve adds the agent in its own worktree and tells
+  the CTO its id, Reject adds nobody.
+- **Clearer plan wall picker.** The top bar picker reads **Wall shows** / **Showing: …**: it only
+  changes which board the office wall shows, and gives nobody work.
+
 ## 0.6.1
 
 - **The logo goes home.** The Fleet logo and name in the top bar link to the home page
