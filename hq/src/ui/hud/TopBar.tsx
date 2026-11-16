@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SimSpeed } from "../../data/source";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
-import { ui, useUi } from "../../store/ui";
+import { ui, useUi, wallBoard } from "../../store/ui";
 import { Logo } from "../Logo";
 
 const SPEEDS: SimSpeed[] = [1, 2, 4];
@@ -66,7 +66,6 @@ export function TopBar() {
   const leadStopped = leadStatus?.session.state === "stopped" || leadStatus?.session.state === "failed";
   const running = snap.agents.filter((a) => a.session.state === "running").length;
   const boards = [...snap.boards].sort((a, b) => a.order - b.order);
-  const active = boards.filter((b) => b.status === "active");
   const openPrs = snap.pullRequests.filter((p) => !p.merged && !p.closed).length;
 
   return (
@@ -99,7 +98,7 @@ export function TopBar() {
           aria-label="Board shown on the plan wall"
           title="Only changes which board the plan wall in the office shows. To give the team work, use New work in Boards."
         >
-          <option value="">Showing: first active ({active[0]?.title ?? "none"})</option>
+          <option value="">Showing: newest active ({wallBoard(boards)?.title ?? "none"})</option>
           {boards.map((b) => (
             <option key={b.id} value={b.id}>
               Showing: {b.title} · {b.status}

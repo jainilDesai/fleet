@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { BoardStatus, Task, TaskStatus } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
-import { ui, useUi } from "../../store/ui";
+import { ui, useUi, wallBoard } from "../../store/ui";
 import { Dot } from "../kit";
 import { DrawerHeader } from "./Drawer";
 
@@ -19,12 +19,14 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
   const snap = useOffice((s) => s.snap);
   const planBoardId = useUi((s) => s.planBoardId);
   const boards = [...(snap?.boards ?? [])].sort((a, b) => a.order - b.order);
-  const [boardId, setBoardId] = useState(initialBoardId ?? boards.find((b) => b.status === "active")?.id ?? boards[0]?.id);
+  // Opens on the newest board: the work you just sent or saved.
+  const [boardId, setBoardId] = useState(initialBoardId ?? boards.at(-1)?.id);
   if (!snap) return null;
   const board = boards.find((b) => b.id === boardId);
+  const lead = snap.config.team.find((a) => a.isLead);
   const tasks = snap.tasks.filter((t) => t.boardId === boardId);
   const cols = COLUMNS.filter((c) => c.id !== "blocked" || tasks.some((t) => t.status === "blocked"));
-  const shownOnWall = (planBoardId ?? boards.find((b) => b.status === "active")?.id) === boardId;
+  const shownOnWall = (planBoardId ?? wallBoard(boards)?.id) === boardId;
 
   return (
     <>
@@ -71,7 +73,13 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
               {board.brief.startedAt ? `sent to the lead ${new Date(board.brief.startedAt).toLocaleString()}` : "saved, not started"}
               {board.brief.crew.length > 0 && ` · agents: ${board.brief.crew.map((c) => `${c.count}× ${c.role}`).join(", ")}`}
             </span>
-            {!board.brief.startedAt && (
+            {board.brief.startedAt ? (
+              lead && (
+                <button className="btn ml-auto px-2 text-[13px]" onClick={() => ui.openAgent(lead.id, "messages")} title={`Plans, answers and results come back in ${lead.name}'s Messages`}>
+                  {lead.name}'s replies
+                </button>
+              )
+            ) : (
               <button className="btn ml-auto px-2 text-[13px]" onClick={() => officeActions.startWork(board.id)}>
                 Start now
               </button>
