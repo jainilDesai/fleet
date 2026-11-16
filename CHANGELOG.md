@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.1
+
+- **A fresh CTO for each New work.** New work restarts an idle CTO in a clean session (a
+  checkbox, on by default), so a long history can't crowd it. Every CTO session, and every
+  context compaction, starts with Fleet's plan: open boards, unfinished tasks and owners, the
+  team and open Action items. A busy CTO keeps its session.
+
 ## 0.8.0
 
 - **+ New project on the home page.** Start Fleet on any folder without a terminal: type the
