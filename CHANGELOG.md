@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+- **+ New project on the home page.** Start Fleet on any folder without a terminal: type the
+  path (with suggestions from folders you've used Claude Code in) or press **Choose…** for the
+  folder picker, and add an optional first task. A folder that isn't a git repo yet, or has no
+  commit, can be set up for you when you tick **Make it a git repo**. Fleet opens the project;
+  after the team setup, **New work** opens with your first task filled in.
+- **New work is easier to follow.** The plan wall shows the newest active board, Boards opens on
+  the newest board, and a started board has a **CTO's replies** button.
+
 ## 0.7.0
 
 - **New work.** Boards → **+ New work** (or **New work** on a running project on the home page)
