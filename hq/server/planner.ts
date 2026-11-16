@@ -154,10 +154,10 @@ export class Planner {
   // ------------------------------------------------------------ messages
 
   /** Records a message, shows it in the office, and delivers it. */
-  message(fromId: string, toRef: string, text: string) {
+  message(fromId: string, toRef: string, text: string, max = 2000) {
     const toId = this.agentId(toRef);
     if (!toId) throw new Error(`No agent "${toRef}". Team: ${this.snap.config.team.map((a) => a.id).join(", ")}`);
-    const clean = text.trim().slice(0, 2000);
+    const clean = text.trim().slice(0, max);
     if (!clean) throw new Error("Empty message");
     this.record(fromId, toId, clean);
     this.hub.activity("message", fromId === "you" ? null : fromId, `${this.hub.name(fromId)} → ${this.hub.name(toId)}: ${clean.slice(0, 80)}`);

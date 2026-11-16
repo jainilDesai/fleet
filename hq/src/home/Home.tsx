@@ -112,6 +112,9 @@ function Card({ p, act }: { p: Project; act: (path: string, slug: string) => Pro
             <a className="btn text-[14px] no-underline" href={p.url ?? undefined}>
               Open
             </a>
+            <a className="btn text-[14px] no-underline" href={p.url ? `${p.url}#new-work` : undefined} title="Opens the project with the New work dialog: a prompt for its lead">
+              New work
+            </a>
             <button className="btn text-[14px]" disabled={busy} onClick={run("stop")} title="Stops this project's Fleet, like fleet --stop. Agents' tmux sessions keep running.">
               Stop
             </button>

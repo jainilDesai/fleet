@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ActionItem } from "../src/data/types";
+import type { ActionItem, AddAgentRequest, AgentConfig } from "../src/data/types";
 import type { Hub } from "./hub";
 import { parseCliJson } from "./lib/json";
 import { projectHome } from "./paths";
@@ -39,6 +39,8 @@ export class ActionItems {
   private waiters = new Map<string, (answer: PermissionAnswer) => void>();
   /** Open permission items: which agent and tool each is for. */
   private pendingTools = new Map<string, { agentId: string; tool: string }>();
+  /** Set by main: adds an agent the lead asked for (add_agent), once you approve. */
+  onAddAgent: ((req: AddAgentRequest) => AgentConfig) | null = null;
 
   constructor(private hub: Hub, private planner: Planner) {
     this.file = join(projectHome(hub.slug), "action-items.json");
@@ -68,7 +70,7 @@ export class ActionItems {
     renameSync(tmp, this.file);
   }
 
-  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean): ActionItem {
+  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean, addAgent?: AddAgentRequest): ActionItem {
     const clean = title.trim().replace(/\s+/g, " ").slice(0, 160);
     if (!clean) throw new Error("Give the action item a short title.");
     const item: ActionItem = {
@@ -79,7 +81,8 @@ export class ActionItems {
       details: details.trim().slice(0, 4000),
       waiting,
       status: "open",
-      ...(isApproval(clean, approval) && { approval: true }),
+      ...((addAgent || isApproval(clean, approval)) && { approval: true }),
+      ...(addAgent && { addAgent }),
       note: null,
       at: new Date().toISOString(),
       closedAt: null,
@@ -155,6 +158,11 @@ export class ActionItems {
       waiter?.(decision === "done" ? { behavior: "allow" } : { behavior: "deny", message: item.note ? `The user denied this: ${item.note}` : "The user denied this." });
       this.hub.activity("config", item.fromId, `You ${decision === "done" ? "allowed" : "denied"}: ${item.title}`);
       return;
+    }
+    if (item.addAgent && decision === "done" && this.onAddAgent) {
+      const a = this.onAddAgent(item.addAgent);
+      const n = item.note ? ` Note from the user: ${item.note}` : "";
+      return this.planner.notify(item.fromId, `The user approved adding ${a.name}. Fleet added them: id ${a.id}, role ${a.role}, in their own new worktree.${n} Give them a task with assign_task; they start on it.`);
     }
     this.planner.notify(item.fromId, resolutionMessage(item, decision));
   }

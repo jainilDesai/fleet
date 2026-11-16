@@ -8,6 +8,7 @@ import type {
   Environment,
   HqConfig,
   NewAgentInput,
+  NewWorkInput,
   OfficeSnapshot,
   RemoveAgentOptions,
   RoleInfo,
@@ -96,6 +97,10 @@ export interface OfficeDataSource {
   updateProject(patch: Partial<ProjectConfig>): void;
   createBoard(title: string): void;
   updateBoard(id: string, patch: Partial<Pick<Board, "title" | "status">>): void;
+  /** New work: a board for it, the extra agents, and the prompt to the lead (now, or saved for later). */
+  newWork(input: NewWorkInput): void;
+  /** Starts New work that was saved for later. */
+  startWork(boardId: string): void;
 
   /** Finishes first-run setup: saves the project's team and review tool. */
   completeWelcome(input: WelcomeInput): void;

@@ -195,6 +195,29 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
   );
 
   server.registerTool(
+    "add_agent",
+    {
+      description:
+        "Lead only. Ask the user to add an agent to the team, of any role (another Implementer for parallel work, a Reviewer, QA, a Designer…). The user sees Approve / Reject in Action items; on Approve, Fleet adds the agent in its own new worktree and messages you its id. Then give it work with assign_task.",
+      inputSchema: {
+        role: z.string().describe("e.g. Implementer, QA, Reviewer, or a new role name"),
+        name: z.string().optional().describe("Defaults to the role, numbered if taken (Implementer 2)"),
+        why: z.string().describe("Why it's needed, and what it will do"),
+      },
+    },
+    guard(({ role, name, why }: { role: string; name?: string; why: string }) => {
+      leadOnly();
+      if (!planner.actions) throw new Error("Action items aren't available.");
+      const r = role.trim().slice(0, 40);
+      if (!r) throw new Error("Give the role.");
+      if (!why.trim()) throw new Error("Say why the agent is needed in why.");
+      const n = (name ?? "").trim().slice(0, 40);
+      const item = planner.actions.add(me, `Approve new agent: ${n || r} (${r})`, `${why.trim()}\n\nFleet adds them in their own new worktree. They start on their first task.`, false, true, { name: n, role: r });
+      return ok(`Asked the user (${item.id}). Fleet messages you when they approve or reject it.`);
+    }),
+  );
+
+  server.registerTool(
     "send_message",
     {
       description: "Send a message to another agent (id, name, or \"lead\"). Fleet delivers it: right away if they are idle, otherwise when their current turn ends.",

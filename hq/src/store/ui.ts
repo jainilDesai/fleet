@@ -36,6 +36,8 @@ interface UiState {
   /** Side drawer width in px, remembered per browser; `maximized` fills the screen. */
   drawerWidth: number;
   drawerMaximized: boolean;
+  /** The New work dialog is open (also opened by the home page with #new-work). */
+  newWork: boolean;
 }
 
 const WIDTH_KEY = "fleet.drawerWidth";
@@ -66,6 +68,7 @@ export const useUi = create<UiState>(() => ({
   debugOpen: false,
   drawerWidth: savedWidth(),
   drawerMaximized: false,
+  newWork: typeof location !== "undefined" && location.hash === "#new-work",
 }));
 
 let nonce = 0;
@@ -103,6 +106,13 @@ export const ui = {
   },
   closeSettings() {
     useUi.setState({ settings: null });
+  },
+  openNewWork() {
+    useUi.setState({ newWork: true });
+  },
+  closeNewWork() {
+    useUi.setState({ newWork: false });
+    if (location.hash === "#new-work") history.replaceState(null, "", location.pathname + location.search);
   },
   setHover(hover: HoverInfo | null) {
     useUi.setState({ hover });

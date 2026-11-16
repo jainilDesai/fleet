@@ -196,6 +196,23 @@ export interface Board {
   title: string; // "Phase 3 — Knowledge + chat"
   status: BoardStatus;
   order: number;
+  /** Set when the board came from New work: the prompt for the lead and the crew to add. */
+  brief?: WorkBrief;
+}
+
+export interface CrewSlot {
+  role: string;
+  count: number;
+}
+
+export interface WorkBrief {
+  prompt: string;
+  /** Read and report only: no code changes, no PRs. */
+  investigate: boolean;
+  /** Extra agents for this work, each in its own new worktree. Empty = the current team does it. */
+  crew: CrewSlot[];
+  /** When it was handed to the lead; null = saved for later. */
+  startedAt: string | null;
 }
 
 export type TaskStatus = "todo" | "in-progress" | "in-review" | "done" | "blocked";
@@ -411,12 +428,29 @@ export interface ActionItem {
   kind?: "permission";
   /** The agent asks the user to approve or reject something (a plan, a deploy): done = approved, dismissed = rejected. */
   approval?: boolean;
+  /** The lead asked to add an agent (Team MCP `add_agent`): approving adds it. */
+  addAgent?: AddAgentRequest;
   note: string | null; // the user's note when closing it
   at: string;
   closedAt: string | null;
 }
 
 // ---------------------------------------------------------------- Inputs
+
+export interface AddAgentRequest {
+  name: string;
+  role: string;
+}
+
+/** The New work dialog: a prompt for the lead, optionally with extra agents. */
+export interface NewWorkInput {
+  title?: string;
+  prompt: string;
+  investigate: boolean;
+  crew: CrewSlot[];
+  /** false = save it on a planned board and start it later. */
+  startNow: boolean;
+}
 
 export interface NewAgentInput {
   name: string;

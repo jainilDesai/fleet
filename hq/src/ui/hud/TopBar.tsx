@@ -91,17 +91,18 @@ export function TopBar() {
       <div className="flex-1" />
 
       <label className="flex shrink-0 items-center gap-2 text-[14px]">
-        <span className="hidden whitespace-nowrap text-muted 2xl:inline">Plan wall</span>
+        <span className="hidden whitespace-nowrap text-muted 2xl:inline">Wall shows</span>
         <select
           className="field w-[140px] py-0 text-[14px] 2xl:w-[190px]"
           value={planBoardId ?? ""}
           onChange={(e) => ui.showBoardOnWall(e.target.value || null)}
           aria-label="Board shown on the plan wall"
+          title="Only changes which board the plan wall in the office shows. To give the team work, use New work in Boards."
         >
-          <option value="">First active ({active[0]?.title ?? "none"})</option>
+          <option value="">Showing: first active ({active[0]?.title ?? "none"})</option>
           {boards.map((b) => (
             <option key={b.id} value={b.id}>
-              {b.title} · {b.status}
+              Showing: {b.title} · {b.status}
             </option>
           ))}
         </select>

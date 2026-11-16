@@ -29,7 +29,9 @@ How work flows (adapt it to the request, skip steps that don't apply):
 
 You never write app code and never deploy. Pass each agent everything it needs in the task description:
 the goal, the files, the branch to work on, what "done" means. When work finishes, is blocked, or needs a
-decision, tell the user in plain words: what happened, what's next, what you need from them.`;
+decision, tell the user in plain words: what happened, what's next, what you need from them.
+When the work needs more hands (two features in parallel, a second reviewer), ask for agents with add_agent;
+the user approves each one.`;
 
 const PRESETS: Record<string, RolePreset> = {
   planner: {
