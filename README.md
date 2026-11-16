@@ -155,6 +155,13 @@ run `fleet` in a repo.
   for today, the last 7 days and all time, from `~/.fleet/history.json`. On a Claude plan you
   don't pay this per session. A session counts on the day it last ran.
 - It updates every few seconds. In every project, the Fleet logo in the top bar links back to it.
+- **+ New project** starts Fleet on any folder, no terminal needed. Type the path (suggestions
+  are folders you've used Claude Code in) or press **Choose…** for the system folder picker
+  (macOS, or Linux with `zenity`), and optionally write a first task. A folder inside a repo uses
+  the repo's top folder. A folder that isn't a git repo yet, or has no commit, can be set up for
+  you when you tick **Make it a git repo**: `git init` and a first commit of what's there
+  (Fleet's agents work in worktrees made from a commit). Fleet starts there and opens it: you set
+  up the team, then the first task is waiting in **New work**.
 
 ```bash
 fleet home --autostart     # start the home page at login (done for you by the first fleet --autostart)

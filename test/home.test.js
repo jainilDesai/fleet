@@ -23,7 +23,7 @@ process.env.FLEET_LAUNCHCTL = fake;
 process.env.FLEET_LAUNCH_AGENTS = agents;
 const launchctlCalls = () => (fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n') : []);
 
-const { projects, costs, ensureHome } = await import('../src/home.js');
+const { projects, costs, ensureHome, createProject } = await import('../src/home.js');
 const { plist, items, readItem, HOME_LABEL, labelFor } = await import('../src/autostart.js');
 
 const projectsDir = path.join(home, '.fleet', 'projects');
@@ -190,4 +190,31 @@ test('fleet outside a repo starts the home page; a project copy takes the next p
     const pid = Number(fs.readFileSync(path.join(home, '.fleet', 'home.pid'), 'utf8'));
     if (pid) process.kill(pid);
   }
+});
+
+test('New project: checks the folder, sets up git only when asked, and starts Fleet on the repo root', async () => {
+  // A commit needs a name and email; CI machines may have none.
+  Object.assign(process.env, { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.com', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.com' });
+  const started = [];
+  const opts = { waitMs: 0, start: (root) => started.push(root) };
+  assert.match((await createProject({ folder: 'relative/path' }, opts)).error, /full path/);
+  assert.match((await createProject({ folder: path.join(home, 'nope') }, opts)).error, /no folder/);
+
+  const plain = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'plain-')));
+  fs.writeFileSync(path.join(plain, 'a.txt'), 'hi');
+  const r = await createProject({ folder: plain }, opts);
+  assert.equal(r.needsInit, 'repo');
+  assert.ok(!fs.existsSync(path.join(plain, '.git')), 'nothing changes without your OK');
+  assert.equal(started.length, 0);
+
+  await createProject({ folder: plain, init: true }, opts);
+  assert.equal(execFileSync('git', ['log', '--format=%s'], { cwd: plain }).toString().trim(), 'Initial commit');
+  assert.equal(execFileSync('git', ['show', '--name-only', '--format=', 'HEAD'], { cwd: plain }).toString().trim(), 'a.txt');
+  assert.deepEqual(started, [plain]);
+
+  const repo = fs.realpathSync(gitRepo('sub'));
+  fs.mkdirSync(path.join(repo, 'src'));
+  const sub = await createProject({ folder: path.join(repo, 'src') }, opts);
+  assert.deepEqual(started.at(-1), repo, 'a subfolder starts Fleet on the repo root');
+  assert.match(sub.error, /didn't start/, 'no copy registered within the wait');
 });

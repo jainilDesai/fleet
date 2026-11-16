@@ -129,7 +129,106 @@ function Card({ p, act }: { p: Project; act: (path: string, slug: string) => Pro
   );
 }
 
+const post = (path: string, body: unknown) =>
+  fetch(`/api/home/${path}`, { method: "POST", headers: { "content-type": "application/json", "x-fleet-token": token }, body: JSON.stringify(body) }).then((r) => r.json());
+
+/** New project: pick a folder, optionally a first task for its lead; Fleet starts there and opens it. */
+function NewProjectDialog({ onClose }: { onClose: () => void }) {
+  const [folder, setFolder] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [suggest, setSuggest] = useState<{ folders: string[]; canPick: boolean }>({ folders: [], canPick: false });
+  const [needsInit, setNeedsInit] = useState<"repo" | "commit" | null>(null);
+  const [init, setInit] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/home/folders")
+      .then((r) => r.json())
+      .then(setSuggest)
+      .catch(() => {});
+  }, []);
+  const choose = async () => {
+    setBusy("Choose the folder in the window that opened…");
+    const r = await post("pick", {}).catch(() => null);
+    setBusy(null);
+    if (r?.path) pick(r.path);
+  };
+  const pick = (f: string) => {
+    setFolder(f);
+    setNeedsInit(null);
+    setInit(false);
+    setError(null);
+  };
+  const start = async () => {
+    setBusy("Starting Fleet in that folder…");
+    setError(null);
+    const r = await post("create", { folder, init }).catch(() => ({ error: "Fleet's home page isn't answering." }));
+    setBusy(null);
+    if (r.url) return void location.assign(`${r.url}#new-work${prompt.trim() ? `=${encodeURIComponent(prompt.trim())}` : ""}`);
+    setError(r.error ?? "Couldn't start it.");
+    if (r.needsInit) setNeedsInit(r.needsInit);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(36,26,46,0.55)] p-4" role="dialog" aria-modal="true" aria-label="New project">
+      <div className="panel scroll-thin max-h-[90vh] w-[min(620px,100%)] overflow-auto p-4">
+        <h3 className="mb-1 text-[20px] font-bold">New project</h3>
+        <p className="mb-3 text-[13px] text-muted">Fleet starts a team on a folder. You set up the team next, then your first task goes to its lead.</p>
+
+        <label className="mb-1 flex flex-col gap-1">
+          <span className="text-[14px] font-semibold">Folder</span>
+          <span className="flex gap-2">
+            <input className="field flex-1 font-term text-[17px]" value={folder} onChange={(e) => pick(e.target.value)} list="fleet-folders" placeholder="~/code/my-app" autoFocus />
+            {suggest.canPick && (
+              <button className="btn" onClick={choose} disabled={!!busy}>
+                Choose…
+              </button>
+            )}
+          </span>
+          <datalist id="fleet-folders">
+            {suggest.folders.map((f) => (
+              <option key={f} value={f} />
+            ))}
+          </datalist>
+        </label>
+        <p className="mb-3 text-[12px] text-muted">Suggestions are folders you've used Claude Code in. Any folder inside a git repo works; Fleet uses the repo's top folder.</p>
+
+        {needsInit && (
+          <label className="mb-3 flex items-start gap-2 border-[3px] border-ink bg-cream-2 p-2 text-[14px]">
+            <input type="checkbox" className="mt-1" checked={init} onChange={(e) => setInit(e.target.checked)} />
+            <span>
+              <b>{needsInit === "repo" ? "Make it a git repo" : "Make the first commit"}</b>
+              <span className="block text-[13px] text-muted">
+                Agents work in git worktrees, which start from a commit. Fleet runs {needsInit === "repo" ? "git init, then " : ""}a first commit of every file in the folder (except what .gitignore lists). Check there are no secrets in it first.
+              </span>
+            </span>
+          </label>
+        )}
+
+        <label className="mb-3 flex flex-col gap-1">
+          <span className="text-[14px] font-semibold">
+            First task <span className="font-normal text-muted">(optional, sent to the lead after you set up the team)</span>
+          </span>
+          <textarea className="field min-h-[90px] text-[15px]" value={prompt} onChange={(e) => setPrompt(e.target.value)} maxLength={4000} placeholder="Add a /health endpoint that returns ok, with a test" />
+        </label>
+
+        {error && <p className="mb-2 text-[14px] text-red">{error}</p>}
+        {busy && <p className="mb-2 text-[14px] text-muted">{busy}</p>}
+        <div className="flex justify-end gap-2">
+          <button className="btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn" onClick={start} disabled={!folder.trim() || !!busy || (!!needsInit && !init)}>
+            Start
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Home() {
+  const [newProject, setNewProject] = useState(false);
   const [state, setState] = useState<HomeState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(
@@ -179,10 +278,15 @@ export function Home() {
         ))}
       </section>
 
-      <div className="panel px-4 py-3 text-[15px]">
-        <b>Start a new project:</b> <span className="kbd">cd &lt;repo&gt; &amp;&amp; fleet</span>
-        {state && !projects.length && <span className="text-muted"> — your projects show up here once Fleet has run in them.</span>}
+      <div className="panel flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 text-[15px]">
+        <button className="btn" onClick={() => setNewProject(true)}>
+          + New project
+        </button>
+        <span className="text-muted">
+          Pick any folder. Or in a terminal: <span className="kbd">cd &lt;repo&gt; &amp;&amp; fleet</span>
+        </span>
       </div>
+      {newProject && <NewProjectDialog onClose={() => setNewProject(false)} />}
     </main>
   );
 }
