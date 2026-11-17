@@ -163,6 +163,7 @@ export const officeActions = {
   updateBoard: source.updateBoard.bind(source),
   newWork: source.newWork.bind(source),
   startWork: source.startWork.bind(source),
+  reopenBoard: source.reopenBoard.bind(source),
   completeWelcome: (input: WelcomeInput) => source.completeWelcome(input),
   resolveActionItem: (id: string, decision: "done" | "dismissed", note?: string) => source.resolveActionItem(id, decision, note),
   setSpeed(speed: SimSpeed) {

@@ -65,7 +65,7 @@ export function TopBar() {
   const leadStatus = snap.agents.find((a) => a.agentId === lead?.id);
   const leadStopped = leadStatus?.session.state === "stopped" || leadStatus?.session.state === "failed";
   const running = snap.agents.filter((a) => a.session.state === "running").length;
-  const boards = [...snap.boards].sort((a, b) => a.order - b.order);
+  const boards = snap.boards.filter((b) => b.status !== "done").sort((a, b) => a.order - b.order);
   const openPrs = snap.pullRequests.filter((p) => !p.merged && !p.closed).length;
 
   return (

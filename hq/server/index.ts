@@ -11,6 +11,7 @@ import { makeHandler, type HqHandler } from "./http";
 import { Hub } from "./hub";
 import { IDLE_CHECK_MS, stopIdleAgents } from "./idleStop";
 import { Refresher } from "./refresh";
+import { BoardCloser } from "./boardDone";
 import { Inbox } from "./inbox";
 import { run } from "./lib/exec";
 import { log } from "./lib/log";
@@ -85,6 +86,17 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   commands.listHandoffs = (id) => hub.emit({ type: "handoffs", agentId: String(id ?? ""), handoffs: refresher.list(String(id ?? "")) });
   const handle = makeHandler({ hub, inbox, planner, pageToken: o.pageToken, agentToken: token, commands, refresher });
   planner.actions.onAddAgent = (r) => addTeamAgent(hub, r.name, r.role);
+  const closer = new BoardCloser(hub, {
+    writeHandoff: (id, reason) => refresher.writeHandoff(id, reason),
+    stop: (id) => sessions.stop(id),
+    inspect: (id) => sessions.inspectWorkspace(id),
+    deleteWorktree: async (id) => void (await sessions.removeResources(id, { deleteFolder: true })),
+    removeAgent: async (id) => void (await commands.removeAgent(id, { deleteFolder: true })),
+    ask: (fromId, title, details, cleanup) => planner.actions!.add(fromId, title, details, false, true, undefined, cleanup),
+    notify: (id, text) => planner.notify(id, text),
+  });
+  planner.onBoardDone = (b) => void closer.finish(b.id).catch((e) => log.warn("board done:", e));
+  planner.actions.onCleanup = (req, approved, fromId) => closer.cleanup(req, approved, fromId);
   sessions.startPolling();
   const github = new GitHubSync(hub, planner, repo.github);
   github.start();
@@ -126,6 +138,7 @@ export { isApproval, resolutionMessage } from "./actionItems";
 export { hookCommand, roleMd, skillText, writeSkills } from "./agentFiles";
 export { handleHook, leadBriefing } from "./hooks";
 export { buildHandoff, contextUse, contextWindow, Refresher } from "./refresh";
+export { BoardCloser, boardAgents, boardSummary } from "./boardDone";
 export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { Planner } from "./planner";

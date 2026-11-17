@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ActionItem, AddAgentRequest, AgentConfig } from "../src/data/types";
+import type { ActionItem, AddAgentRequest, CleanupRequest, AgentConfig } from "../src/data/types";
 import type { Hub } from "./hub";
 import { parseCliJson } from "./lib/json";
 import { projectHome } from "./paths";
@@ -41,6 +41,8 @@ export class ActionItems {
   private pendingTools = new Map<string, { agentId: string; tool: string }>();
   /** Set by main: adds an agent the lead asked for (add_agent), once you approve. */
   onAddAgent: ((req: AddAgentRequest) => AgentConfig) | null = null;
+  /** Set by index.ts: deletes (approved) or keeps the folders a finished board left behind. */
+  onCleanup: ((req: CleanupRequest, approved: boolean, fromId: string) => Promise<void>) | null = null;
 
   constructor(private hub: Hub, private planner: Planner) {
     this.file = join(projectHome(hub.slug), "action-items.json");
@@ -70,7 +72,7 @@ export class ActionItems {
     renameSync(tmp, this.file);
   }
 
-  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean, addAgent?: AddAgentRequest): ActionItem {
+  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean, addAgent?: AddAgentRequest, cleanup?: CleanupRequest): ActionItem {
     const clean = title.trim().replace(/\s+/g, " ").slice(0, 160);
     if (!clean) throw new Error("Give the action item a short title.");
     const item: ActionItem = {
@@ -81,8 +83,9 @@ export class ActionItems {
       details: details.trim().slice(0, 4000),
       waiting,
       status: "open",
-      ...((addAgent || isApproval(clean, approval)) && { approval: true }),
+      ...((addAgent || cleanup || isApproval(clean, approval)) && { approval: true }),
       ...(addAgent && { addAgent }),
+      ...(cleanup && { cleanup }),
       note: null,
       at: new Date().toISOString(),
       closedAt: null,
@@ -159,6 +162,7 @@ export class ActionItems {
       this.hub.activity("config", item.fromId, `You ${decision === "done" ? "allowed" : "denied"}: ${item.title}`);
       return;
     }
+    if (item.cleanup && this.onCleanup) return void this.onCleanup(item.cleanup, decision === "done", item.fromId);
     if (item.addAgent && decision === "done" && this.onAddAgent) {
       const a = this.onAddAgent(item.addAgent);
       const n = item.note ? ` Note from the user: ${item.note}` : "";

@@ -212,6 +212,18 @@ export interface Board {
   order: number;
   /** Set when the board came from New work: the prompt for the lead and the crew to add. */
   brief?: WorkBrief;
+  /** Agents New work added for this board: removed from the team when it's done. */
+  crewIds?: string[];
+  /** When it was marked done; done boards live in Boards → History. */
+  doneAt?: string;
+  /** Written when it was marked done: the request, its tasks and each agent's handoff. */
+  summary?: string;
+}
+
+/** Folders with uncommitted work left by a finished board: approve deletes them. */
+export interface CleanupRequest {
+  boardId: string;
+  agentIds: string[];
 }
 
 export interface CrewSlot {
@@ -446,6 +458,8 @@ export interface ActionItem {
   approval?: boolean;
   /** The lead asked to add an agent (Team MCP `add_agent`): approving adds it. */
   addAgent?: AddAgentRequest;
+  /** A finished board left uncommitted work: approving deletes those folders. */
+  cleanup?: CleanupRequest;
   note: string | null; // the user's note when closing it
   at: string;
   closedAt: string | null;

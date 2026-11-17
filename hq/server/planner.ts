@@ -62,13 +62,19 @@ export class Planner {
     return board;
   }
 
+  /** Set by index.ts: stops and cleans up a board's agents when you mark it done. */
+  onBoardDone: ((board: Board) => void) | null = null;
+
   updateBoard(id: string, patch: Partial<Pick<Board, "title" | "status">>) {
     const board = this.snap.boards.find((b) => b.id === id);
     if (!board) throw new Error(`No board ${id}`);
     if (patch.title?.trim()) board.title = patch.title.trim().slice(0, 80);
+    const finished = patch.status === "done" && board.status !== "done";
     if (patch.status) board.status = patch.status;
+    if (patch.status && patch.status !== "done") delete board.doneAt;
     this.hub.emit({ type: "board.updated", board: { ...board } });
     this.hub.planChanged();
+    if (finished) this.onBoardDone?.(board);
     return board;
   }
 
