@@ -304,6 +304,7 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       if (!board?.brief || board.brief.startedAt || !lead) return;
       const added = board.brief.crew.flatMap((c) => Array.from({ length: c.count }, () => addTeamAgent(hub, "", c.role)));
       board.brief.startedAt = new Date().toISOString();
+      if (added.length) board.crewIds = [...(board.crewIds ?? []), ...added.map((a) => a.id)];
       board.status = "active";
       hub.emit({ type: "board.updated", board: structuredClone(board) });
       hub.planChanged();
@@ -318,6 +319,22 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
         hub.activity("session", lead.id, `${lead.name} starts "${board.title}" in a fresh session, with the current plan from Fleet`);
         send();
       });
+    },
+
+    /** Boards → History → Reopen: active again, and the lead gets the board's summary. */
+    reopenBoard: (id) => {
+      const board = hub.snap.boards.find((b) => b.id === str(id, 20));
+      const lead = team().find((a) => a.isLead);
+      if (!board || board.status !== "done") return;
+      planner.updateBoard(board.id, { status: "active" });
+      hub.activity("config", null, `Reopened board "${board.title}"`);
+      if (lead)
+        planner.message(
+          "you",
+          lead.id,
+          `The user reopened board ${board.id} "${board.title}". Agents added for it earlier were removed when it was done; ask with add_agent if it needs more hands. What it was and what came of it:\n\n${board.summary ?? "(no summary)"}`,
+          6000,
+        );
     },
 
     updateBoard: (id, patch) => {

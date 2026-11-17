@@ -68,6 +68,7 @@ export function createSseSource(token: string): OfficeDataSource {
     updateProject: (patch) => send("updateProject", patch),
     createBoard: (title) => send("createBoard", title),
     updateBoard: (id, patch) => send("updateBoard", id, patch),
+    reopenBoard: (id) => send("reopenBoard", id),
     newWork: (input) => send("newWork", input),
     startWork: (id) => send("startWork", id),
     completeWelcome: (input) => send("completeWelcome", input),

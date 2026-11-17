@@ -86,7 +86,7 @@ export function buildHandoff(hub: Hub, agentId: string, reason: string, git: Git
   const lines = [
     `# Handoff: ${agent?.name ?? agentId} (${agent?.role ?? ""})`,
     "",
-    `Written by Fleet ${at.toISOString()} when this agent's session was refreshed (${reason}). You are the same agent in a fresh session: carry on from here.`,
+    `Written by Fleet ${at.toISOString()}: ${reason}. If this starts your session, you are the same agent continuing in a fresh session: carry on from here.`,
     "",
     "## Your tasks",
     ...(open.length
@@ -154,7 +154,7 @@ export class Refresher {
         const pct = Math.round((use.tokens / contextWindow(use.model)) * 100);
         this.hub.setStatus(agentId, { contextPct: pct });
         const at = this.hub.snap.config.workflow.refreshAtPercent;
-        if (at && pct >= at && !this.wanted.has(agentId)) this.wanted.set(agentId, `context at ${pct}%`);
+        if (at && pct >= at && !this.wanted.has(agentId)) this.wanted.set(agentId, `refreshed automatically, context at ${pct}%`);
       }
       void this.tryWanted(agentId);
     }, SETTLE_MS);
@@ -171,9 +171,9 @@ export class Refresher {
   async request(agentId: string) {
     const agent = this.hub.cfg(agentId);
     if (!agent) return;
-    const r = await this.refresh(agentId, "you pressed refresh");
+    const r = await this.refresh(agentId, "refreshed by the user");
     if (r === "busy") {
-      this.wanted.set(agentId, "you pressed refresh");
+      this.wanted.set(agentId, "refreshed by the user");
       this.hub.activity("session", agentId, `${agent.name} is mid-turn: it refreshes when the turn ends`);
     } else if (r === "draft") this.hub.activity("session", agentId, `${agent.name} has unsent text at its prompt: send or clear it, then refresh`);
     else if (r === "stopped") this.hub.activity("session", agentId, `${agent.name} isn't running: its next start is a fresh session anyway`);
@@ -213,7 +213,7 @@ export class Refresher {
       await this.sessions.stop(agentId);
       this.pending.set(agentId, handoff);
       await this.sessions.start(agentId);
-      this.hub.activity("session", agentId, `${agent.name} refreshed (${reason}): a fresh session with a handoff`);
+      this.hub.activity("session", agentId, `${agent.name}: fresh session with a handoff (${reason})`);
       // A worker mid-task carries on by itself; the lead waits for its next message.
       const task = agent.isLead ? undefined : this.planner.currentTask(agentId);
       if (task?.status === "in-progress")

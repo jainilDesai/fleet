@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -456,7 +456,7 @@ test('a handoff is built from Fleet records: tasks, folder, messages, last reply
   hub.snap.messages.push({ id: 'm1', fromId: 'cto', toId: 'implementer', text: 'Build T1', at: 'x' });
   const text = buildHandoff(hub, 'implementer', 'context at 61%', { branch: 'task/T1', changed: ['src/a.ts'], commits: ['abc Add route'] }, 'Route added, test next.', new Date('2026-11-17T10:00:00Z'));
   assert.match(text, /^# Handoff: Implementer \(Implementer\)/);
-  assert.match(text, /2026-11-17T10:00:00.000Z .*context at 61%/);
+  assert.match(text, /2026-11-17T10:00:00.000Z: context at 61%\./);
   assert.match(text, /T1 \[in-progress\] Endpoint \(board "Health"\) · half done/);
   assert.match(text, /Recently done\n- T0 Setup · PR #7/);
   assert.match(text, /Branch: task\/T1\n- Uncommitted: 1 file\(s\): src\/a\.ts\n- Last commits:\n  - abc Add route/);
@@ -527,6 +527,85 @@ test('a turn that ends above the refresh percent refreshes the agent by itself',
   assert.deepEqual(calls, ['stop', 'start']);
   r.noteHook('cto', 'SessionStart', f);
   assert.equal(st.contextPct, null, 'a new session starts unknown');
+});
+
+// A team with a board B (done) worked on by crew + core, and another active board O.
+function doneSetup() {
+  const t = teamHub();
+  const { hub } = t;
+  for (const [id, name] of [['implementer', 'Implementer'], ['implementer-2', 'Implementer 2'], ['qa', 'QA'], ['reviewer', 'Reviewer']]) {
+    hub.snap.config.team.push(newAgent(id, name, name.replace(/ \d$/, ''), '#111', false));
+    hub.snap.agents.push({ agentId: id, state: 'idle', session: { state: 'running' } });
+  }
+  hub.snap.boards.push({ id: 'B', title: 'Pricing fix', status: 'done', order: 1, crewIds: ['implementer-2'], brief: { prompt: 'Fix pricing', investigate: false, crew: [], startedAt: 'x' } }, { id: 'O', title: 'Other', status: 'planned', order: 2 });
+  hub.snap.tasks.push(
+    { id: 'B-T01', boardId: 'B', title: 'Fix', status: 'done', ownerId: 'implementer-2', needs: [], prNumber: 3 },
+    { id: 'B-T02', boardId: 'B', title: 'Test', status: 'done', ownerId: 'qa', needs: [], prNumber: null },
+    { id: 'B-T03', boardId: 'B', title: 'Review', status: 'done', ownerId: 'reviewer', needs: [], prNumber: null },
+    { id: 'O-T01', boardId: 'O', title: 'Other work', status: 'todo', ownerId: 'reviewer', needs: [], prNumber: null },
+  );
+  return t;
+}
+
+test("a done board's agents: its crew, plus core agents with nothing open on another active board", () => {
+  const { hub } = doneSetup();
+  const board = hub.snap.boards.find((b) => b.id === 'B');
+  assert.deepEqual(boardAgents(hub.snap, board), { crew: ['implementer-2'], core: ['qa', 'reviewer', 'cto'] }, 'O is only planned');
+  hub.snap.boards.find((b) => b.id === 'O').status = 'active';
+  assert.deepEqual(boardAgents(hub.snap, board), { crew: ['implementer-2'], core: ['qa'] }, 'the reviewer and the lead still have an active board');
+});
+
+test('Done: handoffs, a summary, agents stopped, clean folders deleted, crew removed; uncommitted work waits for your answer', async () => {
+  const { hub, planner } = doneSetup();
+  const calls = [];
+  const asked = [];
+  const dirty = new Set(['qa']);
+  const deps = {
+    writeHandoff: async (id) => `# Handoff: ${id}\n\nlast reply of ${id}`,
+    stop: async (id) => calls.push(`stop ${id}`),
+    inspect: async (id) => ({ path: `/w/${id}`, managed: true, exists: true, changedFiles: dirty.has(id) ? 2 : 0 }),
+    deleteWorktree: async (id) => calls.push(`delete ${id}`),
+    removeAgent: async (id) => calls.push(`remove ${id}`),
+    ask: (fromId, title, details, cleanup) => (asked.push({ fromId, title, details, cleanup }), {}),
+    notify: (id, text) => calls.push(`notify ${id}: ${text}`),
+  };
+  const closer = new BoardCloser(hub, deps);
+  await closer.finish('B');
+  const board = hub.snap.boards.find((b) => b.id === 'B');
+  assert.ok(board.doneAt);
+  assert.match(board.summary, /Request: Fix pricing/);
+  assert.match(board.summary, /B-T01 \[done\] Fix · Implementer 2 · PR #3/);
+  assert.match(board.summary, /--- QA ---\nlast reply of qa/);
+  assert.deepEqual(calls.filter((c) => c.startsWith('stop')), ['stop implementer-2', 'stop qa', 'stop reviewer', 'stop cto']);
+  assert.ok(calls.includes('remove implementer-2'), 'crew: removed with its folder');
+  assert.ok(calls.includes('delete reviewer') && calls.includes('delete cto'), 'core: folder deleted, still on the team');
+  assert.ok(!calls.some((c) => c === 'delete qa' || c === 'remove qa'), 'uncommitted work is never deleted silently');
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].fromId, 'cto');
+  assert.deepEqual(asked[0].cleanup, { boardId: 'B', agentIds: ['qa'] });
+  assert.match(asked[0].details, /QA: 2 file\(s\) in \/w\/qa/);
+
+  await closer.cleanup(asked[0].cleanup, false, 'cto');
+  assert.match(calls.at(-1), /^notify cto: The user kept the folders of QA/);
+  await closer.cleanup(asked[0].cleanup, true, 'cto');
+  assert.equal(calls.at(-1), 'delete qa');
+});
+
+test('marking a board done calls the closer once; New work records its crew; Reopen sends the lead the summary', async () => {
+  const { hub, planner, pushed } = teamHub();
+  const cmd = makeCommands(hub, {}, planner, {});
+  const done = [];
+  planner.onBoardDone = (b) => done.push(b.id);
+  await cmd.newWork({ prompt: 'Pricing', crew: [{ role: 'QA', count: 1 }], startNow: true, freshLead: false });
+  const board = hub.snap.boards.at(-1);
+  assert.deepEqual(board.crewIds, ['qa']);
+  cmd.updateBoard(board.id, { status: 'done' });
+  cmd.updateBoard(board.id, { status: 'done' });
+  assert.deepEqual(done, [board.id]);
+  board.summary = 'It went fine.';
+  cmd.reopenBoard(board.id);
+  assert.equal(board.status, 'active');
+  assert.match(pushed.at(-1).text, /reopened board .*It went fine\./s);
 });
 
 test("the lead's add_agent request adds the agent only when you approve it", () =>

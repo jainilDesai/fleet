@@ -1,8 +1,9 @@
 import { useState } from "react";
-import type { BoardStatus, Task, TaskStatus } from "../../data/types";
+import type { Board, BoardStatus, Task, TaskStatus } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, useUi, wallBoard } from "../../store/ui";
 import { Dot } from "../kit";
+import { Markdown } from "../Markdown";
 import { DrawerHeader } from "./Drawer";
 
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
@@ -13,15 +14,20 @@ const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
   { id: "blocked", label: "Blocked", color: "#ff004d" },
 ];
 
-const STATUS_LABEL: Record<BoardStatus, string> = { active: "Active", planned: "Planned", done: "Done" };
+const STATUS_LABEL: Record<BoardStatus, string> = { active: "Active", planned: "Planned", done: "Done → History" };
 
 export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
   const snap = useOffice((s) => s.snap);
   const planBoardId = useUi((s) => s.planBoardId);
-  const boards = [...(snap?.boards ?? [])].sort((a, b) => a.order - b.order);
+  const all = [...(snap?.boards ?? [])].sort((a, b) => a.order - b.order);
+  // Done boards live in History, not in the list.
+  const boards = all.filter((b) => b.status !== "done");
+  const done = all.filter((b) => b.status === "done").sort((a, b) => (b.doneAt ?? "").localeCompare(a.doneAt ?? ""));
   // Opens on the newest board: the work you just sent or saved.
   const [boardId, setBoardId] = useState(initialBoardId ?? boards.at(-1)?.id);
+  const [history, setHistory] = useState(false);
   if (!snap) return null;
+  if (history) return <BoardHistory boards={done} onBack={() => setHistory(false)} />;
   const board = boards.find((b) => b.id === boardId);
   const lead = snap.config.team.find((a) => a.isLead);
   const tasks = snap.tasks.filter((t) => t.boardId === boardId);
@@ -33,7 +39,10 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
       <DrawerHeader>
         <b className="text-[18px]">Boards</b>
         <span className="text-[14px] text-muted">{boards.length} in {snap.config.project.name}</span>
-        <button className="btn ml-auto px-2 text-[14px]" onClick={() => ui.openNewWork()} title="Send a prompt to the lead, on a new board, optionally with extra agents">
+        <button className="btn ml-auto px-2 text-[14px]" onClick={() => setHistory(true)} title="Boards marked done: what came of them, and Reopen">
+          History{done.length ? ` · ${done.length}` : ""}
+        </button>
+        <button className="btn px-2 text-[14px]" onClick={() => ui.openNewWork()} title="Send a prompt to the lead, on a new board, optionally with extra agents">
           + New work
         </button>
       </DrawerHeader>
@@ -51,7 +60,15 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
           <select
             className="field w-[120px] py-0 text-[14px]"
             value={board.status}
-            onChange={(e) => officeActions.updateBoard(board.id, { status: e.target.value as BoardStatus })}
+            onChange={(e) => {
+              const status = e.target.value as BoardStatus;
+              officeActions.updateBoard(board.id, { status });
+              if (status === "done") {
+                setBoardId(boards.find((b) => b.id !== board.id)?.id);
+                setHistory(true);
+              }
+            }}
+            title="Done stops this board's agents (each saves a handoff), deletes their worktrees (asks you first about uncommitted work), and moves the board to History"
           >
             {(Object.keys(STATUS_LABEL) as BoardStatus[]).map((s) => (
               <option key={s} value={s}>
@@ -108,6 +125,45 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
           );
         })}
         {tasks.length === 0 && <p className="col-span-full p-6 text-center text-muted">No tasks on this board yet. The lead adds tasks when a board is active.</p>}
+      </div>
+    </>
+  );
+}
+
+/** Boards marked done, newest first: the summary written when each was done, and Reopen. */
+function BoardHistory({ boards, onBack }: { boards: Board[]; onBack: () => void }) {
+  const live = useOffice((s) => s.live);
+  return (
+    <>
+      <DrawerHeader>
+        <button className="btn px-2 text-[14px]" onClick={onBack}>
+          ← Boards
+        </button>
+        <b className="text-[18px]">History</b>
+        <span className="text-[14px] text-muted">{boards.length} done</span>
+      </DrawerHeader>
+      <div className="scroll-thin min-h-0 flex-1 overflow-y-auto bg-[#f7f3ea] p-3">
+        {boards.length === 0 && <p className="p-6 text-center text-muted">No finished boards yet. Set a board's status to Done and it moves here, with what came of it.</p>}
+        {boards.map((b) => (
+          <div key={b.id} className="mb-3 border-2 border-ink bg-white px-3 py-2 shadow-[0_3px_0_rgba(36,26,46,0.35)]">
+            <div className="flex items-center gap-2">
+              <b className="text-[15px]">{b.title}</b>
+              <span className="text-[12px] text-muted">{b.doneAt ? `done ${new Date(b.doneAt).toLocaleString()}` : "done"}</span>
+              {live && (
+                <button className="btn ml-auto px-2 text-[13px]" onClick={() => officeActions.reopenBoard(b.id)} title="Make it active again: the lead gets this summary and carries on">
+                  Reopen
+                </button>
+              )}
+            </div>
+            {b.summary ? (
+              <div className="mt-1 text-[13px]">
+                <Markdown text={b.summary} lines={6} />
+              </div>
+            ) : (
+              <p className="mt-1 text-[13px] text-muted">{b.brief?.prompt ?? "No summary: it was finished before Fleet kept one."}</p>
+            )}
+          </div>
+        ))}
       </div>
     </>
   );

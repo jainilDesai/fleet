@@ -289,6 +289,15 @@ pull requests are reviewed and merged.
 The top bar's **Wall shows** picker only changes which board the wall displays; it gives
 nobody work.
 
+**Done boards and History.** Set a board's status to **Done** and it leaves the Boards list
+for **Boards → History**, with a summary: the request, its tasks, and each agent's handoff.
+Its agents hand off and stop right away. Agents New work added for it are removed from the
+team; core agents (CTO, Planner…) are only stopped, and only if they have nothing open on
+another active board. Their worktrees are deleted, except a worktree with uncommitted changes:
+for those the CTO asks you in Action items (Approve deletes them, Reject keeps them and the CTO
+asks what to do). Commits stay on their branches either way. **Reopen** in History makes the
+board active again and gives the CTO its summary.
+
 **Refresh (handoffs).** A long context makes an agent slower, pricier and more likely to mix
 things up, so Fleet replaces sessions before that happens. When an agent's context passes 60%
 of its window (Settings → Workflow → Refresh agents at), Fleet waits for its turn to end, saves

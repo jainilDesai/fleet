@@ -255,7 +255,12 @@ export function createMockSource(): OfficeDataSource {
       const board = world.snap.boards.find((b) => b.id === id);
       if (!board) return;
       Object.assign(board, patch);
+      if (patch.status === "done") board.doneAt ??= new Date().toISOString();
       world.emit({ type: "board.updated", board: { ...board } });
+    },
+
+    reopenBoard(boardId) {
+      this.updateBoard(boardId, { status: "active" });
     },
 
     newWork(input) {

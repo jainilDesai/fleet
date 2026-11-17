@@ -106,6 +106,8 @@ export interface OfficeDataSource {
   newWork(input: NewWorkInput): void;
   /** Starts New work that was saved for later. */
   startWork(boardId: string): void;
+  /** Boards → History → Reopen: the board is active again and the lead gets its summary. */
+  reopenBoard(boardId: string): void;
 
   /** Finishes first-run setup: saves the project's team and review tool. */
   completeWelcome(input: WelcomeInput): void;
