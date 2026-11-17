@@ -289,6 +289,16 @@ pull requests are reviewed and merged.
 The top bar's **Wall shows** picker only changes which board the wall displays; it gives
 nobody work.
 
+**Refresh (handoffs).** A long context makes an agent slower, pricier and more likely to mix
+things up, so Fleet replaces sessions before that happens. When an agent's context passes 60%
+of its window (Settings → Workflow → Refresh agents at), Fleet waits for its turn to end, saves
+a handoff, and starts a fresh session that begins from it. **⟳** in any agent's chat, the CTO's
+included, does the same at any time. The handoff is built from Fleet's own records, the same way
+every time: the agent's tasks, its branch, uncommitted files and last commits, its recent
+messages and its last reply. It's the same agent afterwards, with the same name, folder, branch
+and tasks; a worker mid-task carries on by itself. Each chat's **History** tab lists every
+handoff, and the chat header shows how full the context is.
+
 **New work.** **Boards → + New work** (or **New work** on a running project on the home page)
 opens a prompt for the CTO. Each one gets its own board, and you choose:
 

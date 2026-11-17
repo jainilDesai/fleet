@@ -106,20 +106,22 @@ export interface HookResult {
   replyTranscript?: string;
 }
 
-export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: string, body: HookPayload): HookResult {
+export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: string, body: HookPayload, takeHandoff: (id: string) => string | null = () => null): HookResult {
   const st = hub.status(agentId);
   const name = hub.name(agentId);
   if (!st) return { ok: false };
   inbox.noteHook(agentId, event);
 
   switch (event) {
-    case "SessionStart":
+    case "SessionStart": {
       turnOpen.set(agentId, false);
       hub.setStatus(agentId, { state: "idle", note: "Ready" });
       // The lead's memory of the plan is lost on a fresh start and blurred by compaction: hand it Fleet's.
-      if (hub.cfg(agentId)?.isLead)
-        return { ok: true, response: { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: leadBriefing(hub, body.source) } } };
+      // A refreshed session also gets its handoff: what the session it replaces had done.
+      const context = [hub.cfg(agentId)?.isLead ? leadBriefing(hub, body.source) : "", takeHandoff(agentId) ?? ""].filter(Boolean).join("\n\n");
+      if (context) return { ok: true, response: { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: context } } };
       break;
+    }
     case "UserPromptSubmit":
       turnOpen.set(agentId, true);
       hub.setStatus(agentId, { state: "working", note: body.prompt ? clip(body.prompt.replace(/\s+/g, " ")) : null });

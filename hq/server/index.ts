@@ -10,6 +10,7 @@ import { GitHubSync } from "./githubSync";
 import { makeHandler, type HqHandler } from "./http";
 import { Hub } from "./hub";
 import { IDLE_CHECK_MS, stopIdleAgents } from "./idleStop";
+import { Refresher } from "./refresh";
 import { Inbox } from "./inbox";
 import { run } from "./lib/exec";
 import { log } from "./lib/log";
@@ -78,7 +79,11 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   const planner = new Planner(hub, inbox);
   planner.actions = new ActionItems(hub, planner);
 
-  const handle = makeHandler({ hub, inbox, planner, pageToken: o.pageToken, agentToken: token, commands: makeCommands(hub, sessions, planner, inbox) });
+  const refresher = new Refresher(hub, sessions, inbox, planner);
+  const commands = makeCommands(hub, sessions, planner, inbox);
+  commands.refreshAgent = (id) => refresher.request(String(id ?? ""));
+  commands.listHandoffs = (id) => hub.emit({ type: "handoffs", agentId: String(id ?? ""), handoffs: refresher.list(String(id ?? "")) });
+  const handle = makeHandler({ hub, inbox, planner, pageToken: o.pageToken, agentToken: token, commands, refresher });
   planner.actions.onAddAgent = (r) => addTeamAgent(hub, r.name, r.role);
   sessions.startPolling();
   const github = new GitHubSync(hub, planner, repo.github);
@@ -120,6 +125,7 @@ export { newAgent } from "./store";
 export { isApproval, resolutionMessage } from "./actionItems";
 export { hookCommand, roleMd, skillText, writeSkills } from "./agentFiles";
 export { handleHook, leadBriefing } from "./hooks";
+export { buildHandoff, contextUse, contextWindow, Refresher } from "./refresh";
 export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { Planner } from "./planner";

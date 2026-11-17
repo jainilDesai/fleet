@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentStatus, type OfficeSnapshot } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, type AgentTab } from "../../store/ui";
@@ -52,12 +52,14 @@ export function AgentDrawer({ id, initialTab }: { id: string; initialTab?: Agent
           tabs={[
             { id: "task", label: "Task" },
             { id: "messages", label: `Messages${unread ? ` · ${unread}` : ""}` },
+            { id: "history", label: "History" },
           ]}
         />
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === "task" && <TaskTab snap={snap} agent={agent} taskId={status.currentTaskId} />}
         {tab === "messages" && <MessagesTab snap={snap} agent={agent} />}
+        {tab === "history" && <HistoryTab agent={agent} />}
       </div>
     </>
   );
@@ -94,6 +96,21 @@ function SessionBar({ agent, status }: { agent: AgentConfig; status: AgentStatus
       {s.state === "running" && live && (
         <button className="btn px-2 text-[12px]" onClick={() => officeActions.openInIterm(agent.id)} title="Attach a terminal window to the agent's tmux session">
           Open in terminal
+        </button>
+      )}
+      {status.contextPct != null && (
+        <span className="chip shrink-0 text-[12px]" style={{ ["--c" as string]: status.contextPct >= 50 ? "#ffa300" : "#c2c3c7" }} title="How full this agent's context was at its last turn. Fleet refreshes it at the percent set in Settings → Workflow.">
+          Context {status.contextPct}%
+        </span>
+      )}
+      {s.state === "running" && live && (
+        <button
+          className="btn px-2 text-[14px] leading-none"
+          aria-label="Refresh"
+          onClick={() => officeActions.refreshAgent(agent.id)}
+          title="Refresh: save a handoff of what it did, then replace this session with a fresh one that starts from the handoff. Waits for the current turn to end."
+        >
+          ⟳
         </button>
       )}
       {s.state === "running" || s.state === "starting" ? (
@@ -248,6 +265,36 @@ function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig
       <p className="bg-cream px-2 pb-1.5 text-[11px] text-muted">
         {running ? "Delivered now if idle, otherwise when the current turn ends." : `${agent.name} isn't running; it starts and gets this message.`}
       </p>
+    </div>
+  );
+}
+
+/** The handoffs saved each time this agent's session was refreshed (or its board finished), newest first. */
+function HistoryTab({ agent }: { agent: AgentConfig }) {
+  const list = useOffice((s) => s.handoffs[agent.id]);
+  const live = useOffice((s) => s.live);
+  useEffect(() => officeActions.listHandoffs(agent.id), [agent.id]);
+  if (!list?.length)
+    return (
+      <p className="p-6 text-center text-[15px] text-muted">
+        No handoffs yet. Each time {agent.name} is refreshed (⟳, or automatically when its context fills up), Fleet saves what it had done here, and the fresh session starts from it.
+      </p>
+    );
+  return (
+    <div className="scroll-thin h-full overflow-y-auto p-3">
+      {live && (
+        <button className="btn mb-2 px-2 text-[12px]" onClick={() => officeActions.listHandoffs(agent.id)}>
+          Reload
+        </button>
+      )}
+      {list.map((h, i) => (
+        <details key={h.at} open={i === 0} className="mb-2 border-2 border-ink bg-white px-3 py-2">
+          <summary className="cursor-pointer text-[14px] font-semibold">{h.text.match(/^Written by Fleet (\S+)/m)?.[1]?.replace("T", " ").slice(0, 16) ?? h.at}</summary>
+          <div className="mt-2 text-[14px]">
+            <Markdown text={h.text} />
+          </div>
+        </details>
+      ))}
     </div>
   );
 }

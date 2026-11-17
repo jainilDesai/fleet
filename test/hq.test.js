@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -431,6 +431,93 @@ test("the lead's SessionStart gets Fleet's plan as context; a worker's doesn't",
     assert.equal(handleHook(hub, inbox, 'implementer', 'SessionStart', {}).response, undefined);
     assert.match(hookCommand('http://x', 't', 'cto', 'SessionStart'), /2>\/dev\/null \|\|/, 'its output reaches Claude Code');
   }));
+
+test('context use is read from the transcript; the window depends on the model', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-ctx-'));
+  const f = path.join(dir, 't.jsonl');
+  const turn = (n) => JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5-5', usage: { input_tokens: 2, cache_read_input_tokens: n, cache_creation_input_tokens: 100 } } });
+  fs.writeFileSync(f, [turn(1000), JSON.stringify({ type: 'user', message: { content: 'hi' } }), turn(599_898), '{"cut'].join('\n'));
+  assert.deepEqual(contextUse(f), { tokens: 600_000, model: 'claude-opus-5-5' }, 'the last assistant turn counts');
+  assert.equal(contextUse(path.join(dir, 'missing.jsonl')), null);
+  assert.equal(contextWindow('claude-opus-5-5'), 1_000_000);
+  assert.equal(contextWindow('claude-haiku-5-5'), 200_000);
+  assert.equal(contextWindow('claude-sonnet-4-5'), 200_000);
+  assert.equal(contextWindow('claude-sonnet-4-5[1m]'), 1_000_000);
+});
+
+test('a handoff is built from Fleet records: tasks, folder, messages, last reply', () => {
+  const { hub } = teamHub();
+  hub.snap.config.team.push(newAgent('implementer', 'Implementer', 'Implementer', '#111', false));
+  hub.snap.boards.push({ id: 'B', title: 'Health', status: 'active', order: 0 });
+  hub.snap.tasks.push(
+    { id: 'T1', boardId: 'B', title: 'Endpoint', status: 'in-progress', ownerId: 'implementer', needs: [], prNumber: null, note: 'half done' },
+    { id: 'T0', boardId: 'B', title: 'Setup', status: 'done', ownerId: 'implementer', needs: [], prNumber: 7 },
+  );
+  hub.snap.messages.push({ id: 'm1', fromId: 'cto', toId: 'implementer', text: 'Build T1', at: 'x' });
+  const text = buildHandoff(hub, 'implementer', 'context at 61%', { branch: 'task/T1', changed: ['src/a.ts'], commits: ['abc Add route'] }, 'Route added, test next.', new Date('2026-11-17T10:00:00Z'));
+  assert.match(text, /^# Handoff: Implementer \(Implementer\)/);
+  assert.match(text, /2026-11-17T10:00:00.000Z .*context at 61%/);
+  assert.match(text, /T1 \[in-progress\] Endpoint \(board "Health"\) · half done/);
+  assert.match(text, /Recently done\n- T0 Setup · PR #7/);
+  assert.match(text, /Branch: task\/T1\n- Uncommitted: 1 file\(s\): src\/a\.ts\n- Last commits:\n  - abc Add route/);
+  assert.match(text, /CTO → Implementer: Build T1/);
+  assert.match(text, /last reply before the refresh\nRoute added, test next\./);
+});
+
+test('refresh: a quiet agent gets a saved handoff and a fresh session that starts with it; a busy one waits', async () => {
+  const { hub, planner, activity } = teamHub();
+  hub.home = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-home-'));
+  hub.snap.config.team.push(newAgent('implementer', 'Implementer', 'Implementer', '#111', false));
+  const st = { agentId: 'implementer', state: 'idle', session: { state: 'running', workspace: null } };
+  hub.snap.agents.push(st);
+  hub.snap.boards.push({ id: 'B', title: 'Health', status: 'active', order: 0 });
+  hub.snap.tasks.push({ id: 'T1', boardId: 'B', title: 'Endpoint', status: 'in-progress', ownerId: 'implementer', needs: [], prNumber: null });
+  hub.snap.config.workflow.refreshAtPercent = 60;
+  const calls = [];
+  const sessions = { hasDraft: async () => false, stop: async (id) => calls.push(`stop ${id}`), start: async (id) => calls.push(`start ${id}`) };
+  const notified = [];
+  const r = new Refresher(hub, sessions, { pending: () => 0 }, { notify: (id, t) => notified.push(t), currentTask: (id) => planner.currentTask(id) });
+
+  st.state = 'working';
+  await r.request('implementer');
+  assert.deepEqual(calls, [], 'mid-turn: nothing yet');
+  assert.ok(activity.some((a) => /refreshes when the turn ends/.test(a)));
+
+  st.state = 'idle';
+  assert.equal(await r.refresh('implementer', 'you pressed refresh'), 'done');
+  assert.deepEqual(calls, ['stop implementer', 'start implementer']);
+  assert.match(notified[0], /carry on with T1/);
+  const saved = r.list('implementer');
+  assert.equal(saved.length, 1);
+  assert.match(saved[0].text, /T1 \[in-progress\] Endpoint/);
+
+  const inbox = { noteHook() {} };
+  const res = handleHook(hub, inbox, 'implementer', 'SessionStart', { source: 'startup' }, (id) => r.takeHandoff(id));
+  assert.match(res.response.hookSpecificOutput.additionalContext, /^# Handoff: Implementer/);
+  assert.equal(r.takeHandoff('implementer'), null, 'given once');
+
+  st.session.state = 'stopped';
+  assert.equal(await r.refresh('implementer', 'x'), 'stopped');
+});
+
+test('a turn that ends above the refresh percent refreshes the agent by itself', async () => {
+  const { hub, planner } = teamHub();
+  hub.home = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-home-'));
+  hub.snap.config.workflow.refreshAtPercent = 60;
+  const st = hub.status('cto');
+  st.state = 'idle';
+  hub.setStatus = (id, patch) => Object.assign(hub.status(id), patch);
+  const f = path.join(hub.home, 't.jsonl');
+  fs.writeFileSync(f, JSON.stringify({ type: 'assistant', message: { model: 'claude-opus-5-5', usage: { input_tokens: 610_000 } } }) + '\n');
+  const calls = [];
+  const r = new Refresher(hub, { hasDraft: async () => false, stop: async () => calls.push('stop'), start: async () => calls.push('start') }, { pending: () => 0 }, planner);
+  r.noteHook('cto', 'Stop', f);
+  await new Promise((ok) => setTimeout(ok, 3300));
+  assert.equal(st.contextPct, 61);
+  assert.deepEqual(calls, ['stop', 'start']);
+  r.noteHook('cto', 'SessionStart', f);
+  assert.equal(st.contextPct, null, 'a new session starts unknown');
+});
 
 test("the lead's add_agent request adds the agent only when you approve it", () =>
   withTempHome(() => {

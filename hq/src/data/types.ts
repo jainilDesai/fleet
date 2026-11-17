@@ -119,6 +119,16 @@ export interface NewMcpServer {
 export type ReviewTool = "coderabbit" | "greptile" | "copilot" | "human" | "custom";
 export type DeployTool = "instacloud" | "vercel" | "custom";
 
+/** Settings → Workflow → Refresh agents at: percent of the context window, 0 = never. */
+export const REFRESH_AT_PERCENT = [50, 60, 70, 80, 0] as const;
+
+/** A saved handoff: what an agent's session had done when it was replaced (Refresh) or its board finished. */
+export interface Handoff {
+  /** Its file name: the time it was written. */
+  at: string;
+  text: string;
+}
+
 /** Settings → Workflow → Stop idle agents after: days, 0 = never. */
 export const IDLE_STOP_DAYS = [1, 3, 7, 0] as const;
 
@@ -128,6 +138,8 @@ export interface WorkflowConfig {
   deploy: { enabled: boolean; tool: DeployTool; command: string; perAgentEnvironments: boolean };
   /** Fleet stops a running agent that has been idle this many days (one of IDLE_STOP_DAYS; 0 = never). */
   stopIdleAfterDays: number;
+  /** Fleet refreshes an agent (fresh session + handoff) once its context passes this percent (REFRESH_AT_PERCENT; 0 = never). */
+  refreshAtPercent: number;
 }
 
 export interface ProjectConfig {
@@ -187,6 +199,8 @@ export interface AgentStatus {
   stateSince: string; // ISO time
   note: string | null; // e.g. "Asking: max PDF size 10 MB or 20 MB?"
   session: SessionInfo;
+  /** Percent of the context window used at the last turn (null = unknown or a new session). */
+  contextPct?: number | null;
 }
 
 export type BoardStatus = "active" | "planned" | "done";
@@ -484,4 +498,5 @@ export interface WorkflowPatch {
   merge?: Partial<WorkflowConfig["merge"]>;
   deploy?: Partial<WorkflowConfig["deploy"]>;
   stopIdleAfterDays?: number;
+  refreshAtPercent?: number;
 }

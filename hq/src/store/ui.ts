@@ -7,7 +7,7 @@ export type DrawerState =
   | { kind: "actions" }
   | null;
 
-export type AgentTab = "task" | "messages";
+export type AgentTab = "task" | "messages" | "history";
 export type SettingsTab = "team" | "workflow" | "boards" | "project";
 
 /** Something in the office the camera can fly to. */
