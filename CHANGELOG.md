@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.0
+
+- **Refresh with a handoff.** ⟳ in every agent's chat, the CTO's included, replaces its
+  session with a fresh one that starts from a handoff Fleet writes from its own records: tasks,
+  branch, uncommitted files, last commits, recent messages, last reply. Fleet does it by itself
+  once an agent's context passes 60% (Settings → Workflow → Refresh agents at). Same agent, same
+  folder and tasks. The chat header shows context use; a History tab lists the handoffs.
+- **Done boards move to Boards → History.** Marking a board Done saves its agents' handoffs and
+  a summary, stops them, removes the agents New work added for it, and deletes their worktrees.
+  Uncommitted work is never deleted without asking: the CTO asks you in Action items. **Reopen**
+  in History makes the board active again and gives the CTO its summary.
+
 ## 0.8.1
 
 - **A fresh CTO for each New work.** New work restarts an idle CTO in a clean session (a
