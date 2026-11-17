@@ -3,8 +3,9 @@
 // The handoff is built from Fleet's own records, so it is the same shape every time and needs no AI turn.
 // Saved in the project's home (handoffs/<agent>/<time>.md); the new session gets it at SessionStart.
 
-import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, sep } from "node:path";
 import type { Handoff } from "../src/data/types";
 import type { Hub } from "./hub";
 import { lastAssistantText } from "./hooks";
@@ -61,6 +62,16 @@ export interface GitState {
   branch: string;
   changed: string[];
   commits: string[];
+}
+
+/** A hook's transcript_path is read only if it is a Claude Code transcript: a .jsonl under ~/.claude/projects. */
+export function isTranscript(path: string): boolean {
+  try {
+    const real = realpathSync(path);
+    return real.endsWith(".jsonl") && real.startsWith(realpathSync(join(homedir(), ".claude", "projects")) + sep);
+  } catch {
+    return false;
+  }
 }
 
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -132,7 +143,8 @@ export class Refresher {
 
   /** Every hook passes through: remembers the transcript; after a turn, checks context use. */
   noteHook(agentId: string, event: string, transcriptPath?: string) {
-    if (transcriptPath) this.transcripts.set(agentId, transcriptPath);
+    if (transcriptPath && isTranscript(transcriptPath)) this.transcripts.set(agentId, transcriptPath);
+    else transcriptPath = undefined;
     if (event === "SessionStart") return this.hub.setStatus(agentId, { contextPct: null });
     if (event !== "Stop") return;
     // Claude Code may still be writing the turn to the transcript when Stop fires: read it after a moment.
