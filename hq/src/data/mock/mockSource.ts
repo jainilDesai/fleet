@@ -77,6 +77,14 @@ export function createMockSource(): OfficeDataSource {
       if (!world.cfg(id)?.isLead) sim.startWorker(id, 1.5);
     },
 
+    refreshAgent(id) {
+      world.activity("session", id, `${world.name(id)} refreshed: a fresh session with a handoff (demo)`);
+    },
+
+    listHandoffs(id) {
+      world.emit({ type: "handoffs", agentId: id, handoffs: [] });
+    },
+
     stopAgent(id) {
       const st = world.status(id);
       if (!st) return;
@@ -218,6 +226,7 @@ export function createMockSource(): OfficeDataSource {
       Object.assign(wf.merge, patch.merge);
       Object.assign(wf.deploy, patch.deploy);
       if (patch.stopIdleAfterDays !== undefined) wf.stopIdleAfterDays = patch.stopIdleAfterDays;
+      if (patch.refreshAtPercent !== undefined) wf.refreshAtPercent = patch.refreshAtPercent;
       world.configChanged();
       world.syncEnvironments();
       sim.workflowChanged();

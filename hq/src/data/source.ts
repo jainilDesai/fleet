@@ -11,7 +11,7 @@ import type {
   NewWorkInput,
   OfficeSnapshot,
   RemoveAgentOptions,
-  RoleInfo,
+  RoleInfo, Handoff,
   SaveRoleInput,
   SetupState,
   WelcomeInput,
@@ -27,6 +27,7 @@ export type OfficeEvent =
   | { type: "setup.updated"; setup: SetupState }
   | { type: "workspace.info"; info: WorkspaceInfo }
   | { type: "roles"; roles: RoleInfo[] }
+  | { type: "handoffs"; agentId: string; handoffs: Handoff[] }
   | { type: "config.updated"; config: HqConfig }
   | { type: "agent.updated"; agent: AgentStatus }
   | { type: "agent.removed"; agentId: string }
@@ -66,6 +67,10 @@ export interface OfficeDataSource {
   // agent sessions
   startAgent(id: string): void;
   stopAgent(id: string): void;
+  /** Replace the agent's session with a fresh one that carries a handoff. */
+  refreshAgent(id: string): void;
+  /** Ask for the agent's saved handoffs (answered with a "handoffs" event). */
+  listHandoffs(id: string): void;
   /** Stops every running agent session. */
   stopTeam(): void;
   /** Stops every running agent session, then Fleet itself. */

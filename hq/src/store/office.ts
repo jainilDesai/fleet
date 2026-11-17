@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { createMockSource } from "../data/mock/mockSource";
 import type { ConnectionStatus, DataPreset, OfficeDataSource, OfficeEvent, SimSpeed } from "../data/source";
 import { createSseSource } from "../data/sse/sseSource";
-import type { AgentConfig, AgentStatus, OfficeSnapshot, RemoveAgentOptions, RoleInfo, SaveRoleInput, WelcomeInput, WorkspaceInfo } from "../data/types";
+import type { AgentConfig, AgentStatus, Handoff, OfficeSnapshot, RemoveAgentOptions, RoleInfo, SaveRoleInput, WelcomeInput, WorkspaceInfo } from "../data/types";
 
 export interface LoggedEvent {
   n: number;
@@ -22,6 +22,7 @@ interface OfficeState {
   live: boolean; // connected to Fleet's server (vs. the demo mock)
   workspaceInfo: Record<string, WorkspaceInfo>; // answers to inspectWorkspace
   roles: RoleInfo[] | null; // answer to listRoles
+  handoffs: Record<string, Handoff[]>; // answers to listHandoffs, by agent
   connection: ConnectionStatus;
   quit: boolean; // you quit Fleet from this page
   source: OfficeDataSource;
@@ -48,6 +49,7 @@ export const useOffice = create<OfficeState>(() => ({
   live: token !== null,
   workspaceInfo: {},
   roles: null,
+  handoffs: {},
   connection: "connecting",
   quit: false,
   source,
@@ -69,6 +71,7 @@ function reduce(snap: OfficeSnapshot, e: OfficeEvent): OfficeSnapshot {
       return e.snapshot;
     case "workspace.info":
     case "roles":
+    case "handoffs":
       return snap;
     case "setup.updated":
       return { ...snap, setup: e.setup };
@@ -105,6 +108,7 @@ function handle(e: OfficeEvent) {
     return;
   }
   if (e.type === "roles") return void useOffice.setState({ roles: e.roles });
+  if (e.type === "handoffs") return void useOffice.setState((s) => ({ handoffs: { ...s.handoffs, [e.agentId]: e.handoffs } }));
   useOffice.setState((s) => {
     const base = s.snap ?? (e.type === "snapshot" ? e.snapshot : null);
     if (!base) return {};
@@ -133,6 +137,8 @@ export function connectOffice() {
 export const officeActions = {
   startAgent: (id: string) => source.startAgent(id),
   stopAgent: (id: string) => source.stopAgent(id),
+  refreshAgent: (id: string) => source.refreshAgent(id),
+  listHandoffs: (id: string) => source.listHandoffs(id),
   stopTeam: () => source.stopTeam(),
   quitFleet() {
     if (useOffice.getState().live) useOffice.setState({ quit: true });

@@ -1,6 +1,6 @@
 // Browser commands → server actions. Names match OfficeDataSource methods.
 
-import { IDLE_STOP_DAYS, PERMISSION_MODES, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type NewWorkInput, type ProjectConfig, type RemoveAgentOptions, type SaveRoleInput, type WorkflowPatch } from "../src/data/types";
+import { IDLE_STOP_DAYS, PERMISSION_MODES, REFRESH_AT_PERCENT, type AgentConfig, type AgentPatch, type ReviewTool, type WelcomeInput, type Board, type NewAgentInput, type NewWorkInput, type ProjectConfig, type RemoveAgentOptions, type SaveRoleInput, type WorkflowPatch } from "../src/data/types";
 import { LEAD_NAME, OFFICE_NAME_MAX } from "../src/data/names";
 import { run } from "./lib/exec";
 import { agentPalette } from "../src/theme/tokens";
@@ -245,6 +245,7 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       if (p.merge?.by === "human" || p.merge?.by === "lead") wf.merge.by = p.merge.by;
       Object.assign(wf.deploy, p.deploy ?? {});
       if ((IDLE_STOP_DAYS as readonly unknown[]).includes(p.stopIdleAfterDays)) wf.stopIdleAfterDays = p.stopIdleAfterDays!;
+      if ((REFRESH_AT_PERCENT as readonly unknown[]).includes(p.refreshAtPercent)) wf.refreshAtPercent = p.refreshAtPercent!;
       hub.configChanged();
       // The lead was told the old rule; tell it the new one now, so no restart is needed.
       const lead = hub.snap.config.team.find((a) => a.isLead);

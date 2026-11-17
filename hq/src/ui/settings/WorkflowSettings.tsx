@@ -1,4 +1,4 @@
-import { IDLE_STOP_DAYS, type DeployTool, type ReviewTool } from "../../data/types";
+import { IDLE_STOP_DAYS, REFRESH_AT_PERCENT, type DeployTool, type ReviewTool } from "../../data/types";
 import { deployToolLabel, officeActions, reviewToolLabel, useOffice } from "../../store/office";
 import { Field, SectionTitle } from "../kit";
 import { CommitInput, Toggle } from "./controls";
@@ -86,7 +86,7 @@ export function WorkflowSettings() {
       </section>
 
       <section className="border-[3px] border-ink bg-white p-3">
-        <SectionTitle>Idle agents</SectionTitle>
+        <SectionTitle>Agent sessions</SectionTitle>
         <Field
           label="Stop idle agents after"
           hint="An idle agent doesn't act on its own, but its session holds memory, and waking it days later re-sends a long context that's no longer cached, which is expensive. Fleet checks every 15 minutes and stops a running agent that has done nothing that long: no turn, no question waiting, no open Action item, no unsent text at its prompt. Start team or a new task starts it again as a fresh session with its role and task."
@@ -95,6 +95,18 @@ export function WorkflowSettings() {
             {IDLE_STOP_DAYS.map((d) => (
               <option key={d} value={d}>
                 {d === 0 ? "Never" : `${d} day${d === 1 ? "" : "s"}`}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field
+          label="Refresh agents at"
+          hint="A long context makes an agent slower, pricier and more likely to mix things up. Once an agent's context passes this much of its window, Fleet saves a handoff (its tasks, branch, uncommitted files, recent messages, last reply) and replaces the session with a fresh one that starts from it, when its turn ends. Same agent, same folder and tasks. ⟳ in an agent's chat does it any time; History shows every handoff."
+        >
+          <select className="field w-[200px]" value={wf.refreshAtPercent} onChange={(e) => officeActions.updateWorkflow({ refreshAtPercent: Number(e.target.value) })}>
+            {REFRESH_AT_PERCENT.map((p) => (
+              <option key={p} value={p}>
+                {p === 0 ? "Never" : `${p}% of its context`}
               </option>
             ))}
           </select>

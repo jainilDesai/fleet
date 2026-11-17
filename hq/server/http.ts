@@ -9,6 +9,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { OfficeEvent } from "../src/data/source";
 import { describePermission, handleHook, lastAssistantText, type HookPayload } from "./hooks";
+import type { Refresher } from "./refresh";
 import type { Hub } from "./hub";
 import type { Inbox } from "./inbox";
 import { handleMcp } from "./mcp";
@@ -43,6 +44,7 @@ interface Options {
   pageToken: string;
   agentToken: string;
   commands: Record<string, (...args: unknown[]) => unknown>;
+  refresher?: Refresher;
 }
 
 /** How long Fleet holds a permission request for your answer. Claude Code's hook timeout is 600s. */
@@ -157,7 +159,8 @@ export function makeHandler(o: Options): HqHandler {
         // A permission prompt answered in the terminal: the tool ran, or the agent moved on.
         if (event === "PostToolUse") o.planner.actions?.answeredInTerminal(id, payload.tool_name ?? "");
         else if (event === "Stop" || event === "UserPromptSubmit" || event === "SessionEnd") o.planner.actions?.answeredInTerminal(id);
-        const r = handleHook(o.hub, o.inbox, id, event ?? "", payload);
+        const r = handleHook(o.hub, o.inbox, id, event ?? "", payload, (a) => o.refresher?.takeHandoff(a) ?? null);
+        if (r.ok) o.refresher?.noteHook(id, event ?? "", payload.transcript_path);
         if (r.replyTranscript) postReply(o.planner, decodeURIComponent(agentId ?? ""), r.replyTranscript);
         if (!r.ok) send(res, 404, "");
         else if (r.response) send(res, 200, JSON.stringify(r.response), "application/json");
