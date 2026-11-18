@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.10.0
+
+- **New work gets a team of its own.** By default, New work starts a second Fleet on the same
+  repo: a new CTO on its own page and port, with only that work's tasks and its own card on the
+  home page. It starts with the CTO alone (add agents up front if you like), asks you for each
+  agent it needs, and removes them with the new `remove_agent` once they're done. **This team**
+  keeps the old flow.
+- **Answers to agents' questions reach them.** An agent's multiple-choice question
+  (AskUserQuestion) shows in Action items with its options, and your answer goes straight back.
+  A note you write with **Allow** now reaches the agent too.
+- **Long messages arrive whole.** Messages are delivered as one paste, so long and multi-line
+  ones are no longer cut off or split; a message is never typed twice.
+- **Tasks stay right.** `set_my_status` names its task, so a result can't land on another one.
+  Notes keep up to 2,000 characters and messages 8,000, and agents are told when theirs was
+  trimmed. A PR an agent reported stays on its task, and a PR closed without merging tells the
+  CTO its task is still open.
+- **A quieter CTO chat.** It shows your conversation; its turns for teammates and Fleet notices
+  are one click away under **Team activity**. Every substantial reply in a turn is kept.
+- **Agents can run the tests.** Each worktree gets your installed `node_modules` as a
+  copy-on-write clone (no extra disk) and copies of your gitignored env files.
+- **Done asks first** when a board has agents mid-turn, uncommitted work or unfinished tasks,
+  and **Reopen** restarts the agents Done stopped.
+- **Fixes:** Haiku 5's context is 1M, not 200k (it showed 82% on a fresh session and would have
+  refreshed after every turn); the CTO's session-start context stays under Claude Code's limit;
+  log lines have timestamps; GitHub errors are logged in full; history keeps 500 messages.
+
 ## 0.9.0
 
 - **Refresh with a handoff.** ⟳ in every agent's chat, the CTO's included, replaces its
