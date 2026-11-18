@@ -45,7 +45,8 @@ export async function doneBlockers(hub: Hub, board: Board, inspect: Deps["inspec
     const ws = await inspect(id);
     if (ws?.exists && ws.managed && ws.changedFiles) dirty.push({ name: hub.name(id), files: ws.changedFiles });
   }
-  return { boardId: board.id, title: board.title, running: running.map((id) => hub.name(id)), dirty };
+  const openTasks = hub.snap.tasks.filter((t) => t.boardId === board.id && t.status !== "done").map((t) => `${t.id} [${t.status}] ${clip(t.title, 60)}`);
+  return { boardId: board.id, title: board.title, running: running.map((id) => hub.name(id)), dirty, openTasks };
 }
 
 interface Deps {
@@ -82,7 +83,9 @@ export class BoardCloser {
     hub.emit({ type: "board.updated", board: structuredClone(board) });
     hub.planChanged();
 
-    for (const id of ids) if (hub.status(id)?.session.state !== "stopped") await this.deps.stop(id);
+    const running = ids.filter((id) => hub.status(id)?.session.state !== "stopped");
+    for (const id of running) await this.deps.stop(id);
+    board.stoppedIds = running.filter((id) => !crew.includes(id)); // crew are removed below
     const dirty: { id: string; path: string; files: number }[] = [];
     let deleted = 0;
     for (const id of ids) {

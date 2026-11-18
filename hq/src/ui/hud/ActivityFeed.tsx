@@ -6,6 +6,8 @@ import { ago, useNow } from "../kit";
 const ICON: Record<ActivityType, [string, string]> = {
   "task.assigned": ["▸", "#c9b6ff"],
   "task.started": ["●", "#29adff"],
+  "task.review": ["◎", "#ffa300"],
+  "task.finished": ["✓", "#00e436"],
   "task.created": ["+", "#c9b6ff"],
   "agent.needs-input": ["!", "#ff5c86"],
   "agent.answered": ["✓", "#6cf08a"],

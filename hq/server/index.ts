@@ -126,15 +126,15 @@ export async function startHq(o: HqOptions): Promise<Hq> {
 }
 
 // For Fleet's tests (test/hq.test.js).
-export { describePermission, lastAssistantText } from "./hooks";
+export { describePermission, lastAssistantText, turnReplies } from "./hooks";
 export { draftFromPromptLine } from "./backends/tmuxCli";
 export { branchAgent } from "./github";
 export { projectSlug } from "./paths";
 export { agentBranch } from "./workspace";
-export { passedNotice } from "./githubSync";
+export { GitHubSync, passedNotice } from "./githubSync";
 export { deleteRole, listRoles, rolePreset, saveRole } from "./roles";
 export { newAgent } from "./store";
-export { isApproval, resolutionMessage } from "./actionItems";
+export { isApproval, parseQuestions, resolutionMessage } from "./actionItems";
 export { hookCommand, roleMd, skillText, writeSkills } from "./agentFiles";
 export { handleHook, leadBriefing } from "./hooks";
 export { buildHandoff, contextUse, contextWindow, Refresher } from "./refresh";

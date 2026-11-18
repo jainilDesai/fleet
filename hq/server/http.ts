@@ -8,8 +8,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { OfficeEvent } from "../src/data/source";
-import { describePermission, handleHook, lastAssistantText, type HookPayload } from "./hooks";
+import { describePermission, handleHook, turnReplies, type HookPayload } from "./hooks";
 import type { Refresher } from "./refresh";
+import { parseQuestions } from "./actionItems";
 import type { Hub } from "./hub";
 import type { Inbox } from "./inbox";
 import { handleMcp } from "./mcp";
@@ -70,7 +71,8 @@ async function holdPermission(o: Options, agentId: string, req: IncomingMessage,
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end("{}");
   };
-  if (!actions || !status) return noDecision();
+  // Its questions come to Action items through the PreToolUse hook (holdQuestion); if that timed out, ask in the terminal.
+  if (!actions || !status || body.tool_name === "AskUserQuestion") return noDecision();
   o.inbox.noteHook(agentId, "PermissionRequest");
   const { title, details } = describePermission(body.tool_name ?? "a tool", body.tool_input);
   const before = { state: status.state, note: status.note };
@@ -90,12 +92,53 @@ async function holdPermission(o: Options, agentId: string, req: IncomingMessage,
   res.end(JSON.stringify({ hookSpecificOutput: { hookEventName: "PermissionRequest", decision } }));
 }
 
+/**
+ * Claude Code's PreToolUse hook for AskUserQuestion: hold it, show the questions in Action items, and
+ * answer them with your choices (allow + updatedInput.answers, as the hooks reference documents).
+ * No answer in time, or the agent goes away: no decision, and the agent asks in its terminal.
+ */
+async function holdQuestion(o: Options, agentId: string, req: IncomingMessage, res: ServerResponse) {
+  const actions = o.planner.actions;
+  const status = o.hub.status(agentId);
+  let body: HookPayload;
+  try {
+    body = JSON.parse((await readBody(req)) || "{}") as HookPayload;
+  } catch {
+    res.writeHead(400);
+    return void res.end();
+  }
+  const noDecision = () => {
+    if (res.writableEnded) return;
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end("{}");
+  };
+  const questions = parseQuestions(body.tool_input);
+  if (!actions || !status || body.tool_name !== "AskUserQuestion" || !questions) return noDecision();
+  const before = { state: status.state, note: status.note };
+  const { item, answer } = actions.askQuestions(agentId, questions);
+  o.hub.setStatus(agentId, { state: "needs-input", note: `Asking: ${item.title}` });
+  const timer = setTimeout(() => actions.expirePermission(item.id, "No answer in time; the agent asked in its terminal instead."), PERMISSION_WAIT_MS);
+  res.on("close", () => {
+    if (!res.writableEnded) actions.expirePermission(item.id, "The agent stopped waiting for this.");
+  });
+  const answers = await answer;
+  clearTimeout(timer);
+  if (!answers) return noDecision();
+  o.hub.setStatus(agentId, { state: before.state === "needs-input" ? "working" : before.state, note: "Continuing after your answer" });
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(
+    JSON.stringify({
+      hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", updatedInput: { ...(body.tool_input as object), answers } },
+    }),
+  );
+}
+
 /** Posts the agent's answer to you, once it's in the transcript (checked after 1.5s, then 5s). */
 function postReply(planner: Planner, agentId: string, transcript: string, delays = [1500, 5000]) {
   const [wait, ...rest] = delays;
   setTimeout(() => {
-    const text = lastAssistantText(transcript);
-    if (text) planner.reply(agentId, text);
+    const texts = turnReplies(transcript);
+    if (texts.length) for (const t of texts) planner.reply(agentId, t);
     else if (rest.length) postReply(planner, agentId, transcript, rest);
   }, wait);
 }
@@ -150,6 +193,10 @@ export function makeHandler(o: Options): HqHandler {
       const [, , agentId, event] = url.pathname.split("/");
       if (event === "PermissionRequest") {
         await holdPermission(o, decodeURIComponent(agentId ?? ""), req, res);
+        return true;
+      }
+      if (event === "AskUserQuestion") {
+        await holdQuestion(o, decodeURIComponent(agentId ?? ""), req, res);
         return true;
       }
       try {

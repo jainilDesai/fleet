@@ -176,6 +176,7 @@ export const officeActions = {
   reopenBoard: source.reopenBoard.bind(source),
   completeWelcome: (input: WelcomeInput) => source.completeWelcome(input),
   resolveActionItem: (id: string, decision: "done" | "dismissed", note?: string) => source.resolveActionItem(id, decision, note),
+  answerQuestion: (id: string, answers: Record<string, string>) => source.answerQuestion(id, answers),
   setSpeed(speed: SimSpeed) {
     source.dev?.setSpeed(speed);
     useOffice.setState({ speed });

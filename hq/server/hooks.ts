@@ -5,6 +5,10 @@ import { closeSync, openSync, readSync, statSync } from "node:fs";
 import type { Hub } from "./hub";
 import type { Inbox } from "./inbox";
 
+/** SessionStart context Fleet adds, at most (Claude Code's limit is 10,000 characters). */
+const CONTEXT_MAX = 9500;
+const clipTo = (s: string, n: number) => (s.length > n ? s.slice(0, Math.max(0, n - 1)) + "…" : s);
+
 export interface HookPayload {
   prompt?: string;
   tool_name?: string;
@@ -39,6 +43,21 @@ export function describePermission(tool: string, input: Record<string, unknown> 
 
 /** The agent's final text in its last turn, from the end of its transcript (JSONL). Null if none. */
 export function lastAssistantText(transcriptPath: string): string | null {
+  return turnTexts(transcriptPath).at(-1) ?? null;
+}
+
+/**
+ * What the agent said to you in its last turn, oldest first: its final text, plus earlier texts of
+ * at least `min` characters (a report written before more tool calls).
+ * shortcut: length tells a report from narration like "Let me check."; a short earlier answer is dropped.
+ */
+export function turnReplies(transcriptPath: string, min = 300): string[] {
+  const texts = turnTexts(transcriptPath);
+  return texts.filter((t, i) => i === texts.length - 1 || t.length >= min);
+}
+
+/** Every assistant text of the last turn, oldest first. */
+function turnTexts(transcriptPath: string): string[] {
   let text: string;
   try {
     const size = statSync(transcriptPath).size;
@@ -52,8 +71,9 @@ export function lastAssistantText(transcriptPath: string): string | null {
     }
     text = buf.toString("utf8");
   } catch {
-    return null;
+    return [];
   }
+  const found: string[] = [];
   const lines = text.split("\n").filter(Boolean).reverse();
   for (const line of lines) {
     let entry: { type?: string; message?: { content?: unknown } };
@@ -63,12 +83,12 @@ export function lastAssistantText(transcriptPath: string): string | null {
       continue; // the first line of the window may be cut
     }
     // A real prompt (string content) means we've gone back past the last turn.
-    if (entry.type === "user" && typeof entry.message?.content === "string") return null;
+    if (entry.type === "user" && typeof entry.message?.content === "string") break;
     if (entry.type !== "assistant" || !Array.isArray(entry.message?.content)) continue;
     const parts = (entry.message.content as { type?: string; text?: string }[]).filter((c) => c.type === "text" && c.text?.trim()).map((c) => c.text!.trim());
-    if (parts.length) return parts.join("\n\n");
+    if (parts.length) found.push(parts.join("\n\n"));
   }
-  return null;
+  return found.reverse();
 }
 
 /** The plan as Fleet has it, for the lead at session start: open boards, their unfinished tasks, the team, open action items. */
@@ -118,7 +138,10 @@ export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: strin
       hub.setStatus(agentId, { state: "idle", note: "Ready" });
       // The lead's memory of the plan is lost on a fresh start and blurred by compaction: hand it Fleet's.
       // A refreshed session also gets its handoff: what the session it replaces had done.
-      const context = [hub.cfg(agentId)?.isLead ? leadBriefing(hub, body.source) : "", takeHandoff(agentId) ?? ""].filter(Boolean).join("\n\n");
+      // Claude Code moves context over 10,000 characters into a file and shows a preview: stay under it.
+      const handoff = clipTo(takeHandoff(agentId) ?? "", 5500);
+      const briefing = hub.cfg(agentId)?.isLead ? clipTo(leadBriefing(hub, body.source), CONTEXT_MAX - handoff.length - 2) : "";
+      const context = [briefing, handoff].filter(Boolean).join("\n\n");
       if (context) return { ok: true, response: { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: context } } };
       break;
     }

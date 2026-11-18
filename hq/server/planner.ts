@@ -6,6 +6,12 @@ import type { Hub } from "./hub";
 import type { ActionItems } from "./actionItems";
 import type { Inbox } from "./inbox";
 
+/** Longest task note and message kept; the MCP tools say so and report when text was trimmed. */
+export const NOTE_MAX = 2000;
+export const MESSAGE_MAX = 8000;
+/** Messages kept in history (Messages tabs, handoffs). */
+export const MESSAGES_KEPT = 500;
+
 export interface NewTask {
   boardId?: string;
   title: string;
@@ -123,17 +129,22 @@ export class Planner {
     this.hub.planChanged();
     this.hub.activity("task.assigned", byId === "you" ? null : byId, `${this.hub.name(byId)} assigned ${task.id} ${task.title} to ${agent.name}`);
     const by = byId === "you" ? "The user (your human)" : this.hub.name(byId);
-    const text = `${by} assigned you ${task.id} (${task.title}). Pull main, start ${task.id}. Call the hq get_my_task tool for the details.`;
+    const text = `${by} assigned you ${task.id} (${task.title}). Update your branch from the task's base (main unless the task names another), then start ${task.id}. Call the hq get_my_task tool for the details.`;
     this.record(byId, agentId, `Start ${task.id}: ${task.title}`);
     this.inbox.push(agentId, { fromId: byId, kind: "assign", text });
     return task;
   }
 
-  setStatus(agentId: string, status: Extract<TaskStatus, "in-progress" | "blocked" | "in-review" | "done">, note?: string, prNumber?: number): Task {
-    const task = this.currentTask(agentId);
+  /** `taskId` names which of the agent's tasks; without it, the current one. */
+  setStatus(agentId: string, status: Extract<TaskStatus, "in-progress" | "blocked" | "in-review" | "done">, note?: string, prNumber?: number, taskId?: string): Task {
+    const task = taskId ? this.task(taskId) : this.currentTask(agentId);
+    if (taskId && (!task || task.ownerId !== agentId)) {
+      const mine = this.snap.tasks.filter((t) => t.ownerId === agentId && t.status !== "done").map((t) => t.id);
+      throw new Error(`${taskId} isn't one of your tasks. Yours: ${mine.join(", ") || "none"}.`);
+    }
     if (!task) throw new Error("You have no task. Ask the lead for one.");
     task.status = status;
-    task.note = note?.slice(0, 300) || null;
+    if (note !== undefined) task.note = note.trim().slice(0, NOTE_MAX) || null;
     if (prNumber) task.prNumber = prNumber;
     if (status === "done") this.hub.setStatus(agentId, { currentTaskId: null });
     else this.hub.setStatus(agentId, { currentTaskId: task.id });
@@ -141,7 +152,8 @@ export class Planner {
     this.hub.planChanged();
     const name = this.hub.name(agentId);
     const words = { "in-progress": "started", blocked: "is blocked on", "in-review": "sent for review", done: "finished" }[status];
-    this.hub.activity(status === "blocked" ? "agent.needs-input" : "task.started", agentId, `${name} ${words} ${task.id}${note ? `: ${note}` : ""}`);
+    const kind = { blocked: "agent.needs-input", "in-progress": "task.started", "in-review": "task.review", done: "task.finished" } as const;
+    this.hub.activity(kind[status], agentId, `${name} ${words} ${task.id}${note ? `: ${note}` : ""}`);
     // Let the lead know when work is blocked or ready for review.
     const lead = this.snap.config.team.find((a) => a.isLead);
     if (lead && lead.id !== agentId && (status === "blocked" || status === "in-review" || status === "done"))
@@ -160,7 +172,7 @@ export class Planner {
   // ------------------------------------------------------------ messages
 
   /** Records a message, shows it in the office, and delivers it. */
-  message(fromId: string, toRef: string, text: string, max = 2000) {
+  message(fromId: string, toRef: string, text: string, max = MESSAGE_MAX) {
     const toId = this.agentId(toRef);
     if (!toId) throw new Error(`No agent "${toRef}". Team: ${this.snap.config.team.map((a) => a.id).join(", ")}`);
     const clean = text.trim().slice(0, max);
@@ -174,7 +186,7 @@ export class Planner {
   /** An agent's answer to you, read from its transcript: shown in Messages, not delivered anywhere. */
   reply(fromId: string, text: string) {
     if (!this.hub.cfg(fromId) || !text.trim()) return;
-    this.record(fromId, "you", text.trim().slice(0, 4000));
+    this.record(fromId, "you", text.trim().slice(0, MESSAGE_MAX));
     this.hub.activity("message", fromId, `${this.hub.name(fromId)} → You: ${text.trim().slice(0, 80)}`);
   }
 
@@ -188,7 +200,7 @@ export class Planner {
   private record(fromId: string, toId: string, text: string) {
     this.seq += 1;
     const msg = { id: `m${Date.now().toString(36)}${this.seq}`, at: now(), fromId, toId, text };
-    this.snap.messages = [msg, ...this.snap.messages].slice(0, 100);
+    this.snap.messages = [msg, ...this.snap.messages].slice(0, MESSAGES_KEPT);
     this.hub.historyChanged();
     this.hub.emit({ type: "message", message: msg });
   }

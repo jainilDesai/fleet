@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -625,7 +625,7 @@ test('Done waits for your confirmation while an agent is mid-turn or has uncommi
   dirty.add('reviewer');
   await cmd.updateBoard('B', { status: 'done' });
   assert.equal(board.status, 'active', 'held back');
-  assert.deepEqual(events.find((e) => e.type === 'board.doneCheck').check, { boardId: 'B', title: 'Pricing fix', running: ['QA'], dirty: [{ name: 'Reviewer', files: 3 }] });
+  assert.deepEqual(events.find((e) => e.type === 'board.doneCheck').check, { boardId: 'B', title: 'Pricing fix', running: ['QA'], dirty: [{ name: 'Reviewer', files: 3 }], openTasks: [] });
   assert.deepEqual(done, []);
 
   await cmd.updateBoard('B', { status: 'done' }, { confirmed: true });
@@ -672,6 +672,107 @@ test("an agent's worktree gets your node_modules where the package files match",
     assert.deepEqual(await shareDependencies(root, wt, path.join(tmp, 'staging')), [], 'an existing node_modules is never replaced');
   }
   assert.deepEqual(fs.existsSync(path.join(tmp, 'staging')) ? fs.readdirSync(path.join(tmp, 'staging')) : [], [], 'nothing left behind');
+});
+
+test("an agent's AskUserQuestion: your answers go back to it; closing it unanswered sends it to the terminal", () =>
+  withTempHome(async () => {
+    const { hub, planner, pushed } = teamHub();
+    fs.mkdirSync(path.join(process.env.HOME, '.fleet', 'projects', hub.slug), { recursive: true });
+    const actions = new ActionItems(hub, planner);
+    planner.actions = actions;
+    const input = { questions: [{ question: 'Which store?', header: 'Store', options: [{ label: 'Dev', description: 'safe' }, { label: 'Live' }], multiSelect: false }, { question: 'Areas?', options: [{ label: 'Admin' }, { label: 'Widget' }], multiSelect: true }] };
+    const qs = parseQuestions(input);
+    assert.equal(qs.length, 2);
+    assert.deepEqual(qs[0].options[0], { label: 'Dev', description: 'safe' });
+    assert.equal(parseQuestions({ questions: 'nope' }), null);
+
+    const a = actions.askQuestions('cto', qs);
+    assert.equal(a.item.kind, 'question');
+    actions.answerQuestions(a.item.id, { 'Which store?': 'Dev', 'Areas?': 'Admin, Widget', 'Not asked': 'x' });
+    assert.deepEqual(await a.answer, { 'Which store?': 'Dev', 'Areas?': 'Admin, Widget' });
+    assert.equal(a.item.status, 'done');
+
+    const b = actions.askQuestions('cto', qs);
+    actions.resolve(b.item.id, 'dismissed');
+    assert.equal(await b.answer, null, 'closed without answers: the terminal asks');
+
+    const p = actions.askPermission('cto', 'Bash', 'Run npm test', 'npm test');
+    actions.resolve(p.item.id, 'done', 'use the dev store');
+    assert.deepEqual(await p.answer, { behavior: 'allow' });
+    assert.match(pushed.at(-1).text, /About "Run npm test" \(allowed\): use the dev store/, 'a note with Allow reaches the agent');
+  }));
+
+test('set_my_status names its task; a wrong one is refused; no note keeps the old note', () => {
+  const { hub, planner } = teamHub();
+  hub.snap.config.team.push(newAgent('qa', 'QA', 'QA', '#111', false));
+  hub.snap.agents.push({ agentId: 'qa', state: 'idle', currentTaskId: 'R-T2', session: { state: 'running' } });
+  hub.setStatus = (id, patch) => Object.assign(hub.status(id), patch);
+  hub.snap.tasks.push(
+    { id: 'R-T1', boardId: 'R', title: 'Test #584', status: 'in-progress', ownerId: 'qa', needs: [], note: 'started' },
+    { id: 'R-T2', boardId: 'R', title: 'Test #585', status: 'in-progress', ownerId: 'qa', needs: [] },
+    { id: 'R-T3', boardId: 'R', title: 'Other', status: 'todo', ownerId: 'cto', needs: [] },
+  );
+  planner.setStatus('qa', 'done', 'PASS ' + 'x'.repeat(1500), undefined, 'R-T1');
+  assert.equal(hub.snap.tasks[0].status, 'done');
+  assert.equal(hub.snap.tasks[1].status, 'in-progress', 'the current task is untouched');
+  assert.equal(hub.snap.tasks[0].note.length, 1505, 'long notes are kept');
+  assert.throws(() => planner.setStatus('qa', 'done', 'x', undefined, 'R-T3'), /isn't one of your tasks. Yours: R-T2/);
+  planner.setStatus('qa', 'in-review', undefined, 7, 'R-T2');
+  planner.setStatus('qa', 'blocked', 'flaky', undefined, 'R-T2');
+  planner.setStatus('qa', 'in-progress', undefined, undefined, 'R-T2');
+  assert.equal(hub.snap.tasks[1].note, 'flaky', 'no note: the last one stays');
+});
+
+test("the lead's replies in a turn: its final text and every earlier report, not its narration", () => {
+  const report = 'R'.repeat(400);
+  const file = write([user('report please'), assistant(text('Let me check.'), toolUse), toolResult, assistant(text(report), toolUse), toolResult, assistant(text('Done.'))]);
+  assert.deepEqual(turnReplies(file), [report, 'Done.']);
+  assert.equal(lastAssistantText(file), 'Done.');
+});
+
+test('Done counts unfinished tasks; Reopen restarts the agents Done stopped', async () => {
+  const { hub, planner, pushed } = doneSetup();
+  const board = hub.snap.boards.find((b) => b.id === 'B');
+  board.status = 'active';
+  hub.status('cto').state = 'idle';
+  hub.snap.tasks.find((t) => t.id === 'B-T02').status = 'in-review';
+  const events = [];
+  hub.emit = (e) => events.push(e);
+  const started = [];
+  const cmd = makeCommands(hub, { inspectWorkspace: async () => null, start: async (id) => started.push(id) }, planner, {});
+  await cmd.updateBoard('B', { status: 'done' });
+  assert.equal(board.status, 'active');
+  assert.deepEqual(events.at(-1).check.openTasks, ['B-T02 [in-review] Test']);
+
+  board.status = 'done';
+  board.stoppedIds = ['qa', 'cto'];
+  board.crewIds = ['gone-1'];
+  cmd.reopenBoard('B');
+  assert.deepEqual(started, ['qa'], 'the lead starts with its message instead');
+  assert.equal(board.stoppedIds, undefined);
+  assert.match(pushed.at(-1).text, /Restarted: QA\. Removed when it was done .*: gone-1\./);
+});
+
+test("PR sync never moves a PR onto another task, nor replaces a done task's PR", () => {
+  const { hub, planner, pushed } = teamHub();
+  hub.snap.tasks.push(
+    { id: 'R-T31', boardId: 'R', title: 'Plan', status: 'done', ownerId: 'cto', needs: [], prNumber: 570 },
+    { id: 'R-T40', boardId: 'R', title: 'Build', status: 'in-review', ownerId: 'cto', needs: [], prNumber: 573 },
+    { id: 'R-T50', boardId: 'R', title: 'Fix', status: 'in-review', ownerId: 'cto', needs: [], prNumber: 586 },
+  );
+  hub.snap.config.workflow = { review: { tool: 'human', enabled: false } };
+  const sync = new GitHubSync(hub, planner, null);
+  const pr = (number, taskId, extra = {}) => ({ number, taskId, merged: false, closed: false, ...extra });
+  sync.syncTask(pr(573, 'R-T31', { merged: true }));
+  assert.equal(hub.snap.tasks[0].prNumber, 570, 'a done task keeps its PR');
+  sync.syncTask(pr(573, 'R-T50', { merged: true }));
+  assert.equal(hub.snap.tasks[2].status, 'in-review', 'PR 573 belongs to R-T40');
+  sync.syncTask(pr(588, 'R-T50'));
+  assert.equal(hub.snap.tasks[2].prNumber, 586, "a follow-up PR doesn't replace the reported one");
+  sync.syncTask(pr(573, 'R-T40', { merged: true }));
+  assert.equal(hub.snap.tasks[1].status, 'done');
+  sync.react(pr(586, 'R-T50'), pr(586, 'R-T50', { closed: true, title: 'x' }));
+  assert.match(pushed.at(-1).text, /PR #586 was closed without merging; R-T50 is still in-review/);
 });
 
 test("the lead's add_agent request adds the agent only when you approve it", () =>

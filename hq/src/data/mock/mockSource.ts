@@ -220,6 +220,13 @@ export function createMockSource(): OfficeDataSource {
       world.message("you", item.fromId, decision === "done" ? `${item.approval ? "Approved" : "Done"}: ${item.title}${item.note ? ` (${item.note})` : ""}` : `${item.approval ? "Rejected" : "Dismissed"}: ${item.title}${item.note ? ` (${item.note})` : ""}`);
     },
 
+    answerQuestion(id, answers) {
+      const item = world.snap.actionItems?.find((i) => i.id === id);
+      if (!item || item.status !== "open") return;
+      Object.assign(item, { status: "done", answers, closedAt: new Date().toISOString() });
+      world.emit({ type: "action.updated", item: { ...item } });
+    },
+
     updateWorkflow(patch: WorkflowPatch) {
       const wf = world.snap.config.workflow;
       Object.assign(wf.review, patch.review);

@@ -7,11 +7,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import type { Hub } from "./hub";
-import type { Planner } from "./planner";
+import { MESSAGE_MAX, NOTE_MAX, type Planner } from "./planner";
 
 type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
 
 const ok = (value: unknown): Result => ({ content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }] });
+/** Tells the agent its text was cut, so it can send the rest. */
+const trimmed = (text: string | undefined, max: number) => (text && text.trim().length > max ? ` Your text was trimmed to ${max} characters: send the rest separately.` : "");
 const fail = (msg: string): Result => ({ content: [{ type: "text", text: msg }], isError: true });
 
 /** Wraps a tool body: thrown errors become tool errors the agent can read. */
@@ -161,16 +163,17 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
   server.registerTool(
     "set_my_status",
     {
-      description: "Update your current task: in-progress, blocked (say why), in-review (PR opened), or done. The lead is told automatically.",
+      description: `Update one of your tasks: in-progress, blocked (say why), in-review (PR opened), or done. The lead is told automatically, note included. Always pass taskId when you have more than one task. The note holds up to ${NOTE_MAX} characters.`,
       inputSchema: {
         status: z.enum(["in-progress", "blocked", "in-review", "done"]),
-        note: z.string().optional().describe("Why you are blocked, or a short summary"),
+        taskId: z.string().optional().describe("Which of your tasks, e.g. RI-T55. Without it: your current task (get_my_task)."),
+        note: z.string().optional().describe(`Why you are blocked, or a summary of the result (up to ${NOTE_MAX} characters)`),
         prNumber: z.number().int().optional(),
       },
     },
-    guard(({ status, note, prNumber }: { status: "in-progress" | "blocked" | "in-review" | "done"; note?: string; prNumber?: number }) => {
-      const t = planner.setStatus(me, status, note, prNumber);
-      return ok(`${t.id} is now ${t.status}.`);
+    guard(({ status, taskId, note, prNumber }: { status: "in-progress" | "blocked" | "in-review" | "done"; taskId?: string; note?: string; prNumber?: number }) => {
+      const t = planner.setStatus(me, status, note, prNumber, taskId?.trim() || undefined);
+      return ok(`${t.id} is now ${t.status}.${trimmed(note, NOTE_MAX)}`);
     }),
   );
 
@@ -220,14 +223,14 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
   server.registerTool(
     "send_message",
     {
-      description: "Send a message to another agent (id, name, or \"lead\"). Fleet delivers it: right away if they are idle, otherwise when their current turn ends.",
+      description: `Send a message to another agent (id, name, or "lead"). Fleet delivers it whole: right away if they are idle, otherwise when their current turn ends. Up to ${MESSAGE_MAX} characters.`,
       inputSchema: { to: z.string(), text: z.string() },
     },
     guard(({ to, text }: { to: string; text: string }) => {
       const toId = planner.agentId(to);
       if (toId === me) throw new Error("That's you.");
       planner.message(me, to, text);
-      return ok(`Sent to ${hub.name(toId)}.`);
+      return ok(`Sent to ${hub.name(toId)}.${trimmed(text, MESSAGE_MAX)}`);
     }),
   );
 
