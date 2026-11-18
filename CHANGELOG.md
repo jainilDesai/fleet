@@ -6,6 +6,10 @@
   terminal now shows in its chat in Fleet, with the answer. And when you message a busy agent and
   a teammate's message arrives at the same moment, its answer to you is posted before it moves on,
   instead of being lost.
+- **Agents' questions get proper selectors.** Each question shows its options as rows to pick:
+  one choice (radio) or any (checkboxes), each with its description, plus **Something else** to
+  write your own answer. It says how many are answered, sends once all are, and questions sit at
+  the top of Action items. A question asked before 0.10 shows its options instead of JSON.
 
 ## 0.10.0
 
