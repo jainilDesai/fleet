@@ -18,7 +18,7 @@ fs.writeFileSync(fake, `#!/bin/sh\necho "$@" >> "${calls}"\nif [ "$1" = print ];
 process.env.FLEET_LAUNCHCTL = fake;
 process.env.FLEET_LAUNCH_AGENTS = agents;
 const launchctlCalls = () => (fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n') : []);
-const { plist, staleNode, LABEL, labelFor, isFleetCommand, items, itemsFor, enable, disable, jobState, startBackground, pidsToStop, fromNpx, repoArg } = await import('../src/autostart.js');
+const { plist, staleNode, LABEL, labelFor, isFleetCommand, items, itemsFor, enable, disable, jobState, startBackground, pidsToStop, fromNpx, repoArg, projectArg } = await import('../src/autostart.js');
 
 const sample = { node: '/opt/node & co/bin/node', script: '/lib/fleet/bin/fleet.js', port: 7788, pathEnv: '/usr/bin:/bin', log: '/tmp/fleet.log' };
 
@@ -116,6 +116,19 @@ test('--stop picks only this repo\'s Fleet, unless --all', () => {
   assert.deepEqual(pidsToStop(ps, registry, '/code/my app', false), { pids: [101], unknown: 1 });
   assert.deepEqual(pidsToStop(ps, registry, '/code/site', false), { pids: [102], unknown: 1 });
   assert.deepEqual(pidsToStop(ps, registry, '/code/site', true), { pids: [101, 102, 103, 105], unknown: 0 }, '--all stops the home page too');
+});
+
+test("a repo's main Fleet and its separate teams (--project) stop separately", () => {
+  const ps = [
+    { pid: 201, cmd: 'node /usr/local/bin/fleet --no-open --port 7789 --repo /code/app' },
+    { pid: 202, cmd: 'node /usr/local/bin/fleet.js --repo /code/app --project app-reviews --no-open' },
+    { pid: 203, cmd: 'node /usr/local/bin/fleet' }, // a team known only from the registry
+  ];
+  const registry = [{ pid: 203, repo: '/code/app', slug: 'app-pricing', team: true, port: 7791 }];
+  assert.equal(projectArg(ps[1].cmd), 'app-reviews');
+  assert.deepEqual(pidsToStop(ps, registry, '/code/app', false), { pids: [201], unknown: 0 }, 'the main project only');
+  assert.deepEqual(pidsToStop(ps, registry, '/code/app', false, 'app-reviews'), { pids: [202], unknown: 0 });
+  assert.deepEqual(pidsToStop(ps, registry, '/code/app', false, 'app-pricing'), { pids: [203], unknown: 0 });
 });
 
 test('--stop only matches Fleet servers, not other processes', () => {

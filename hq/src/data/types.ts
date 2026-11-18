@@ -151,6 +151,8 @@ export interface ProjectConfig {
   hqPort: number; // port sandboxes use to reach HQ via host.docker.internal
   exportPlan?: boolean; // also write the plan to docs/plan.md
   officeName?: string; // the sign on the office wall; empty = "JSM HQ"
+  /** A separate team New work made: the slug of the project it came from (same repo). */
+  parent?: string;
 }
 
 export interface HqConfig {
@@ -253,6 +255,8 @@ export interface WorkBrief {
   startedAt: string | null;
   /** false = the lead keeps its current session. Default: a fresh session for this work. */
   freshLead?: boolean;
+  /** A separate team's board: its Fleet starts the work as soon as it runs. */
+  autoStart?: boolean;
 }
 
 export type TaskStatus = "todo" | "in-progress" | "in-review" | "done" | "blocked";
@@ -513,6 +517,8 @@ export interface NewWorkInput {
   startNow: boolean;
   /** false = the lead keeps its current session (follow-up work). Default true. */
   freshLead?: boolean;
+  /** A separate team: its own CTO, port and page (a second Fleet on this repo). `crew` = its agents at the start. */
+  newTeam?: boolean;
 }
 
 export interface NewAgentInput {

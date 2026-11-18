@@ -68,6 +68,9 @@ export class Planner {
     return board;
   }
 
+  /** Set by index.ts: removes an agent (the lead's remove_agent), its folder included. Throws with the reason it can't. */
+  removeAgent: ((agentId: string) => Promise<void>) | null = null;
+
   /** Set by index.ts: stops and cleans up a board's agents when you mark it done. */
   onBoardDone: ((board: Board) => void) | null = null;
 

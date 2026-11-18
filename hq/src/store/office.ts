@@ -24,6 +24,7 @@ interface OfficeState {
   roles: RoleInfo[] | null; // answer to listRoles
   handoffs: Record<string, Handoff[]>; // answers to listHandoffs, by agent
   doneCheck: BoardDoneCheck | null; // a Done waiting for your confirmation
+  teamStarted: { title: string; url: string } | null; // New work's separate team is up: a link to it
   connection: ConnectionStatus;
   quit: boolean; // you quit Fleet from this page
   source: OfficeDataSource;
@@ -52,6 +53,7 @@ export const useOffice = create<OfficeState>(() => ({
   roles: null,
   handoffs: {},
   doneCheck: null,
+  teamStarted: null,
   connection: "connecting",
   quit: false,
   source,
@@ -75,6 +77,7 @@ function reduce(snap: OfficeSnapshot, e: OfficeEvent): OfficeSnapshot {
     case "roles":
     case "handoffs":
     case "board.doneCheck":
+    case "team.started":
       return snap;
     case "setup.updated":
       return { ...snap, setup: e.setup };
@@ -113,6 +116,7 @@ function handle(e: OfficeEvent) {
   if (e.type === "roles") return void useOffice.setState({ roles: e.roles });
   if (e.type === "handoffs") return void useOffice.setState((s) => ({ handoffs: { ...s.handoffs, [e.agentId]: e.handoffs } }));
   if (e.type === "board.doneCheck") return void useOffice.setState({ doneCheck: e.check });
+  if (e.type === "team.started") return void useOffice.setState({ teamStarted: { title: e.title, url: e.url } });
   useOffice.setState((s) => {
     const base = s.snap ?? (e.type === "snapshot" ? e.snapshot : null);
     if (!base) return {};

@@ -65,6 +65,11 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
           ? "You merge PRs once they pass review (`gh pr merge <number> --squash`), one at a time, in an order that avoids conflicts. Fleet tells you when each one passes. Never pass --delete-branch while the branch is checked out in a teammate's worktree: it switches their folder. Delete it once they've moved on."
           : "The user merges PRs; never merge one yourself. Decide the order they should land in, and tell the user if one blocks another.",
         "If the user changes who merges, Fleet tells you. Follow the latest message.",
+        ...(cfg.project?.parent
+          ? [
+              "This is a separate team for one piece of work. You start alone: ask for each agent you need with add_agent (the user approves). When an agent's tasks are done and nothing else is waiting for it, remove it with remove_agent.",
+            ]
+          : []),
         "Fleet's plan is the truth, not your memory: call get_status or list_tasks before you assign work or report progress. Each new session (and each compaction) starts with Fleet's current state.",
       ]
     : [
@@ -85,7 +90,7 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
     "When you need the user to do or decide something you can't (create an account, database or API key, change a setting in a dashboard, put a value in an env file, approve a deploy or a risky change), call ask_user with a short title and clear steps, then keep working on what you can. To ask for approval of a plan, a deploy or a risky change, pass approval: true; if the user rejects it, don't do it. Never put secret values in it; name the variable instead.",
   );
   const tools = agent.isLead
-    ? "list_workers, get_status, list_tasks, create_board, create_task, update_task, assign_task, send_message, ask_user"
+    ? "list_workers, get_status, list_tasks, create_board, create_task, update_task, assign_task, add_agent, remove_agent, send_message, ask_user"
     : "get_my_task, set_my_status, list_workers, get_status, list_tasks, send_message, ask_user";
   return [
     `# ${agent.name} — ${agent.role}`,

@@ -50,12 +50,11 @@ export function contextUse(transcriptPath: string): { tokens: number; model: str
 
 /**
  * The context window for a model id. shortcut: Claude Code doesn't write the window into the transcript;
- * Claude 5 models and "[1m]" ids run with 1M, older ones and Haiku with 200k. Update when that changes.
+ * Claude 5 models (Haiku included) and "[1m]" ids run with 1M, older ones with 200k. Update when that changes.
  */
 export function contextWindow(model: string): number {
   if (/\[1m\]/i.test(model)) return 1_000_000;
-  if (/haiku/i.test(model)) return 200_000;
-  return /claude-(opus|sonnet|fable)-[5-9]/i.test(model) ? 1_000_000 : 200_000;
+  return /claude-(opus|sonnet|fable|haiku)-[5-9]/i.test(model) ? 1_000_000 : 200_000;
 }
 
 export interface GitState {

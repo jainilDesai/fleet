@@ -12,6 +12,7 @@ import { Tooltip } from "./ui/hud/Tooltip";
 import { TopBar } from "./ui/hud/TopBar";
 import { NewWorkDialog } from "./ui/hud/NewWorkDialog";
 import { BoardDoneDialog } from "./ui/hud/BoardDoneDialog";
+import { TeamStartedBanner } from "./ui/hud/TeamStartedBanner";
 import { SettingsModal } from "./ui/settings/SettingsModal";
 
 function useKeyboard() {
@@ -66,6 +67,7 @@ export function App() {
           {welcome && <WelcomeModal />}
           {newWork && !welcome && <NewWorkDialog />}
           <BoardDoneDialog />
+          <TeamStartedBanner />
           <Tooltip />
         </>
       )}

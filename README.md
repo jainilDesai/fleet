@@ -291,21 +291,24 @@ nobody work.
 
 **Done boards and History.** Set a board's status to **Done** and it leaves the Boards list
 for **Boards → History**, with a summary: the request, its tasks, and each agent's handoff.
-If one of its agents is mid-turn or has uncommitted work, Fleet asks you first (**Mark done
-anyway** or **Keep the board**), so a mistaken Done changes nothing. Otherwise its agents hand
-off and stop right away. Agents New work added for it are removed from the
+If one of its agents is mid-turn, has uncommitted work, or the board has unfinished tasks, Fleet
+asks you first (**Mark done anyway** or **Keep the board**), so a mistaken Done changes nothing.
+Otherwise its agents hand off and stop right away. Agents New work added for it are removed from the
 team; core agents (CTO, Planner…) are only stopped, and only if they have nothing open on
 another active board. Their worktrees are deleted, except a worktree with uncommitted changes:
 for those the CTO asks you in Action items (Approve deletes them, Reject keeps them and the CTO
 asks what to do). Commits stay on their branches either way. **Reopen** in History makes the
-board active again and gives the CTO its summary.
+board active again, restarts the agents Done stopped, and gives the CTO its summary.
 
 **Shared dependencies.** Each agent's worktree starts with your checkout's installed
 `node_modules` (in every folder that has one), so agents can build and test without installing
 first. It's a copy-on-write clone (APFS on macOS, reflink on Linux): it takes next to no disk,
 and an install in an agent's folder never changes yours. Only where `package.json` and the
 lockfile match your checkout; an agent whose branch changed them installs its own. Without a
-filesystem that can clone, nothing is copied.
+filesystem that can clone, nothing is copied. Your checkout's env files that git ignores (`.env`,
+`server/.env`…) are copied in too (mode 600, never tracked files like `.env.example`), so
+reviewers and QA can run the tests; an agent's edit stays in its folder, and your newer file is
+copied again on its next start.
 
 **Refresh (handoffs).** A long context makes an agent slower, pricier and more likely to mix
 things up, so Fleet replaces sessions before that happens. When an agent's context passes 60%
@@ -320,6 +323,13 @@ handoff, and the chat header shows how full the context is.
 **New work.** **Boards → + New work** (or **New work** on a running project on the home page)
 opens a prompt for the CTO. Each one gets its own board, and you choose:
 
+- **A team of its own** (the default): a new CTO on its own page and port, a second Fleet on
+  the same repo with its own card on the home page. Its CTO sees only this work's tasks. It
+  starts alone (add any agents you want up front), asks you for each agent it needs with
+  `add_agent`, and removes them with `remove_agent` once their tasks are done. Its first start
+  asks you to trust its new folder, like any agent. Stop or start it from the home page; it has
+  no login item.
+- **This team:** this CTO and its agents take it on, with the options below.
 - **Investigation only:** the team finds out and reports back, with no code changes, branches
   or PRs.
 - **Agents:** **Current team** (no new agents or worktrees; it waits behind the current work), or
@@ -338,6 +348,13 @@ The CTO can also ask for more agents, of any role, with the `add_agent` tool. Ea
 lands in Action items as **Approve new agent: …**; Approve adds the agent in its own worktree
 and tells the CTO its id. Agents never share a folder: each one's hooks and Team MCP identity
 live in its own worktree.
+
+**The CTO's chat** shows your conversation with it: your messages and its replies to them. Its
+turns for teammates' reports and Fleet notices sit under **Team activity**, one click away.
+
+**Questions.** When an agent asks you a multiple-choice question (Claude Code's AskUserQuestion),
+it lands in Action items with its options: pick one (or several, or write your own) and **Send
+answers** goes straight back to the agent. **Answer in terminal** leaves it to the terminal.
 
 ![The Action items list: requests from agents with steps, Done and Dismiss (demo data)](docs/actions.png)
 

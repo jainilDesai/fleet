@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -440,7 +440,8 @@ test('context use is read from the transcript; the window depends on the model',
   assert.deepEqual(contextUse(f), { tokens: 600_000, model: 'claude-opus-5-5' }, 'the last assistant turn counts');
   assert.equal(contextUse(path.join(dir, 'missing.jsonl')), null);
   assert.equal(contextWindow('claude-opus-5-5'), 1_000_000);
-  assert.equal(contextWindow('claude-haiku-5-5'), 200_000);
+  assert.equal(contextWindow('claude-haiku-5-5'), 1_000_000, 'Claude Code shows Haiku 5.5 with 1000k');
+  assert.equal(contextWindow('claude-haiku-4-5'), 200_000);
   assert.equal(contextWindow('claude-sonnet-4-5'), 200_000);
   assert.equal(contextWindow('claude-sonnet-4-5[1m]'), 1_000_000);
 });
@@ -746,7 +747,9 @@ test("env files git ignores are copied into a worktree: refreshed when yours is 
   fs.mkdirSync(path.join(wt, 'server'), { recursive: true });
   const { execFileSync } = await import('node:child_process');
   execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['init', '-q'], { cwd: wt });
   fs.writeFileSync(path.join(root, '.gitignore'), '.env*\n!.env.example\n');
+  fs.writeFileSync(path.join(wt, '.gitignore'), '/.env\n/.env.local\n');
   for (const f of ['.env', '.env.local', '.env.example', 'server/.env', 'web/.env']) fs.writeFileSync(path.join(root, f), `SECRET=${f}`);
   fs.writeFileSync(path.join(wt, '.env.local'), 'mine');
   const outside = path.join(tmp, 'outside');
@@ -755,20 +758,58 @@ test("env files git ignores are copied into a worktree: refreshed when yours is 
   const past = new Date(Date.now() - 60_000);
   fs.utimesSync(path.join(root, '.env.local'), past, past);
 
-  assert.deepEqual((await copyEnvFiles(root, wt)).sort(), ['.env', path.join('server', '.env')]);
-  assert.equal(fs.readFileSync(path.join(wt, 'server', '.env'), 'utf8'), 'SECRET=server/.env');
+  fs.writeFileSync(path.join(root, 'linked'), 'host');
+  fs.linkSync(path.join(root, 'linked'), path.join(wt, '.env'));
+  fs.utimesSync(path.join(wt, '.env'), past, past);
+  assert.deepEqual((await copyEnvFiles(root, wt, path.join(tmp, 'staging'))).sort(), ['.env'], "server/.env isn't ignored on the agent's branch");
+  assert.equal(fs.readFileSync(path.join(root, 'linked'), 'utf8'), 'host', 'a hard link the agent left is replaced, not written through');
+  fs.writeFileSync(path.join(wt, '.gitignore'), '.env*\n');
   assert.ok(!fs.lstatSync(path.join(wt, '.env')).isSymbolicLink(), 'a copy, so edits stay in the worktree');
   assert.equal(fs.statSync(path.join(wt, '.env')).mode & 0o777, 0o600);
   assert.equal(fs.readFileSync(path.join(wt, '.env.local'), 'utf8'), 'mine', "the agent's newer file is kept");
   assert.ok(!fs.existsSync(path.join(wt, '.env.example')), 'not ignored by git: never copied');
   assert.deepEqual(fs.readdirSync(outside), [], 'never written through a symlinked folder');
 
-  assert.deepEqual(await copyEnvFiles(root, wt), [], 'up to date');
+  assert.deepEqual(await copyEnvFiles(root, wt, path.join(tmp, 'staging')), [path.join('server', '.env')], 'ignored there now');
+  assert.equal(fs.readFileSync(path.join(wt, 'server', '.env'), 'utf8'), 'SECRET=server/.env');
+  assert.deepEqual(await copyEnvFiles(root, wt, path.join(tmp, 'staging')), [], 'up to date');
   const later = new Date(Date.now() + 60_000);
   fs.utimesSync(path.join(root, '.env'), later, later);
-  assert.deepEqual(await copyEnvFiles(root, wt), ['.env'], 'your newer file is copied again');
+  assert.deepEqual(await copyEnvFiles(root, wt, path.join(tmp, 'staging')), ['.env'], 'your newer file is copied again');
 });
 
+
+test('New work on a team of its own: a named project on the same repo, seeded with the lead and the brief, then started', () =>
+  withTempHome(async () => {
+    const tempHome = process.env.HOME; // withTempHome puts HOME back at the first await
+    const { hub, planner } = teamHub();
+    hub.slug = 'app';
+    hub.repo.root = '/code/app';
+    hub.snap.config.project = { id: 'app', name: 'App', repo: 'me/app', path: '/code/app', hqPort: 7789 };
+    hub.snap.config.team[0].roleMd = 'Plan carefully.';
+    hub.snap.config.team.push(newAgent('qa', 'QA', 'QA', '#111', false));
+    assert.equal(namedSlug('/code/app', 'app-reviews'), 'app-reviews');
+    assert.throws(() => namedSlug('/code/other', 'app-reviews'), /belongs to another repo/);
+    assert.throws(() => namedSlug('/code/app', 'Bad Name'), /isn't a valid project name/);
+    assert.equal(teamSlug('app', 'Reviews!'), 'app-reviews-2', 'taken: numbered');
+
+    const started = [];
+    const events = [];
+    hub.emit = (e) => events.push(e);
+    const cmd = makeCommands(hub, {}, planner, {}, undefined, (slug, root) => started.push([slug, root]), async (slug) => `http://localhost:7790#${slug}`);
+    await cmd.newWork({ title: 'Pricing fix', prompt: 'Fix rounding', investigate: false, crew: [{ role: 'QA', count: 1 }], startNow: true, newTeam: true });
+    assert.deepEqual(started, [['app-pricing-fix', '/code/app']]);
+    assert.equal(hub.snap.boards.length, 0, "nothing lands on this project's plan");
+    const home = path.join(tempHome, '.fleet', 'projects', 'app-pricing-fix');
+    const cfg = JSON.parse(fs.readFileSync(path.join(home, 'config.json'), 'utf8'));
+    assert.deepEqual(cfg.team.map((a) => [a.id, a.isLead, a.roleMd]), [['cto', true, 'Plan carefully.']], 'the lead only');
+    assert.equal(cfg.project.parent, 'app');
+    assert.equal(cfg.project.name, 'App · Pricing fix');
+    const plan = JSON.parse(fs.readFileSync(path.join(home, 'plan.json'), 'utf8'));
+    assert.deepEqual(plan.boards[0].brief, { prompt: 'Fix rounding', investigate: false, crew: [{ role: 'QA', count: 1 }], startedAt: null, freshLead: false, autoStart: true });
+    assert.equal(fs.readFileSync(path.join(home, 'repo-root'), 'utf8'), '/code/app\n');
+    assert.deepEqual(events.at(-1), { type: 'team.started', title: 'Pricing fix', url: 'http://localhost:7790#app-pricing-fix' });
+  }));
 
 test('pasted messages cannot end the paste or type keys', () => {
   assert.equal(pasteSafe('a\x1b[201~\rrm -rf\r\nb\tc\x07\x9b'), 'a[201~\nrm -rf\nb\tc');

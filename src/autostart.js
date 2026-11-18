@@ -265,15 +265,21 @@ export const isHomeCommand = (cmd) => /bin\/fleet(\.js)?\s+home\s/.test(`${cmd} 
 // The --repo a Fleet command line was started with, if any.
 export const repoArg = (cmd) => cmd.match(/\s--repo\s+(.+?)(?=\s--|$)/)?.[1] ?? null;
 
-// Which running Fleets to stop: the one for `repo` (from the registry, else its --repo), or all.
+// The --project a Fleet command line was started with: a separate team New work made on a repo.
+export const projectArg = (cmd) => cmd.match(/\s--project\s+(\S+)/)?.[1] ?? null;
+
+// Which running Fleets to stop: the one for `repo` (from the registry, else its --repo), the separate team
+// `project`, or all. A repo's main project never takes its separate teams down with it.
 // `unknown` counts the copies whose repo can't be told, left running unless `all`.
-export function pidsToStop(processes, registry, repo, all) {
+export function pidsToStop(processes, registry, repo, all, project = null) {
   const pids = [];
   let unknown = 0;
   for (const p of processes) {
     if (p.pid === process.pid || !isFleetCommand(p.cmd) || (!all && isHomeCommand(p.cmd))) continue;
-    const at = registry.find((e) => e.pid === p.pid)?.repo ?? repoArg(p.cmd);
-    if (all || at === repo) pids.push(p.pid);
+    const entry = registry.find((e) => e.pid === p.pid);
+    const at = entry?.repo ?? repoArg(p.cmd);
+    const team = entry ? (entry.team ? entry.slug : null) : projectArg(p.cmd);
+    if (all || (project ? team === project : at === repo && !team)) pids.push(p.pid);
     else if (!at) unknown++;
   }
   return { pids, unknown };
@@ -290,15 +296,16 @@ const processes = () =>
 // Stops the Fleet for `repo` (or every Fleet). Background copies are unloaded rather than killed,
 // because launchd restarts a killed one; they come back at the next login. Copies started by hand
 // get SIGTERM.
-export function stop({ repo, all = false, registry = [] }) {
+export function stop({ repo, all = false, registry = [], project = null }) {
   let background = 0;
-  for (const i of all ? items() : itemsFor(repo)) {
+  // A separate team has no login item: only its process.
+  for (const i of all ? items() : project ? [] : itemsFor(repo)) {
     if (!jobState(i.label).loaded) continue;
     if (SYSTEMD) systemctl('stop', unitName(i));
     else launchctl('bootout', domain(), i.file);
     background++;
   }
-  const { pids, unknown } = pidsToStop(processes(), registry, repo, all);
+  const { pids, unknown } = pidsToStop(processes(), registry, repo, all, project);
   for (const pid of pids) {
     try {
       process.kill(pid, 'SIGTERM');

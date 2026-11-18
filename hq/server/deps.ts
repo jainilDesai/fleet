@@ -3,9 +3,9 @@
 // a file, so it costs next to no disk, and an install in the agent's folder never touches your checkout.
 // Only where the package files match yours; otherwise the agent installs for its branch as usual.
 
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { agentPath, agentWrite } from "./lib/agentFs";
+import { agentPath } from "./lib/agentFs";
 import { run } from "./lib/exec";
 
 /** The files that decide what's installed. All must match for node_modules to be shared. */
@@ -98,10 +98,12 @@ const ENV_FILE = /^\.env(\..+)?$/;
  * Copies each env file of your checkout that git ignores into worktree `dir` (mode 600), so agents can
  * run the app and its tests. Never a tracked file like `.env.example`. A copy, not a link: an agent's edit
  * stays in its folder. Copied again when yours is newer than the agent's copy, so your edits reach agents
- * on their next start. Writes go through agentWrite: a folder the agent swapped for a symlink is refused.
- * Returns the files copied.
+ * on their next start. Only when git ignores the file in the worktree too, so the agent can't commit it.
+ * Each copy is written in `tmp` (outside the agent's folder, same disk) and renamed into place: a rename
+ * swaps the folder entry, never writing through a symlink or hard link the agent left there, and a folder
+ * on the way that is a symlink is refused (agentPath). Returns the files copied.
  */
-export async function copyEnvFiles(root: string, dir: string, depth = 3): Promise<string[]> {
+export async function copyEnvFiles(root: string, dir: string, tmp: string, depth = 3): Promise<string[]> {
   const found: string[] = [];
   const walk = (rel: string, level: number) => {
     let entries;
@@ -126,8 +128,16 @@ export async function copyEnvFiles(root: string, dir: string, depth = 3): Promis
       // An agent's own file (or link) stays, unless it's older than yours or the link an older Fleet made.
       const oldLink = mine?.isSymbolicLink() && readlinkSync(target) === join(root, rel);
       if (mine && !oldLink && !(mine.isFile() && src.mtimeMs > mine.mtimeMs)) continue;
-      if (!(await run("git", ["check-ignore", "-q", rel], { cwd: root })).ok) continue; // tracked or not ignored
-      agentWrite(dir, rel, readFileSync(join(root, rel), "utf8"), { mode: 0o600 });
+      const ignored = async (cwd: string) => (await run("git", ["check-ignore", "-q", rel], { cwd })).ok;
+      if (!(await ignored(root)) || !(await ignored(dir))) continue; // tracked, or the agent's branch doesn't ignore it
+      mkdirSync(tmp, { recursive: true, mode: 0o700 });
+      const staging = join(tmp, `${basename(dir)}-env-${Date.now()}-${copied.length}`);
+      try {
+        writeFileSync(staging, readFileSync(join(root, rel)), { mode: 0o600 });
+        renameSync(staging, agentPath(dir, rel)); // checked again right before the move
+      } finally {
+        rmSync(staging, { force: true });
+      }
       copied.push(rel);
     } catch {
       /* a symlinked folder on the way, or a file that vanished: skip */

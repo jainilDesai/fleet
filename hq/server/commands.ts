@@ -14,6 +14,7 @@ import { deleteRole, listRoles, saveRole } from "./roles";
 import { mergeByNotice } from "./githubSync";
 import { hasIterm } from "./setup";
 import { doneBlockers } from "./boardDone";
+import { seedTeam, startTeam, teamSlug, waitForTeam, type TeamBrief } from "./teams";
 import { MESSAGE_MAX } from "./planner";
 import { OS, openTerminal } from "../../src/platform.js";
 
@@ -47,11 +48,14 @@ export function addTeamAgent(hub: Hub, name: string, role: string, model = "") {
 }
 
 /** What the lead is told when New work starts. */
-export function workMessage(board: Board, added: AgentConfig[]): string {
+/** `alone`: a separate team's lead, which starts with no agents. */
+export function workMessage(board: Board, added: AgentConfig[], alone = false): string {
   const b = board.brief!;
   const crew = added.length
     ? `Fleet added ${added.map((a) => `${a.name} (id ${a.id}, ${a.role})`).join(", ")} for this work, each in its own new worktree: give this board's tasks to them.`
-    : "No new agents: use the current team.";
+    : alone
+      ? "You start alone on this team: ask for each agent you need with add_agent, unless you can do it yourself (an investigation, say)."
+      : "No new agents: use the current team.";
   const kind = b.investigate
     ? "This is an investigation: find out and report back to the user, with evidence. No code changes, no branches, no PRs."
     : "Plan it and get the user's approval as usual, then create the tasks on this board.";
@@ -85,8 +89,32 @@ async function openInTerminal(session: string) {
   if (!r.ok) throw new Error(r.stderr.trim() || "osascript failed");
 }
 
-export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inbox: Inbox, exit = (code: number) => process.exit(code)) {
+export function makeCommands(
+  hub: Hub,
+  sessions: Sessions,
+  planner: Planner,
+  inbox: Inbox,
+  exit = (code: number) => process.exit(code),
+  teamStarter = startTeam,
+  teamWaiter = (slug: string) => waitForTeam(slug),
+) {
   const team = () => hub.snap.config.team;
+
+  /** New work on a team of its own: a second Fleet on this repo, its own CTO, port and page. */
+  const newTeam = async (brief: TeamBrief) => {
+    const slug = teamSlug(hub.slug, brief.title);
+    try {
+      seedTeam(hub, slug, brief);
+    } catch (err) {
+      return hub.activity("config", null, `Couldn't set up a team for "${brief.title}": ${err instanceof Error ? err.message : String(err)}`);
+    }
+    hub.activity("config", null, `Starting a separate team for "${brief.title}" (its own CTO and page)…`);
+    teamStarter(slug, hub.repo.root);
+    const url = await teamWaiter(slug);
+    if (!url) return hub.activity("config", null, `The team for "${brief.title}" didn't start within 30 s. Its log: ~/.fleet/fleet-${slug}.log`);
+    hub.activity("config", null, `"${brief.title}" has its own team at ${url}; it's on the home page too.`);
+    hub.emit({ type: "team.started", title: brief.title, url });
+  };
 
   /** Stops every running agent session at once; one that fails is reported and doesn't stop the rest. */
   const stopTeam = () =>
@@ -298,7 +326,9 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
           return { ...c, count };
         })
         .filter((c) => c.count);
-      const board = planner.createBoard(str(i.title, 80).trim() || prompt.split("\n")[0].slice(0, 60), "planned");
+      const title = str(i.title, 80).trim() || prompt.split("\n")[0].slice(0, 60);
+      if (i.newTeam === true) return newTeam({ title, prompt, investigate: i.investigate === true, crew });
+      const board = planner.createBoard(title, "planned");
       board.brief = { prompt, investigate: i.investigate === true, crew, startedAt: null, freshLead: i.freshLead !== false };
       hub.emit({ type: "board.updated", board: structuredClone(board) });
       hub.planChanged();
@@ -316,7 +346,7 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       board.status = "active";
       hub.emit({ type: "board.updated", board: structuredClone(board) });
       hub.planChanged();
-      const send = () => planner.message("you", lead.id, workMessage(board, added), 6000); // starts the lead if it's stopped
+      const send = () => planner.message("you", lead.id, workMessage(board, added, !!hub.snap.config.project?.parent), 6000); // starts the lead if it's stopped
       const st = hub.status(lead.id);
       if (board.brief.freshLead === false || st?.session.state !== "running") return void send();
       // Mid-turn, holding queued messages or your unsent text: restarting would cut that off, so it keeps its session.

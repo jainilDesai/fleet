@@ -52,6 +52,19 @@ export function projectSlug(root: string): string {
   return base !== "home" && claim(base, root) ? base : (claim(hashed, root), hashed);
 }
 
+/** A slug a project can be given (`fleet --project`): lowercase letters, digits, dashes. */
+export const validSlug = (s: string) => /^[a-z0-9][a-z0-9-]{0,59}$/.test(s) && s !== "home";
+
+/**
+ * The slug of a project named on the command line (`fleet --project <slug>`): a second team on the same
+ * repo, made by New work. Refused when the slug belongs to another repo.
+ */
+export function namedSlug(root: string, wanted: string): string {
+  if (!validSlug(wanted)) throw new Error(`"${wanted}" isn't a valid project name: use lowercase letters, digits and dashes.`);
+  if (!claim(wanted, root)) throw new Error(`The project "${wanted}" belongs to another repo.`);
+  return wanted;
+}
+
 export function managedWorkspace(projectSlug: string, agentId: string): string {
   return join(projectHome(projectSlug), agentId);
 }

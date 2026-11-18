@@ -30,6 +30,7 @@ export type OfficeEvent =
   | { type: "roles"; roles: RoleInfo[] }
   | { type: "handoffs"; agentId: string; handoffs: Handoff[] }
   | { type: "board.doneCheck"; check: BoardDoneCheck }
+  | { type: "team.started"; title: string; url: string }
   | { type: "config.updated"; config: HqConfig }
   | { type: "agent.updated"; agent: AgentStatus }
   | { type: "agent.removed"; agentId: string }
