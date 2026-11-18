@@ -224,8 +224,8 @@ export class ActionItems {
     if (item.addAgent && decision === "done" && this.onAddAgent) {
       const a = this.onAddAgent(item.addAgent);
       const n = item.note ? ` Note from the user: ${item.note}` : "";
-      return this.planner.notify(item.fromId, `The user approved adding ${a.name}. Fleet added them: id ${a.id}, role ${a.role}, in their own new worktree.${n} Give them a task with assign_task; they start on it.`);
+      return this.planner.notify(item.fromId, `The user approved adding ${a.name}. Fleet added them: id ${a.id}, role ${a.role}, in their own new worktree.${n} Give them a task with assign_task; they start on it.`, true);
     }
-    this.planner.notify(item.fromId, resolutionMessage(item, decision));
+    this.planner.notify(item.fromId, resolutionMessage(item, decision), true);
   }
 }

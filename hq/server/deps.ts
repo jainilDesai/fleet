@@ -3,7 +3,7 @@
 // a file, so it costs next to no disk, and an install in the agent's folder never touches your checkout.
 // Only where the package files match yours; otherwise the agent installs for its branch as usual.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync } from "node:fs";
 import { basename, join } from "node:path";
 import { run } from "./lib/exec";
 
@@ -83,3 +83,51 @@ export async function shareDependencies(root: string, dir: string, tmp: string):
   }
   return filled;
 }
+
+/** Env files: `.env`, `.env.local`, `.env.test`… */
+const ENV_FILE = /^\.env(\..+)?$/;
+
+/**
+ * Links each env file of your checkout that git ignores (and the worktree lacks) into worktree `dir`,
+ * so agents can run the app and its tests. A link, not a copy: your edits reach them. Never a tracked
+ * file like `.env.example`. Returns the files linked.
+ */
+export async function linkEnvFiles(root: string, dir: string, depth = 3): Promise<string[]> {
+  const found: string[] = [];
+  const walk = (rel: string, level: number) => {
+    let entries;
+    try {
+      entries = readdirSync(join(root, rel), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (e.isFile() && ENV_FILE.test(e.name)) found.push(join(rel, e.name));
+      else if (level < depth && e.isDirectory() && e.name !== "node_modules" && !e.name.startsWith(".")) walk(join(rel, e.name), level + 1);
+    }
+  };
+  walk("", 0);
+  const linked: string[] = [];
+  for (const rel of found) {
+    const target = join(dir, rel);
+    if (exists(target) || !existsSync(join(dir, rel, ".."))) continue;
+    if (!(await run("git", ["check-ignore", "-q", rel], { cwd: root })).ok) continue; // tracked or not ignored
+    try {
+      symlinkSync(join(root, rel), target);
+      linked.push(rel);
+    } catch {
+      /* a race with the agent, or a filesystem without links: skip */
+    }
+  }
+  return linked;
+}
+
+/** True for anything at `p`, a dangling link included. */
+const exists = (p: string) => {
+  try {
+    lstatSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+};

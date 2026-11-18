@@ -80,6 +80,7 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
         ? "This repo has no GitHub remote (or the GitHub CLI isn't signed in), so there are no PRs. Workers commit on their task branch and don't push; when a task is done, tell the user which branch is ready to merge locally, and in what order."
         : "This repo has no GitHub remote (or the GitHub CLI isn't signed in), so there are no PRs: commit on your task branch, don't push, then call set_my_status done with the branch name.",
     );
+  rules.push("Env files (.env…) in your folder may be links to the user's own: read them, never edit them. If one needs a change, ask_user.");
   rules.push(
     "When you need the user to do or decide something you can't (create an account, database or API key, change a setting in a dashboard, put a value in an env file, approve a deploy or a risky change), call ask_user with a short title and clear steps, then keep working on what you can. To ask for approval of a plan, a deploy or a risky change, pass approval: true; if the user rejects it, don't do it. Never put secret values in it; name the variable instead.",
   );

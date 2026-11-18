@@ -26,6 +26,12 @@ export function shellCommand(spec: LaunchSpec): string {
   return load + [spec.file, ...spec.args].map(q).join(" ");
 }
 
+/**
+ * Text that can't leave the paste: control characters (ESC, CR…) are dropped, keeping newlines and tabs.
+ * Messages carry others' words (PR comments, agents), and an ESC[201~ would end the paste and type the rest as keys.
+ */
+export const pasteSafe = (text: string) => text.replace(/\r\n?/g, "\n").replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "");
+
 export const tmuxBackend: SessionBackend = {
   kind: "tmux",
   persistent: true,
@@ -44,7 +50,7 @@ export const tmuxBackend: SessionBackend = {
     // One bracketed paste: Claude Code takes it whole. Typed keys (send-keys -l) of a long text get split
     // by its paste detection and arrive cut off.
     const buffer = `fleet-${name}`;
-    if (!(await run("tmux", ["load-buffer", "-b", buffer, "-"], { input: text, timeoutMs: 5000 })).ok) return false;
+    if (!(await run("tmux", ["load-buffer", "-b", buffer, "-"], { input: pasteSafe(text), timeoutMs: 5000 })).ok) return false;
     return (await run("tmux", ["paste-buffer", "-p", "-d", "-b", buffer, "-t", `=${name}:`], { timeoutMs: 5000 })).ok;
   },
 

@@ -128,6 +128,7 @@ export async function startHq(o: HqOptions): Promise<Hq> {
 // For Fleet's tests (test/hq.test.js).
 export { describePermission, lastAssistantText, turnReplies } from "./hooks";
 export { draftFromPromptLine } from "./backends/tmuxCli";
+export { pasteSafe } from "./backends/tmux";
 export { branchAgent } from "./github";
 export { projectSlug } from "./paths";
 export { agentBranch } from "./workspace";
@@ -139,7 +140,7 @@ export { hookCommand, roleMd, skillText, writeSkills } from "./agentFiles";
 export { handleHook, leadBriefing } from "./hooks";
 export { buildHandoff, contextUse, contextWindow, Refresher } from "./refresh";
 export { BoardCloser, boardAgents, boardSummary } from "./boardDone";
-export { dependencyDirs, packagesMatch, shareDependencies } from "./deps";
+export { dependencyDirs, linkEnvFiles, packagesMatch, shareDependencies } from "./deps";
 export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { Planner } from "./planner";

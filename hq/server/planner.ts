@@ -183,23 +183,26 @@ export class Planner {
     return toId;
   }
 
-  /** An agent's answer to you, read from its transcript: shown in Messages, not delivered anywhere. */
-  reply(fromId: string, text: string) {
+  /**
+   * An agent's answer to you, read from its transcript: shown in Messages, not delivered anywhere.
+   * `cause` "team": the turn answered teammates or Fleet, not you (the chat hides it unless you ask).
+   */
+  reply(fromId: string, text: string, cause?: "team") {
     if (!this.hub.cfg(fromId) || !text.trim()) return;
-    this.record(fromId, "you", text.trim().slice(0, MESSAGE_MAX));
+    this.record(fromId, "you", text.trim().slice(0, MESSAGE_MAX), cause);
     this.hub.activity("message", fromId, `${this.hub.name(fromId)} → You: ${text.trim().slice(0, 80)}`);
   }
 
-  /** A notice from Fleet itself (review results, merges) to one agent. */
-  notify(agentId: string, text: string) {
+  /** A notice from Fleet itself (review results, merges) to one agent. `byUser`: it reports something you did. */
+  notify(agentId: string, text: string, byUser = false) {
     if (!this.hub.cfg(agentId)) return;
     this.record("hq", agentId, text);
-    this.inbox.push(agentId, { fromId: "hq", kind: "notice", text });
+    this.inbox.push(agentId, { fromId: "hq", kind: "notice", text, ...(byUser && { byUser }) });
   }
 
-  private record(fromId: string, toId: string, text: string) {
+  private record(fromId: string, toId: string, text: string, cause?: "team") {
     this.seq += 1;
-    const msg = { id: `m${Date.now().toString(36)}${this.seq}`, at: now(), fromId, toId, text };
+    const msg = { id: `m${Date.now().toString(36)}${this.seq}`, at: now(), fromId, toId, text, ...(cause && { cause }) };
     this.snap.messages = [msg, ...this.snap.messages].slice(0, MESSAGES_KEPT);
     this.hub.historyChanged();
     this.hub.emit({ type: "message", message: msg });

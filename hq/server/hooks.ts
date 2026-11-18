@@ -124,6 +124,8 @@ export interface HookResult {
   response?: Record<string, unknown>;
   /** The turn answered a message from you: its transcript, to read the answer from (after a moment). */
   replyTranscript?: string;
+  /** "team": the turn answered teammates or Fleet, not you. */
+  replyCause?: "team";
 }
 
 export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: string, body: HookPayload, takeHandoff: (id: string) => string | null = () => null): HookResult {
@@ -190,8 +192,9 @@ export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: strin
       // The turn answered you, or it's the lead (you talk only to the lead, so its answers are for you):
       // its final text goes to the Messages tab too. Claude Code may still be writing it to the
       // transcript when Stop fires, so the caller reads it a moment later.
-      const forYou = inbox.takeAwaitingReply(agentId) || !!hub.cfg(agentId)?.isLead;
-      if (forYou && body.transcript_path) return { ok: true, replyTranscript: body.transcript_path };
+      const answeredYou = inbox.takeAwaitingReply(agentId);
+      if ((answeredYou || hub.cfg(agentId)?.isLead) && body.transcript_path)
+        return { ok: true, replyTranscript: body.transcript_path, ...(!answeredYou && { replyCause: "team" as const }) };
       break;
     }
     case "SessionEnd":

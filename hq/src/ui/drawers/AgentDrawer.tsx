@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentStatus, type OfficeSnapshot } from "../../data/types";
+import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentMessage, type AgentStatus, type OfficeSnapshot } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, type AgentTab } from "../../store/ui";
 import { ago, Dot, Portrait, ReviewChip, SectionTitle, StateChip, Tabs, useNow } from "../kit";
@@ -215,10 +215,34 @@ function TaskTab({ snap, agent, taskId }: { snap: OfficeSnapshot; agent: AgentCo
   );
 }
 
+const TEAM_KEY = "fleet.leadTeamActivity";
+
+/** Your conversation with the agent: your messages and its replies to them (not its turns for teammates or Fleet). */
+const withYou = (m: AgentMessage) => (m.fromId === HUMAN_ID || m.toId === HUMAN_ID) && m.cause !== "team";
+
 function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig }) {
   const now = useNow(1000);
   const [draft, setDraft] = useState("");
-  const list = snap.messages.filter((m) => m.fromId === agent.id || m.toId === agent.id);
+  // The lead's chat shows only your conversation unless you ask for the team's traffic (remembered here).
+  const [showTeam, setShowTeam] = useState(() => {
+    if (!agent.isLead) return true;
+    try {
+      return localStorage.getItem(TEAM_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleTeam = () => {
+    setShowTeam(!showTeam);
+    try {
+      if (agent.isLead) localStorage.setItem(TEAM_KEY, showTeam ? "0" : "1");
+    } catch {
+      /* private window: applies until reload */
+    }
+  };
+  const all = snap.messages.filter((m) => m.fromId === agent.id || m.toId === agent.id);
+  const list = showTeam ? all : all.filter(withYou);
+  const hidden = all.length - all.filter(withYou).length;
   const who = (id: string) =>
     id === HUMAN_ID ? { name: "You", color: "#ffec27" } : id === "hq" ? { name: "Fleet", color: "#3ee0d0" } : snap.config.team.find((a) => a.id === id);
   const running = snap.agents.find((a) => a.agentId === agent.id)?.session.state === "running";
@@ -230,8 +254,17 @@ function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig
   return (
     <div className="flex h-full flex-col">
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto p-4">
-        <SectionTitle>Team MCP messages</SectionTitle>
-        <p className="mb-3 text-[13px] text-muted">Agents don't talk to each other directly. Every message goes through Fleet.</p>
+        <div className="flex items-center gap-2">
+          <SectionTitle>{showTeam ? "All messages" : `You and ${agent.name}`}</SectionTitle>
+          {hidden > 0 && (
+            <button className="btn ml-auto px-2 text-[12px]" aria-pressed={showTeam} onClick={toggleTeam} title="Teammates' reports, Fleet notices, and replies to them">
+              Team activity · {hidden}
+            </button>
+          )}
+        </div>
+        <p className="mb-3 text-[13px] text-muted">
+          {showTeam ? "Agents don't talk to each other directly. Every message goes through Fleet." : "Teammates' reports and Fleet notices are under Team activity."}
+        </p>
         {list.length === 0 && <p className="text-[15px] text-muted">No messages yet.</p>}
         <ul className="flex flex-col gap-2">
           {list.map((m) => {

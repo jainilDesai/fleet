@@ -12,6 +12,8 @@ export interface InboxItem {
   fromId: string; // agent id or "you"
   text: string;
   kind: "message" | "assign" | "notice"; // notice = from HQ itself (e.g. review results)
+  /** A notice about something you did (an approval, a closed action item): the answer is for you. */
+  byUser?: boolean;
 }
 
 export interface Keyboard {
@@ -120,7 +122,7 @@ export class Inbox {
   }
 
   private noteFromYou(agentId: string, items: InboxItem[]) {
-    if (items.some((i) => i.fromId === "you")) this.awaitingReply.add(agentId);
+    if (items.some((i) => i.fromId === "you" || i.byUser)) this.awaitingReply.add(agentId);
   }
 
   /** Called from the Stop hook: everything queued, as the reason Claude continues with. */
