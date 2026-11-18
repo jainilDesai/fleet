@@ -196,6 +196,12 @@ export class Planner {
     this.hub.activity("message", fromId, `${this.hub.name(fromId)} → You: ${text.trim().slice(0, 80)}`);
   }
 
+  /** What you typed in an agent's terminal, shown in its chat in Fleet (it already has it: not delivered). */
+  typedInTerminal(agentId: string, text: string) {
+    if (!this.hub.cfg(agentId) || !text.trim()) return;
+    this.record("you", agentId, `${text.trim().slice(0, MESSAGE_MAX)}\n\n_(typed in its terminal)_`);
+  }
+
   /** A notice from Fleet itself (review results, merges) to one agent. `byUser`: it reports something you did. */
   notify(agentId: string, text: string, byUser = false) {
     if (!this.hub.cfg(agentId)) return;

@@ -51,13 +51,16 @@ export function lastAssistantText(transcriptPath: string): string | null {
  * at least `min` characters (a report written before more tool calls).
  * shortcut: length tells a report from narration like "Let me check."; a short earlier answer is dropped.
  */
-export function turnReplies(transcriptPath: string, min = 300): string[] {
-  const texts = turnTexts(transcriptPath);
+export function turnReplies(transcriptPath: string, min = 300, before?: string): string[] {
+  const texts = turnTexts(transcriptPath, before);
   return texts.filter((t, i) => i === texts.length - 1 || t.length >= min);
 }
 
-/** Every assistant text of the last turn, oldest first. */
-function turnTexts(transcriptPath: string): string[] {
+/**
+ * Every assistant text of the last turn, oldest first. `before`: the turn went on with messages Fleet
+ * handed over at its Stop; take the part written before them (once they're in the transcript, skip past).
+ */
+function turnTexts(transcriptPath: string, before?: string): string[] {
   let text: string;
   try {
     const size = statSync(transcriptPath).size;
@@ -73,8 +76,11 @@ function turnTexts(transcriptPath: string): string[] {
   } catch {
     return [];
   }
-  const found: string[] = [];
   const lines = text.split("\n").filter(Boolean).reverse();
+  const marker = before?.slice(0, 120);
+  const skipTo = marker && lines.some((l) => l.includes(JSON.stringify(marker).slice(1, -1))) ? marker : undefined;
+  let skipping = !!skipTo;
+  const found: string[] = [];
   for (const line of lines) {
     let entry: { type?: string; message?: { content?: unknown } };
     try {
@@ -83,8 +89,12 @@ function turnTexts(transcriptPath: string): string[] {
       continue; // the first line of the window may be cut
     }
     // A real prompt (string content) means we've gone back past the last turn.
-    if (entry.type === "user" && typeof entry.message?.content === "string") break;
-    if (entry.type !== "assistant" || !Array.isArray(entry.message?.content)) continue;
+    if (entry.type === "user" && typeof entry.message?.content === "string") {
+      if (skipping && entry.message.content.includes(skipTo!)) skipping = false;
+      else if (!skipping) break;
+      continue;
+    }
+    if (skipping || entry.type !== "assistant" || !Array.isArray(entry.message?.content)) continue;
     const parts = (entry.message.content as { type?: string; text?: string }[]).filter((c) => c.type === "text" && c.text?.trim()).map((c) => c.text!.trim());
     if (parts.length) found.push(parts.join("\n\n"));
   }
@@ -126,6 +136,10 @@ export interface HookResult {
   replyTranscript?: string;
   /** "team": the turn answered teammates or Fleet, not you. */
   replyCause?: "team";
+  /** The turn goes on with these messages: post the part written before them. */
+  replyBefore?: string;
+  /** You typed this in the agent's terminal: it goes into the agent's chat in Fleet. */
+  typedPrompt?: string;
 }
 
 export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: string, body: HookPayload, takeHandoff: (id: string) => string | null = () => null): HookResult {
@@ -147,11 +161,21 @@ export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: strin
       if (context) return { ok: true, response: { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: context } } };
       break;
     }
-    case "UserPromptSubmit":
+    case "UserPromptSubmit": {
       turnOpen.set(agentId, true);
+      // You typed it in the agent's terminal (not a message Fleet delivered, not a /command): it shows in
+      // the agent's chat in Fleet, and so does the answer.
+      const p = body.prompt?.trim() ?? "";
+      let typedPrompt = "";
+      if (p && !p.startsWith("/") && !/\[Fleet\]/.test(p.slice(0, 400))) {
+        inbox.expectReply(agentId);
+        typedPrompt = p;
+      }
       hub.setStatus(agentId, { state: "working", note: body.prompt ? clip(body.prompt.replace(/\s+/g, " ")) : null });
       if (st.state !== "working") hub.activity("task.started", agentId, `${name} is working`);
+      if (typedPrompt) return { ok: true, typedPrompt };
       break;
+    }
     case "PreToolUse":
       // Stale: the turn already ended. (Unknown, e.g. after an HQ restart, is allowed.)
       if (turnOpen.get(agentId) === false) break;
@@ -180,11 +204,19 @@ export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: strin
     case "Stop": {
       // Messages that arrived while the agent was busy: hand them over now,
       // and Claude Code continues with them instead of stopping.
+      const lead = !!hub.cfg(agentId)?.isLead;
+      const answeredYou = inbox.takeAwaitingReply(agentId); // before the new batch can set it again
       const queued = inbox.takeForStop(agentId);
       if (queued) {
         turnOpen.set(agentId, true); // Claude continues: same turn
         hub.setStatus(agentId, { state: "working", note: "Reading new messages" });
-        return { ok: true, response: { decision: "block", reason: queued } };
+        // What it wrote so far (an answer to you, say) would be cut off by the messages it continues with: post it now.
+        const post = (answeredYou || lead) && body.transcript_path;
+        return {
+          ok: true,
+          response: { decision: "block", reason: queued },
+          ...(post && { replyTranscript: body.transcript_path, replyBefore: queued, ...(!answeredYou && { replyCause: "team" as const }) }),
+        };
       }
       turnOpen.set(agentId, false);
       hub.setStatus(agentId, { state: "idle", note: "Finished — ready for the next instruction" });
@@ -192,8 +224,7 @@ export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: strin
       // The turn answered you, or it's the lead (you talk only to the lead, so its answers are for you):
       // its final text goes to the Messages tab too. Claude Code may still be writing it to the
       // transcript when Stop fires, so the caller reads it a moment later.
-      const answeredYou = inbox.takeAwaitingReply(agentId);
-      if ((answeredYou || hub.cfg(agentId)?.isLead) && body.transcript_path)
+      if ((answeredYou || lead) && body.transcript_path)
         return { ok: true, replyTranscript: body.transcript_path, ...(!answeredYou && { replyCause: "team" as const }) };
       break;
     }
