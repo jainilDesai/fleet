@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, linkEnvFiles } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -736,25 +736,39 @@ test("the lead's turns for teammates are marked, so its chat can hide them; turn
     assert.equal(forYou.replyCause, undefined);
   }));
 
-test("env files git ignores are linked into a worktree; tracked or present ones aren't", async () => {
-  if (process.platform === 'win32') return; // symlinks need extra rights there; Fleet skips them
+test("env files git ignores are copied into a worktree: refreshed when yours is newer, never tracked ones, never through a symlink", async () => {
+  if (process.platform === 'win32') return; // the test makes a symlink, which needs extra rights there
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-env-'));
   const root = path.join(tmp, 'repo');
   const wt = path.join(tmp, 'wt');
   fs.mkdirSync(path.join(root, 'server'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'web'), { recursive: true });
   fs.mkdirSync(path.join(wt, 'server'), { recursive: true });
   const { execFileSync } = await import('node:child_process');
   execFileSync('git', ['init', '-q'], { cwd: root });
   fs.writeFileSync(path.join(root, '.gitignore'), '.env*\n!.env.example\n');
-  for (const f of ['.env', '.env.local', '.env.example', 'server/.env']) fs.writeFileSync(path.join(root, f), `SECRET=${f}`);
+  for (const f of ['.env', '.env.local', '.env.example', 'server/.env', 'web/.env']) fs.writeFileSync(path.join(root, f), `SECRET=${f}`);
   fs.writeFileSync(path.join(wt, '.env.local'), 'mine');
-  assert.deepEqual((await linkEnvFiles(root, wt)).sort(), ['.env', path.join('server', '.env')]);
+  const outside = path.join(tmp, 'outside');
+  fs.mkdirSync(outside);
+  fs.symlinkSync(outside, path.join(wt, 'web'));
+  const past = new Date(Date.now() - 60_000);
+  fs.utimesSync(path.join(root, '.env.local'), past, past);
+
+  assert.deepEqual((await copyEnvFiles(root, wt)).sort(), ['.env', path.join('server', '.env')]);
   assert.equal(fs.readFileSync(path.join(wt, 'server', '.env'), 'utf8'), 'SECRET=server/.env');
-  assert.ok(fs.lstatSync(path.join(wt, '.env')).isSymbolicLink());
-  assert.equal(fs.readFileSync(path.join(wt, '.env.local'), 'utf8'), 'mine', 'an existing file is kept');
-  assert.ok(!fs.existsSync(path.join(wt, '.env.example')), 'not ignored by git: never linked');
-  assert.deepEqual(await linkEnvFiles(root, wt), [], 'already linked');
+  assert.ok(!fs.lstatSync(path.join(wt, '.env')).isSymbolicLink(), 'a copy, so edits stay in the worktree');
+  assert.equal(fs.statSync(path.join(wt, '.env')).mode & 0o777, 0o600);
+  assert.equal(fs.readFileSync(path.join(wt, '.env.local'), 'utf8'), 'mine', "the agent's newer file is kept");
+  assert.ok(!fs.existsSync(path.join(wt, '.env.example')), 'not ignored by git: never copied');
+  assert.deepEqual(fs.readdirSync(outside), [], 'never written through a symlinked folder');
+
+  assert.deepEqual(await copyEnvFiles(root, wt), [], 'up to date');
+  const later = new Date(Date.now() + 60_000);
+  fs.utimesSync(path.join(root, '.env'), later, later);
+  assert.deepEqual(await copyEnvFiles(root, wt), ['.env'], 'your newer file is copied again');
 });
+
 
 test('pasted messages cannot end the paste or type keys', () => {
   assert.equal(pasteSafe('a\x1b[201~\rrm -rf\r\nb\tc\x07\x9b'), 'a[201~\nrm -rf\nb\tc');

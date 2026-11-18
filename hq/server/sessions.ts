@@ -13,7 +13,7 @@ import { openTarget } from "../../src/platform.js";
 import { log } from "./lib/log";
 import { sessionName } from "./paths";
 import { runSetupChecks } from "./setup";
-import { linkEnvFiles, shareDependencies } from "./deps";
+import { copyEnvFiles, shareDependencies } from "./deps";
 import { ensureWorkspace, removeWorktree, workspaceFor } from "./workspace";
 
 // What Claude Code's screen shows.
@@ -78,9 +78,9 @@ export class Sessions {
       hub.setStatus(id, { state: "idle", note: "Running" });
       hub.activity("session", id, `${agent.name} started`);
       if (!agent.workspacePath) {
-        void linkEnvFiles(hub.repo.root, dir)
-          .then((linked) => linked.length && hub.activity("session", id, `${agent.name}: env files linked from your checkout (${linked.join(", ")})`))
-          .catch((err) => log.warn("linking env files:", err instanceof Error ? err.message : err));
+        void copyEnvFiles(hub.repo.root, dir)
+          .then((linked) => linked.length && hub.activity("session", id, `${agent.name}: env files copied from your checkout (${linked.join(", ")})`))
+          .catch((err) => log.warn("copying env files:", err instanceof Error ? err.message : err));
         void shareDependencies(hub.repo.root, dir, join(hub.home, "deps-tmp"))
           .then((filled) => filled.length && hub.activity("session", id, `${agent.name}: dependencies shared from your checkout (node_modules in ${filled.join(", ")})`))
           .catch((err) => log.warn("sharing dependencies:", err instanceof Error ? err.message : err));
