@@ -13,6 +13,7 @@ import { cleanSkills } from "./agentFiles";
 import { deleteRole, listRoles, saveRole } from "./roles";
 import { mergeByNotice } from "./githubSync";
 import { hasIterm } from "./setup";
+import { doneBlockers } from "./boardDone";
 import { OS, openTerminal } from "../../src/platform.js";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "agent";
@@ -337,9 +338,15 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
         );
     },
 
-    updateBoard: (id, patch) => {
+    updateBoard: async (id, patch, opts) => {
       const p = (patch ?? {}) as Partial<Board>;
       const status = p.status === "active" || p.status === "planned" || p.status === "done" ? p.status : undefined;
+      const board = hub.snap.boards.find((b) => b.id === str(id, 20));
+      // A mistaken Done would stop agents mid-turn and put uncommitted work at risk: ask first.
+      if (status === "done" && board && board.status !== "done" && (opts as { confirmed?: unknown } | undefined)?.confirmed !== true) {
+        const check = await doneBlockers(hub, board, (a) => sessions.inspectWorkspace(a));
+        if (check.running.length || check.dirty.length) return hub.emit({ type: "board.doneCheck", check });
+      }
       planner.updateBoard(str(id, 20), { title: typeof p.title === "string" ? p.title : undefined, status });
     },
   };

@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { createMockSource } from "../data/mock/mockSource";
 import type { ConnectionStatus, DataPreset, OfficeDataSource, OfficeEvent, SimSpeed } from "../data/source";
 import { createSseSource } from "../data/sse/sseSource";
-import type { AgentConfig, AgentStatus, Handoff, OfficeSnapshot, RemoveAgentOptions, RoleInfo, SaveRoleInput, WelcomeInput, WorkspaceInfo } from "../data/types";
+import type { AgentConfig, AgentStatus, BoardDoneCheck, Handoff, OfficeSnapshot, RemoveAgentOptions, RoleInfo, SaveRoleInput, WelcomeInput, WorkspaceInfo } from "../data/types";
 
 export interface LoggedEvent {
   n: number;
@@ -23,6 +23,7 @@ interface OfficeState {
   workspaceInfo: Record<string, WorkspaceInfo>; // answers to inspectWorkspace
   roles: RoleInfo[] | null; // answer to listRoles
   handoffs: Record<string, Handoff[]>; // answers to listHandoffs, by agent
+  doneCheck: BoardDoneCheck | null; // a Done waiting for your confirmation
   connection: ConnectionStatus;
   quit: boolean; // you quit Fleet from this page
   source: OfficeDataSource;
@@ -50,6 +51,7 @@ export const useOffice = create<OfficeState>(() => ({
   workspaceInfo: {},
   roles: null,
   handoffs: {},
+  doneCheck: null,
   connection: "connecting",
   quit: false,
   source,
@@ -72,6 +74,7 @@ function reduce(snap: OfficeSnapshot, e: OfficeEvent): OfficeSnapshot {
     case "workspace.info":
     case "roles":
     case "handoffs":
+    case "board.doneCheck":
       return snap;
     case "setup.updated":
       return { ...snap, setup: e.setup };
@@ -109,6 +112,7 @@ function handle(e: OfficeEvent) {
   }
   if (e.type === "roles") return void useOffice.setState({ roles: e.roles });
   if (e.type === "handoffs") return void useOffice.setState((s) => ({ handoffs: { ...s.handoffs, [e.agentId]: e.handoffs } }));
+  if (e.type === "board.doneCheck") return void useOffice.setState({ doneCheck: e.check });
   useOffice.setState((s) => {
     const base = s.snap ?? (e.type === "snapshot" ? e.snapshot : null);
     if (!base) return {};
@@ -161,6 +165,12 @@ export const officeActions = {
   updateProject: source.updateProject.bind(source),
   createBoard: source.createBoard.bind(source),
   updateBoard: source.updateBoard.bind(source),
+  /** Your answer to a held-back Done. */
+  answerDone(confirmed: boolean) {
+    const check = useOffice.getState().doneCheck;
+    useOffice.setState({ doneCheck: null });
+    if (check && confirmed) source.updateBoard(check.boardId, { status: "done" }, { confirmed: true });
+  },
   newWork: source.newWork.bind(source),
   startWork: source.startWork.bind(source),
   reopenBoard: source.reopenBoard.bind(source),

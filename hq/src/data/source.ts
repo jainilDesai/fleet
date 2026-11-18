@@ -5,6 +5,7 @@ import type {
   AgentPatch,
   AgentStatus,
   Board,
+  BoardDoneCheck,
   Environment,
   HqConfig,
   NewAgentInput,
@@ -28,6 +29,7 @@ export type OfficeEvent =
   | { type: "workspace.info"; info: WorkspaceInfo }
   | { type: "roles"; roles: RoleInfo[] }
   | { type: "handoffs"; agentId: string; handoffs: Handoff[] }
+  | { type: "board.doneCheck"; check: BoardDoneCheck }
   | { type: "config.updated"; config: HqConfig }
   | { type: "agent.updated"; agent: AgentStatus }
   | { type: "agent.removed"; agentId: string }
@@ -101,7 +103,11 @@ export interface OfficeDataSource {
   updateWorkflow(patch: WorkflowPatch): void;
   updateProject(patch: Partial<ProjectConfig>): void;
   createBoard(title: string): void;
-  updateBoard(id: string, patch: Partial<Pick<Board, "title" | "status">>): void;
+  /**
+   * Done is held back when the board's agents are mid-turn or have uncommitted work: a "board.doneCheck"
+   * event asks you, and `confirmed` sends it through.
+   */
+  updateBoard(id: string, patch: Partial<Pick<Board, "title" | "status">>, opts?: { confirmed?: boolean }): void;
   /** New work: a board for it, the extra agents, and the prompt to the lead (now, or saved for later). */
   newWork(input: NewWorkInput): void;
   /** Starts New work that was saved for later. */

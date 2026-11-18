@@ -291,12 +291,21 @@ nobody work.
 
 **Done boards and History.** Set a board's status to **Done** and it leaves the Boards list
 for **Boards → History**, with a summary: the request, its tasks, and each agent's handoff.
-Its agents hand off and stop right away. Agents New work added for it are removed from the
+If one of its agents is mid-turn or has uncommitted work, Fleet asks you first (**Mark done
+anyway** or **Keep the board**), so a mistaken Done changes nothing. Otherwise its agents hand
+off and stop right away. Agents New work added for it are removed from the
 team; core agents (CTO, Planner…) are only stopped, and only if they have nothing open on
 another active board. Their worktrees are deleted, except a worktree with uncommitted changes:
 for those the CTO asks you in Action items (Approve deletes them, Reject keeps them and the CTO
 asks what to do). Commits stay on their branches either way. **Reopen** in History makes the
 board active again and gives the CTO its summary.
+
+**Shared dependencies.** Each agent's worktree starts with your checkout's installed
+`node_modules` (in every folder that has one), so agents can build and test without installing
+first. It's a copy-on-write clone (APFS on macOS, reflink on Linux): it takes next to no disk,
+and an install in an agent's folder never changes yours. Only where `package.json` and the
+lockfile match your checkout; an agent whose branch changed them installs its own. Without a
+filesystem that can clone, nothing is copied.
 
 **Refresh (handoffs).** A long context makes an agent slower, pricier and more likely to mix
 things up, so Fleet replaces sessions before that happens. When an agent's context passes 60%

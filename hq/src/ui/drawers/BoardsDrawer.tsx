@@ -27,7 +27,17 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
   const [boardId, setBoardId] = useState(initialBoardId ?? boards.at(-1)?.id);
   const [history, setHistory] = useState(false);
   if (!snap) return null;
-  if (history) return <BoardHistory boards={done} onBack={() => setHistory(false)} />;
+  // A board marked done moves to History, so the drawer follows it there (not before: Done may wait for your confirmation).
+  if (history || done.some((b) => b.id === boardId))
+    return (
+      <BoardHistory
+        boards={done}
+        onBack={() => {
+          setHistory(false);
+          setBoardId(boards.at(-1)?.id);
+        }}
+      />
+    );
   const board = boards.find((b) => b.id === boardId);
   const lead = snap.config.team.find((a) => a.isLead);
   const tasks = snap.tasks.filter((t) => t.boardId === boardId);
@@ -60,15 +70,8 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
           <select
             className="field w-[120px] py-0 text-[14px]"
             value={board.status}
-            onChange={(e) => {
-              const status = e.target.value as BoardStatus;
-              officeActions.updateBoard(board.id, { status });
-              if (status === "done") {
-                setBoardId(boards.find((b) => b.id !== board.id)?.id);
-                setHistory(true);
-              }
-            }}
-            title="Done stops this board's agents (each saves a handoff), deletes their worktrees (asks you first about uncommitted work), and moves the board to History"
+            onChange={(e) => officeActions.updateBoard(board.id, { status: e.target.value as BoardStatus })}
+            title="Done stops this board's agents (each saves a handoff), deletes their worktrees and moves the board to History. If an agent is mid-turn or has uncommitted work, you're asked to confirm first"
           >
             {(Object.keys(STATUS_LABEL) as BoardStatus[]).map((s) => (
               <option key={s} value={s}>

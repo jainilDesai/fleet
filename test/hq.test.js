@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -593,19 +593,85 @@ test('Done: handoffs, a summary, agents stopped, clean folders deleted, crew rem
 
 test('marking a board done calls the closer once; New work records its crew; Reopen sends the lead the summary', async () => {
   const { hub, planner, pushed } = teamHub();
-  const cmd = makeCommands(hub, {}, planner, {});
+  const cmd = makeCommands(hub, { inspectWorkspace: async () => null }, planner, {});
   const done = [];
   planner.onBoardDone = (b) => done.push(b.id);
   await cmd.newWork({ prompt: 'Pricing', crew: [{ role: 'QA', count: 1 }], startNow: true, freshLead: false });
   const board = hub.snap.boards.at(-1);
   assert.deepEqual(board.crewIds, ['qa']);
-  cmd.updateBoard(board.id, { status: 'done' });
-  cmd.updateBoard(board.id, { status: 'done' });
+  hub.status('cto').state = 'idle';
+  await cmd.updateBoard(board.id, { status: 'done' });
+  await cmd.updateBoard(board.id, { status: 'done' });
   assert.deepEqual(done, [board.id]);
   board.summary = 'It went fine.';
   cmd.reopenBoard(board.id);
   assert.equal(board.status, 'active');
   assert.match(pushed.at(-1).text, /reopened board .*It went fine\./s);
+});
+
+test('Done waits for your confirmation while an agent is mid-turn or has uncommitted work', async () => {
+  const { hub, planner } = doneSetup();
+  const board = hub.snap.boards.find((b) => b.id === 'B');
+  board.status = 'active';
+  const events = [];
+  hub.emit = (e) => events.push(e);
+  const dirty = new Set();
+  const cmd = makeCommands(hub, { inspectWorkspace: async (id) => ({ path: `/w/${id}`, managed: true, exists: true, changedFiles: dirty.has(id) ? 3 : 0 }) }, planner, {});
+  const done = [];
+  planner.onBoardDone = (b) => done.push(b.id);
+
+  hub.status('cto').state = 'idle';
+  hub.status('qa').state = 'working';
+  dirty.add('reviewer');
+  await cmd.updateBoard('B', { status: 'done' });
+  assert.equal(board.status, 'active', 'held back');
+  assert.deepEqual(events.find((e) => e.type === 'board.doneCheck').check, { boardId: 'B', title: 'Pricing fix', running: ['QA'], dirty: [{ name: 'Reviewer', files: 3 }] });
+  assert.deepEqual(done, []);
+
+  await cmd.updateBoard('B', { status: 'done' }, { confirmed: true });
+  assert.equal(board.status, 'done', 'you confirmed');
+  assert.deepEqual(done, ['B']);
+
+  board.status = 'active';
+  hub.status('qa').state = 'idle';
+  dirty.clear();
+  events.length = 0;
+  await cmd.updateBoard('B', { status: 'done' });
+  assert.equal(board.status, 'done', 'nothing at risk: no question');
+  assert.ok(!events.some((e) => e.type === 'board.doneCheck'));
+});
+
+test("an agent's worktree gets your node_modules where the package files match", async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-deps-'));
+  const root = path.join(tmp, 'repo');
+  const wt = path.join(tmp, 'wt');
+  const put = (file, text) => (fs.mkdirSync(path.dirname(file), { recursive: true }), fs.writeFileSync(file, text));
+  for (const dir of [root, wt]) {
+    put(path.join(dir, 'package.json'), '{"name":"x"}');
+    put(path.join(dir, 'package-lock.json'), '{"v":1}');
+    put(path.join(dir, 'web', 'package.json'), '{"name":"web"}');
+  }
+  put(path.join(root, 'node_modules', 'a', 'index.js'), 'module.exports = 1');
+  put(path.join(root, 'web', 'node_modules', 'b', 'index.js'), 'module.exports = 2');
+  put(path.join(root, '.cache', 'node_modules', 'c.js'), '');
+  assert.deepEqual(dependencyDirs(root).sort(), ['', 'web'], 'hidden folders and node_modules themselves are not searched');
+  assert.equal(packagesMatch(root, wt, 'web'), true);
+  put(path.join(wt, 'web', 'package.json'), '{"name":"web","dependencies":{"y":"1"}}');
+  assert.equal(packagesMatch(root, wt, 'web'), false, 'the branch changed its dependencies: it installs its own');
+  put(path.join(wt, 'yarn.lock'), '');
+  assert.equal(packagesMatch(root, wt, ''), false, 'a lockfile only one side has');
+  fs.rmSync(path.join(wt, 'yarn.lock'));
+
+  const filled = await shareDependencies(root, wt, path.join(tmp, 'staging'));
+  if (process.platform === 'darwin') {
+    assert.deepEqual(filled, ['.']);
+    assert.equal(fs.readFileSync(path.join(wt, 'node_modules', 'a', 'index.js'), 'utf8'), 'module.exports = 1');
+    assert.ok(!fs.existsSync(path.join(wt, 'web', 'node_modules')));
+    fs.writeFileSync(path.join(wt, 'node_modules', 'a', 'index.js'), 'changed');
+    assert.equal(fs.readFileSync(path.join(root, 'node_modules', 'a', 'index.js'), 'utf8'), 'module.exports = 1', 'a clone: your checkout is untouched');
+    assert.deepEqual(await shareDependencies(root, wt, path.join(tmp, 'staging')), [], 'an existing node_modules is never replaced');
+  }
+  assert.deepEqual(fs.existsSync(path.join(tmp, 'staging')) ? fs.readdirSync(path.join(tmp, 'staging')) : [], [], 'nothing left behind');
 });
 
 test("the lead's add_agent request adds the agent only when you approve it", () =>
