@@ -3,8 +3,9 @@
 // a file, so it costs next to no disk, and an install in the agent's folder never touches your checkout.
 // Only where the package files match yours; otherwise the agent installs for its branch as usual.
 
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync } from "node:fs";
-import { basename, join } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
+import { agentPath, agentWrite } from "./lib/agentFs";
 import { run } from "./lib/exec";
 
 /** The files that decide what's installed. All must match for node_modules to be shared. */
@@ -65,12 +66,18 @@ export async function shareDependencies(root: string, dir: string, tmp: string):
   const filled: string[] = [];
   try {
     for (const rel of dependencyDirs(root)) {
-      const target = join(dir, rel, "node_modules");
+      let target: string;
+      try {
+        target = agentPath(dir, join(rel, "node_modules")); // never into a folder the agent swapped for a symlink
+      } catch {
+        continue;
+      }
       if (existsSync(target) || !packagesMatch(root, dir, rel)) continue;
       mkdirSync(tmp, { recursive: true });
       const staging = join(tmp, `${basename(dir)}-${Date.now()}`);
       try {
-        if ((await cloneDir(join(root, rel, "node_modules"), staging)) && !existsSync(target)) {
+        if ((await cloneDir(join(root, rel, "node_modules"), staging)) && !lstat(target)) {
+          agentPath(dir, join(rel, "node_modules")); // and still not, after the clone
           renameSync(staging, target);
           filled.push(rel || ".");
         }
@@ -88,11 +95,13 @@ export async function shareDependencies(root: string, dir: string, tmp: string):
 const ENV_FILE = /^\.env(\..+)?$/;
 
 /**
- * Links each env file of your checkout that git ignores (and the worktree lacks) into worktree `dir`,
- * so agents can run the app and its tests. A link, not a copy: your edits reach them. Never a tracked
- * file like `.env.example`. Returns the files linked.
+ * Copies each env file of your checkout that git ignores into worktree `dir` (mode 600), so agents can
+ * run the app and its tests. Never a tracked file like `.env.example`. A copy, not a link: an agent's edit
+ * stays in its folder. Copied again when yours is newer than the agent's copy, so your edits reach agents
+ * on their next start. Writes go through agentWrite: a folder the agent swapped for a symlink is refused.
+ * Returns the files copied.
  */
-export async function linkEnvFiles(root: string, dir: string, depth = 3): Promise<string[]> {
+export async function copyEnvFiles(root: string, dir: string, depth = 3): Promise<string[]> {
   const found: string[] = [];
   const walk = (rel: string, level: number) => {
     let entries;
@@ -107,27 +116,30 @@ export async function linkEnvFiles(root: string, dir: string, depth = 3): Promis
     }
   };
   walk("", 0);
-  const linked: string[] = [];
+  const copied: string[] = [];
   for (const rel of found) {
-    const target = join(dir, rel);
-    if (exists(target) || !existsSync(join(dir, rel, ".."))) continue;
-    if (!(await run("git", ["check-ignore", "-q", rel], { cwd: root })).ok) continue; // tracked or not ignored
     try {
-      symlinkSync(join(root, rel), target);
-      linked.push(rel);
+      const target = agentPath(dir, rel);
+      if (!existsSync(dirname(target))) continue; // that folder isn't on the agent's branch
+      const mine = lstat(target);
+      const src = statSync(join(root, rel));
+      // An agent's own file (or link) stays, unless it's older than yours or the link an older Fleet made.
+      const oldLink = mine?.isSymbolicLink() && readlinkSync(target) === join(root, rel);
+      if (mine && !oldLink && !(mine.isFile() && src.mtimeMs > mine.mtimeMs)) continue;
+      if (!(await run("git", ["check-ignore", "-q", rel], { cwd: root })).ok) continue; // tracked or not ignored
+      agentWrite(dir, rel, readFileSync(join(root, rel), "utf8"), { mode: 0o600 });
+      copied.push(rel);
     } catch {
-      /* a race with the agent, or a filesystem without links: skip */
+      /* a symlinked folder on the way, or a file that vanished: skip */
     }
   }
-  return linked;
+  return copied;
 }
 
-/** True for anything at `p`, a dangling link included. */
-const exists = (p: string) => {
+const lstat = (p: string) => {
   try {
-    lstatSync(p);
-    return true;
+    return lstatSync(p);
   } catch {
-    return false;
+    return null;
   }
 };
