@@ -139,6 +139,7 @@ export { hookCommand, roleMd, skillText, writeSkills } from "./agentFiles";
 export { handleHook, leadBriefing } from "./hooks";
 export { buildHandoff, contextUse, contextWindow, Refresher } from "./refresh";
 export { BoardCloser, boardAgents, boardSummary } from "./boardDone";
+export { dependencyDirs, packagesMatch, shareDependencies } from "./deps";
 export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { Planner } from "./planner";

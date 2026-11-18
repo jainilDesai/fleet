@@ -220,6 +220,14 @@ export interface Board {
   summary?: string;
 }
 
+/** Why marking a board done needs your confirmation: its agents mid-turn, worktrees with uncommitted work. */
+export interface BoardDoneCheck {
+  boardId: string;
+  title: string;
+  running: string[];
+  dirty: { name: string; files: number }[];
+}
+
 /** Folders with uncommitted work left by a finished board: approve deletes them. */
 export interface CleanupRequest {
   boardId: string;

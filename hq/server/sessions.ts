@@ -3,6 +3,7 @@
 // attaching a terminal (iTerm, else Terminal.app) to the session ("Open in terminal").
 
 import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { TRUST_NOTE, type WorkspaceInfo } from "../src/data/types";
 import { launchArgs, writeAgentFiles } from "./adapters";
 import type { Hub } from "./hub";
@@ -12,6 +13,7 @@ import { openTarget } from "../../src/platform.js";
 import { log } from "./lib/log";
 import { sessionName } from "./paths";
 import { runSetupChecks } from "./setup";
+import { shareDependencies } from "./deps";
 import { ensureWorkspace, removeWorktree, workspaceFor } from "./workspace";
 
 // What Claude Code's screen shows.
@@ -75,6 +77,10 @@ export class Sessions {
       hub.setSession(id, { state: "running", detail: null, workspace: dir });
       hub.setStatus(id, { state: "idle", note: "Running" });
       hub.activity("session", id, `${agent.name} started`);
+      if (!agent.workspacePath)
+        void shareDependencies(hub.repo.root, dir, join(hub.home, "deps-tmp"))
+          .then((filled) => filled.length && hub.activity("session", id, `${agent.name}: dependencies shared from your checkout (node_modules in ${filled.join(", ")})`))
+          .catch((err) => log.warn("sharing dependencies:", err instanceof Error ? err.message : err));
     } catch (err) {
       fail(err instanceof Error ? err.message : String(err));
     }

@@ -3,7 +3,7 @@
 // worked on it and have nothing open on another active board (stopped; they stay on the team).
 // A worktree with uncommitted changes is never deleted silently: the lead asks you in Action items.
 
-import type { ActionItem, Board, CleanupRequest, OfficeSnapshot } from "../src/data/types";
+import type { ActionItem, Board, BoardDoneCheck, CleanupRequest, OfficeSnapshot } from "../src/data/types";
 import type { Hub } from "./hub";
 
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -30,6 +30,22 @@ export function boardSummary(hub: Hub, board: Board, handoffs: Record<string, st
   lines.push("", "Tasks:", ...(tasks.length ? tasks.map((t) => `- ${t.id} [${t.status}] ${t.title}${t.ownerId ? ` · ${hub.name(t.ownerId)}` : ""}${t.prNumber ? ` · PR #${t.prNumber}` : ""}`) : ["- None."]));
   for (const [id, text] of Object.entries(handoffs)) lines.push("", `--- ${hub.name(id)} ---`, clip(text.replace(/^# .*\n+/, ""), 1500));
   return clip(lines.join("\n"), 15_000);
+}
+
+/** What marking the board done would cut short: its agents mid-turn, and worktrees with uncommitted work. */
+export async function doneBlockers(hub: Hub, board: Board, inspect: Deps["inspect"]): Promise<BoardDoneCheck> {
+  const { crew, core } = boardAgents(hub.snap, board);
+  const ids = [...crew, ...core];
+  const running = ids.filter((id) => {
+    const st = hub.status(id);
+    return st?.session.state === "running" && st.state !== "idle";
+  });
+  const dirty: BoardDoneCheck["dirty"] = [];
+  for (const id of ids) {
+    const ws = await inspect(id);
+    if (ws?.exists && ws.managed && ws.changedFiles) dirty.push({ name: hub.name(id), files: ws.changedFiles });
+  }
+  return { boardId: board.id, title: board.title, running: running.map((id) => hub.name(id)), dirty };
 }
 
 interface Deps {
