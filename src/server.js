@@ -30,11 +30,11 @@ const TYPES = {
 // it carries a per-run token, and the Host check stops DNS-rebinding pages from reaching us.
 const TOKEN = crypto.randomBytes(24).toString('hex');
 
-export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd() } = {}) {
+export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd(), project } = {}) {
   const clients = new Set();
   let last = '';
   // The agent team for `repo` (built into dist/hq.mjs). Its routes are tried before Fleet's own.
-  const hqReady = import(HQ_BUNDLE).then((m) => m.startHq({ repo, port, pageToken: TOKEN }));
+  const hqReady = import(HQ_BUNDLE).then((m) => m.startHq({ repo, port, pageToken: TOKEN, project }));
 
   const snapshot = () => ({ at: Date.now(), sessions: liveSessions(), events: recentEvents(), config: config() });
 
@@ -127,7 +127,7 @@ export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd() } 
   server.listen(port, host);
   // In ~/.fleet/running/ while it serves (fleet --list, the switcher); out again when it exits.
   Promise.all([hqReady, new Promise((r) => server.once('listening', r))])
-    .then(([hq]) => register({ slug: hq.slug, name: path.basename(hq.repoRoot), repo: hq.repoRoot, port, pid: process.pid }))
+    .then(([hq]) => register({ slug: hq.slug, name: hq.team ? hq.name() : path.basename(hq.repoRoot), repo: hq.repoRoot, port, pid: process.pid, ...(hq.team && { team: true }) }))
     .catch(() => {});
   process.on('exit', () => {
     unregister();

@@ -15,7 +15,7 @@ import { BoardCloser } from "./boardDone";
 import { Inbox } from "./inbox";
 import { run } from "./lib/exec";
 import { log } from "./lib/log";
-import { agentToken, projectHome, projectSlug } from "./paths";
+import { agentToken, namedSlug, projectHome, projectSlug } from "./paths";
 import { Planner } from "./planner";
 import { detectRepo } from "./repo";
 import { Sessions } from "./sessions";
@@ -29,12 +29,17 @@ export interface HqOptions {
   port: number;
   /** Fleet's per-run page token: commands from the page must carry it. */
   pageToken: string;
+  /** A named project on this repo (`fleet --project`): a separate team made by New work. */
+  project?: string;
 }
 
 export interface Hq {
   handle: HqHandler;
   repoRoot: string;
   slug: string;
+  name(): string;
+  /** A separate team made by New work (`fleet --project`), not the repo's main project. */
+  team: boolean;
   /** What the home page shows for this project (GET /api/summary). No secrets. */
   summary(): { slug: string; name: string; repo: string; agents: number; agentsRunning: number; needsYou: number; openPrs: number };
   stop(): void;
@@ -55,7 +60,7 @@ async function adoptLoginPath() {
 export async function startHq(o: HqOptions): Promise<Hq> {
   await adoptLoginPath();
   const repo = await detectRepo(resolve(o.repo));
-  const slug = projectSlug(repo.root);
+  const slug = o.project ? namedSlug(repo.root, o.project) : projectSlug(repo.root);
   const home = projectHome(slug);
   const { config, isNew } = loadConfig(home, repo, o.port);
   config.project.id = slug;
@@ -97,6 +102,14 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   });
   planner.onBoardDone = (b) => void closer.finish(b.id).catch((e) => log.warn("board done:", e));
   planner.actions.onCleanup = (req, approved, fromId) => closer.cleanup(req, approved, fromId);
+  // A separate team's board (seeded by New work in another project): start the work now.
+  for (const b of hub.snap.boards) if (b.brief?.autoStart && !b.brief.startedAt) void commands.startWork(b.id);
+  planner.removeAgent = async (id) => {
+    const ws = await sessions.inspectWorkspace(id);
+    if (ws?.exists && ws.managed && ws.changedFiles)
+      throw new Error(`${hub.name(id)} has ${ws.changedFiles} uncommitted file(s) in its folder. Have it commit and push (or discard) them first.`);
+    await commands.removeAgent(id, { deleteFolder: true });
+  };
   sessions.startPolling();
   const github = new GitHubSync(hub, planner, repo.github);
   github.start();
@@ -107,6 +120,8 @@ export async function startHq(o: HqOptions): Promise<Hq> {
     handle,
     repoRoot: repo.root,
     slug,
+    name: () => hub.snap.config.project.name,
+    team: !!o.project,
     summary: () => ({
       slug,
       name: hub.snap.config.project.name,
@@ -143,6 +158,8 @@ export { BoardCloser, boardAgents, boardSummary } from "./boardDone";
 export { dependencyDirs, copyEnvFiles, packagesMatch, shareDependencies } from "./deps";
 export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
+export { namedSlug } from "./paths";
+export { seedTeam, teamSlug } from "./teams";
 export { Planner } from "./planner";
 export { ActionItems } from "./actionItems";
 export { stopIdleAgents } from "./idleStop";

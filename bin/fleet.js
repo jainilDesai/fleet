@@ -22,7 +22,7 @@ const fail = (message) => {
 const sub = ['home', 'open'].includes(process.argv[2]) ? process.argv[2] : null;
 
 // Unknown flags and missing values stop here, before anything starts.
-const VALUE_FLAGS = ['--repo', '--port'];
+const VALUE_FLAGS = ['--repo', '--port', '--project'];
 const FLAGS = sub ? ['--no-open', '--autostart', '--no-autostart', '--serve', '-h', '--help'] : ['--no-open', '--autostart', '--no-autostart', '--stop', '--start', '--all', '--list', '--version', '-h', '--help'];
 for (let i = sub ? 3 : 2; i < process.argv.length; i++) {
   const a = process.argv[i];
@@ -61,6 +61,7 @@ opens the home page at http://localhost:${HOME_PORT}: every project, what runs, 
 
   --repo <path>     The git repo the agent team works on (default: this folder, or FLEET_REPO)
   --port <n>        Serve on this port (default ${HOME_PORT + 1}, or the next free one; or FLEET_PORT)
+  --project <name>  A separate team on this repo (New work makes these): its own CTO, port and page
   --no-open         Don't open a browser tab
   --list            List the Fleet copies running on this computer, with their URLs
   --autostart       Start Fleet at login for this repo, in the background, and start it now
@@ -123,6 +124,9 @@ const runHome = async () => {
   process.exit(0);
 };
 if (sub) await runHome();
+
+if (has('--project') && ['--autostart', '--no-autostart', '--stop', '--start', '--all'].some(has))
+  fail('--project is only for starting a separate team. Stop it from the home page.');
 
 if (has('--list')) {
   const list = running();
@@ -240,8 +244,10 @@ for (const i of itemsFor(r)) {
 Run "fleet --autostart" again to fix it.`);
 }
 
-// One Fleet per repo: a second one would run the same team twice. Exit 0, so launchd (or systemd) doesn't retry.
-const already = running().find((e) => e.repo === r);
+// One Fleet per project: a second one would run the same team twice. Exit 0, so launchd (or systemd) doesn't retry.
+// A repo's main project and the separate teams New work made on it (--project) are different projects.
+const project = arg('--project');
+const already = running().find((e) => (project ? e.slug === project : e.repo === r && !e.team));
 if (already) {
   console.log(`Fleet is already running for this repo at ${urlOf(already)}.`);
   if (!has('--no-open')) openBrowser(urlOf(already));
@@ -258,7 +264,7 @@ if (!portGiven) {
 if (port === HOME_PORT && !pinnedHere) console.warn(`Port ${HOME_PORT} is the home page's; it can't start while this Fleet uses it.`);
 
 const { start } = await import('../src/server.js');
-const server = start({ port, repo: r });
+const server = start({ port, repo: r, project });
 server.hqReady.catch((e) => {
   console.error(`Could not start the agent team: ${e.message}`);
   process.exit(1);

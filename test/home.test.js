@@ -44,13 +44,15 @@ test('finds every project with a repo-root (or an older config.json), and marks 
   project('old', { 'config.json': JSON.stringify({ project: { name: 'Old one', path: repo } }) });
   project('gone', { 'repo-root': '/nowhere/gone\n' });
   project('empty', {}); // not a project: no repo recorded
+  project('app-reviews', { 'repo-root': `${repo}\n`, 'config.json': JSON.stringify({ project: { name: 'app · Reviews', parent: 'app' } }) });
   const list = projects().sort((a, b) => a.slug.localeCompare(b.slug));
   assert.deepEqual(
-    list.map((p) => [p.slug, p.name, p.repo, p.missing]),
+    list.map((p) => [p.slug, p.name, p.repo, p.missing, p.parent]),
     [
-      ['app', path.basename(repo), repo, false],
-      ['gone', 'gone', '/nowhere/gone', true],
-      ['old', 'Old one', repo, false],
+      ['app', path.basename(repo), repo, false, null],
+      ['app-reviews', 'app · Reviews', repo, false, 'app'],
+      ['gone', 'gone', '/nowhere/gone', true, null],
+      ['old', 'Old one', repo, false, null],
     ],
   );
   fs.rmSync(projectsDir, { recursive: true });

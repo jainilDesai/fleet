@@ -221,6 +221,32 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
   );
 
   server.registerTool(
+    "remove_agent",
+    {
+      description:
+        "Lead only. Remove an agent whose work is finished: its session stops, and it leaves the team with its folder deleted (its branches stay). Refused while it has unfinished tasks or uncommitted files.",
+      inputSchema: { agent: z.string().describe("id or name"), why: z.string().describe("Why it's no longer needed") },
+    },
+    async ({ agent, why }: { agent: string; why: string }) => {
+      try {
+        leadOnly();
+        const id = planner.agentId(agent);
+        if (!id || !hub.cfg(id)) throw new Error(`No agent "${agent}".`);
+        if (hub.cfg(id)?.isLead) throw new Error("The lead can't remove itself.");
+        const open = hub.snap.tasks.filter((t) => t.ownerId === id && t.status !== "done").map((t) => `${t.id} [${t.status}]`);
+        if (open.length) throw new Error(`${hub.name(id)} still has ${open.join(", ")}. Finish, reassign or close them first.`);
+        if (!planner.removeAgent) throw new Error("Removing agents isn't available.");
+        const name = hub.name(id);
+        await planner.removeAgent(id);
+        hub.activity("config", me, `${hub.name(me)} removed ${name}: ${why.trim().slice(0, 120) || "no longer needed"}`);
+        return ok(`Removed ${name}. Ask for an agent again with add_agent if you need one.`);
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : String(err));
+      }
+    },
+  );
+
+  server.registerTool(
     "send_message",
     {
       description: `Send a message to another agent (id, name, or "lead"). Fleet delivers it whole: right away if they are idle, otherwise when their current turn ends. Up to ${MESSAGE_MAX} characters.`,

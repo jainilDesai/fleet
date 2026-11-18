@@ -45,7 +45,9 @@ export function projects() {
     } catch {}
     const repo = read(path.join(dir, 'repo-root'))?.trim() || config?.project?.path;
     if (!repo) return [];
-    return [{ slug, dir, repo, name: config?.project?.name ?? path.basename(repo), missing: !fs.existsSync(repo) }];
+    // `parent`: a separate team New work made on another project's repo (started with --project).
+    const parent = config?.project?.parent ?? null;
+    return [{ slug, dir, repo, name: config?.project?.name ?? path.basename(repo), missing: !fs.existsSync(repo), parent }];
   });
 }
 
@@ -113,7 +115,8 @@ export async function state() {
         missing: p.missing,
         running: !!copy,
         url: copy ? urlOf(copy) : null,
-        autostart: itemsFor(p.repo).length > 0,
+        parent: p.parent,
+        autostart: !p.parent && itemsFor(p.repo).length > 0,
         summary: copy ? await summary(copy.port) : null,
         cost: by[p.slug],
       };
@@ -134,6 +137,7 @@ function spawnFleet(args, log) {
 
 // Start: the project's login item if it has one, else a background `fleet --repo <repo> --no-open`.
 export function startProject(p) {
+  if (p.parent) return spawnFleet(['--repo', p.repo, '--project', p.slug, '--no-open'], `fleet-${p.slug}.log`);
   const item = itemsFor(p.repo)[0];
   if (item) startBackground(item);
   else spawnFleet(['--repo', p.repo, '--no-open'], `fleet-${p.slug}.log`);
@@ -160,8 +164,8 @@ const git = (args, cwd) => {
 // set up only when you ticked `init`: git init and a first commit of what's there, as Fleet's agents work
 // in worktrees made from a commit. Resolves with the project's URL once it runs.
 function launch(root) {
-  const known = projects().find((p) => p.repo === root);
-  if (running().some((e) => e.repo === root)) return;
+  const known = projects().find((p) => p.repo === root && !p.parent);
+  if (running().some((e) => e.repo === root && !e.team)) return;
   if (known) startProject(known);
   else spawnFleet(['--repo', root, '--no-open'], `fleet-${path.basename(root).replace(/[^\w.-]/g, '_')}.log`);
 }
@@ -182,7 +186,7 @@ export async function createProject({ folder, init } = {}, { waitMs = 30_000, st
   }
   start(root);
   for (const end = Date.now() + waitMs; Date.now() < end; await new Promise((r) => setTimeout(r, 500))) {
-    const copy = running().find((e) => e.repo === root && e.port !== HOME_PORT);
+    const copy = running().find((e) => e.repo === root && !e.team && e.port !== HOME_PORT);
     if (copy) return { url: urlOf(copy), repo: root };
   }
   return { error: `Fleet didn't start on ${root} within ${waitMs / 1000} s. Its log is in ~/.fleet/.` };
@@ -280,7 +284,7 @@ export function handler(req, res) {
         if (!running().some((e) => e.slug === p.slug)) startProject(p);
         return send(res, 200, { ok: true });
       }
-      if (url.pathname === '/api/home/stop') return send(res, 200, stop({ repo: p.repo, registry: running() }));
+      if (url.pathname === '/api/home/stop') return send(res, 200, stop({ repo: p.repo, registry: running(), project: p.parent ? p.slug : null }));
       // Forget removes only Fleet's folder for a project whose repo is gone; never the repo.
       if (url.pathname === '/api/home/forget') {
         if (!p.missing) return send(res, 400, { error: 'repo still exists' });
