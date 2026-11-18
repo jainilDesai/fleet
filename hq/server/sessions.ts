@@ -78,7 +78,7 @@ export class Sessions {
       hub.setStatus(id, { state: "idle", note: "Running" });
       hub.activity("session", id, `${agent.name} started`);
       if (!agent.workspacePath) {
-        void copyEnvFiles(hub.repo.root, dir)
+        void copyEnvFiles(hub.repo.root, dir, join(hub.home, "deps-tmp"))
           .then((linked) => linked.length && hub.activity("session", id, `${agent.name}: env files copied from your checkout (${linked.join(", ")})`))
           .catch((err) => log.warn("copying env files:", err instanceof Error ? err.message : err));
         void shareDependencies(hub.repo.root, dir, join(hub.home, "deps-tmp"))

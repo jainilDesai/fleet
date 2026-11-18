@@ -746,7 +746,9 @@ test("env files git ignores are copied into a worktree: refreshed when yours is 
   fs.mkdirSync(path.join(wt, 'server'), { recursive: true });
   const { execFileSync } = await import('node:child_process');
   execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['init', '-q'], { cwd: wt });
   fs.writeFileSync(path.join(root, '.gitignore'), '.env*\n!.env.example\n');
+  fs.writeFileSync(path.join(wt, '.gitignore'), '/.env\n/.env.local\n');
   for (const f of ['.env', '.env.local', '.env.example', 'server/.env', 'web/.env']) fs.writeFileSync(path.join(root, f), `SECRET=${f}`);
   fs.writeFileSync(path.join(wt, '.env.local'), 'mine');
   const outside = path.join(tmp, 'outside');
@@ -755,18 +757,24 @@ test("env files git ignores are copied into a worktree: refreshed when yours is 
   const past = new Date(Date.now() - 60_000);
   fs.utimesSync(path.join(root, '.env.local'), past, past);
 
-  assert.deepEqual((await copyEnvFiles(root, wt)).sort(), ['.env', path.join('server', '.env')]);
-  assert.equal(fs.readFileSync(path.join(wt, 'server', '.env'), 'utf8'), 'SECRET=server/.env');
+  fs.writeFileSync(path.join(root, 'linked'), 'host');
+  fs.linkSync(path.join(root, 'linked'), path.join(wt, '.env'));
+  fs.utimesSync(path.join(wt, '.env'), past, past);
+  assert.deepEqual((await copyEnvFiles(root, wt, path.join(tmp, 'staging'))).sort(), ['.env'], "server/.env isn't ignored on the agent's branch");
+  assert.equal(fs.readFileSync(path.join(root, 'linked'), 'utf8'), 'host', 'a hard link the agent left is replaced, not written through');
+  fs.writeFileSync(path.join(wt, '.gitignore'), '.env*\n');
   assert.ok(!fs.lstatSync(path.join(wt, '.env')).isSymbolicLink(), 'a copy, so edits stay in the worktree');
   assert.equal(fs.statSync(path.join(wt, '.env')).mode & 0o777, 0o600);
   assert.equal(fs.readFileSync(path.join(wt, '.env.local'), 'utf8'), 'mine', "the agent's newer file is kept");
   assert.ok(!fs.existsSync(path.join(wt, '.env.example')), 'not ignored by git: never copied');
   assert.deepEqual(fs.readdirSync(outside), [], 'never written through a symlinked folder');
 
-  assert.deepEqual(await copyEnvFiles(root, wt), [], 'up to date');
+  assert.deepEqual(await copyEnvFiles(root, wt, path.join(tmp, 'staging')), [path.join('server', '.env')], 'ignored there now');
+  assert.equal(fs.readFileSync(path.join(wt, 'server', '.env'), 'utf8'), 'SECRET=server/.env');
+  assert.deepEqual(await copyEnvFiles(root, wt, path.join(tmp, 'staging')), [], 'up to date');
   const later = new Date(Date.now() + 60_000);
   fs.utimesSync(path.join(root, '.env'), later, later);
-  assert.deepEqual(await copyEnvFiles(root, wt), ['.env'], 'your newer file is copied again');
+  assert.deepEqual(await copyEnvFiles(root, wt, path.join(tmp, 'staging')), ['.env'], 'your newer file is copied again');
 });
 
 
