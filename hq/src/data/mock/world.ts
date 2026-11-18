@@ -143,7 +143,47 @@ export class World {
           note: null,
           at: now(),
           closedAt: null,
-        })),
+        }))
+        .concat(
+          // Demo: an agent's multiple-choice question (Claude Code's AskUserQuestion).
+          preset.config.team
+            .filter((a) => a.isLead)
+            .map((a) => ({
+              id: "aq-demo",
+              fromId: a.id,
+              taskId: null,
+              title: "2 questions: Store, Areas",
+              details: "",
+              waiting: true,
+              status: "open" as const,
+              kind: "question" as const,
+              questions: [
+                {
+                  question: "Which store should QA test the new reviews widget on?",
+                  header: "Store",
+                  options: [
+                    { label: "Dev store", description: "Safe: test orders only, no real customers." },
+                    { label: "Staging", description: "Same data as production, deployed from reviews-final." },
+                    { label: "Production", description: "Real shoppers see it. Only after staging passes." },
+                  ],
+                  multiSelect: false,
+                },
+                {
+                  question: "Which parts should the test cover?",
+                  header: "Areas",
+                  options: [
+                    { label: "Admin settings", description: "Turning ratings on and off, choosing the review app." },
+                    { label: "Product page widget", description: "Stars and counts under each offer." },
+                    { label: "Checkout", description: "Stars in the checkout upsell." },
+                  ],
+                  multiSelect: true,
+                },
+              ],
+              note: null,
+              at: now(),
+              closedAt: null,
+            })),
+        ),
       mcp: {
         servers: [
           { name: "supabase-dev", transport: "remote http", status: "ready", nextStep: null },
