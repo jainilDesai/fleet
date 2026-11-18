@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.1
+
+- **Every answer to you shows in the agent's chat.** A question you type straight into an agent's
+  terminal now shows in its chat in Fleet, with the answer. And when you message a busy agent and
+  a teammate's message arrives at the same moment, its answer to you is posted before it moves on,
+  instead of being lost.
+
 ## 0.10.0
 
 - **New work gets a team of its own.** By default, New work starts a second Fleet on the same

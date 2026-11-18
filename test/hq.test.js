@@ -811,6 +811,34 @@ test('New work on a team of its own: a named project on the same repo, seeded wi
     assert.deepEqual(events.at(-1), { type: 'team.started', title: 'Pricing fix', url: 'http://localhost:7790#app-pricing-fix' });
   }));
 
+test('your question to a busy agent: its answer is posted before the messages it continues with; terminal prompts show too', () =>
+  withTempHome(() => {
+    const { hub } = teamHub();
+    hub.snap.config.team.push(newAgent('planner', 'Planner', 'Planner', '#111', false));
+    hub.snap.agents.push({ agentId: 'planner', state: 'working', session: { state: 'running' } });
+    const awaiting = new Set();
+    let queued = '[Fleet] Message from CTO: next task please';
+    const inbox = { noteHook() {}, expectReply: (id) => awaiting.add(id), takeAwaitingReply: (id) => awaiting.delete(id), takeForStop: () => { const q = queued; queued = null; if (q) awaiting.add('planner'); return q; } };
+    awaiting.add('planner'); // you asked it something mid-turn
+    const r = handleHook(hub, inbox, 'planner', 'Stop', { transcript_path: '/t.jsonl' });
+    assert.equal(r.response.decision, 'block');
+    assert.equal(r.replyTranscript, '/t.jsonl', 'what it wrote so far is posted');
+    assert.equal(r.replyBefore, '[Fleet] Message from CTO: next task please');
+    assert.equal(r.replyCause, undefined, 'it answered you');
+
+    const typed = handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: 'Can checkout show gold stars?' });
+    assert.equal(typed.typedPrompt, 'Can checkout show gold stars?');
+    assert.equal(handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: '[Fleet] Message from You: hi' }).typedPrompt, undefined, "Fleet's own delivery");
+    assert.equal(handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: '/compact' }).typedPrompt, undefined);
+
+    const marker = '[Fleet] Message from CTO: next task please';
+    const file = write([user('Can checkout show gold stars?'), assistant(text('No: stars are plain text.'), toolUse), toolResult, user(`Stop hook feedback:\n${marker}`), assistant(text('Starting the next task.'))]);
+    assert.deepEqual(turnReplies(file, 300, marker), ['No: stars are plain text.']);
+    assert.deepEqual(turnReplies(file), ['Starting the next task.']);
+    const notYet = write([user('Can checkout show gold stars?'), assistant(text('No: stars are plain text.'))]);
+    assert.deepEqual(turnReplies(notYet, 300, marker), ['No: stars are plain text.'], 'before the hand-over is written');
+  }));
+
 test('pasted messages cannot end the paste or type keys', () => {
   assert.equal(pasteSafe('a\x1b[201~\rrm -rf\r\nb\tc\x07\x9b'), 'a[201~\nrm -rf\nb\tc');
 });

@@ -116,6 +116,11 @@ export class Inbox {
     this.awaitingReply.delete(agentId);
   }
 
+  /** You asked it something outside Fleet's inbox (in its terminal): its answer goes to Messages too. */
+  expectReply(agentId: string) {
+    this.awaitingReply.add(agentId);
+  }
+
   /** True once per turn that included a message from you; the caller posts the agent's answer back. */
   takeAwaitingReply(agentId: string): boolean {
     return this.awaitingReply.delete(agentId);

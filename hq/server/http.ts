@@ -134,12 +134,12 @@ async function holdQuestion(o: Options, agentId: string, req: IncomingMessage, r
 }
 
 /** Posts the agent's answer to you, once it's in the transcript (checked after 1.5s, then 5s). */
-function postReply(planner: Planner, agentId: string, transcript: string, cause?: "team", delays = [1500, 5000]) {
+function postReply(planner: Planner, agentId: string, transcript: string, cause?: "team", before?: string, delays = [1500, 5000]) {
   const [wait, ...rest] = delays;
   setTimeout(() => {
-    const texts = turnReplies(transcript);
+    const texts = turnReplies(transcript, 300, before);
     if (texts.length) for (const t of texts) planner.reply(agentId, t, cause);
-    else if (rest.length) postReply(planner, agentId, transcript, cause, rest);
+    else if (rest.length) postReply(planner, agentId, transcript, cause, before, rest);
   }, wait);
 }
 
@@ -208,7 +208,8 @@ export function makeHandler(o: Options): HqHandler {
         else if (event === "Stop" || event === "UserPromptSubmit" || event === "SessionEnd") o.planner.actions?.answeredInTerminal(id);
         const r = handleHook(o.hub, o.inbox, id, event ?? "", payload, (a) => o.refresher?.takeHandoff(a) ?? null);
         if (r.ok) o.refresher?.noteHook(id, event ?? "", payload.transcript_path);
-        if (r.replyTranscript) postReply(o.planner, decodeURIComponent(agentId ?? ""), r.replyTranscript, r.replyCause);
+        if (r.typedPrompt) o.planner.typedInTerminal(id, r.typedPrompt);
+        if (r.replyTranscript) postReply(o.planner, id, r.replyTranscript, r.replyCause, r.replyBefore);
         if (!r.ok) send(res, 404, "");
         else if (r.response) send(res, 200, JSON.stringify(r.response), "application/json");
         else {
