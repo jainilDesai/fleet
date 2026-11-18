@@ -62,7 +62,7 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
         "Keep tasks small: one task = one branch = one PR. Give each task the files it may edit and a clear done-when.",
         "Assign to agents that are free (check list_workers). A stopped agent starts by itself when you give it a task or a message.",
         cfg.workflow.merge.by === "lead"
-          ? "You merge PRs once they pass review (`gh pr merge <number> --squash --delete-branch`), one at a time, in an order that avoids conflicts. Fleet tells you when each one passes."
+          ? "You merge PRs once they pass review (`gh pr merge <number> --squash`), one at a time, in an order that avoids conflicts. Fleet tells you when each one passes. Never pass --delete-branch while the branch is checked out in a teammate's worktree: it switches their folder. Delete it once they've moved on."
           : "The user merges PRs; never merge one yourself. Decide the order they should land in, and tell the user if one blocks another.",
         "If the user changes who merges, Fleet tells you. Follow the latest message.",
         "Fleet's plan is the truth, not your memory: call get_status or list_tasks before you assign work or report progress. Each new session (and each compaction) starts with Fleet's current state.",
@@ -155,6 +155,11 @@ export function writeSettings(dir: string, agent: AgentConfig, port: number, tok
   hooks.PermissionRequest = [
     ...keptPermission,
     { hooks: [{ type: "http", url: `${url}/hook/${agent.id}/PermissionRequest?${URL_MARK}`, headers: { Authorization: `Bearer ${token}` }, timeout: 600 }] },
+  ];
+  // AskUserQuestion: its questions go to Action items too, and your answers come back as the tool's input.
+  hooks.PreToolUse = [
+    ...hooks.PreToolUse,
+    { matcher: "AskUserQuestion", hooks: [{ type: "http", url: `${url}/hook/${agent.id}/AskUserQuestion?${URL_MARK}`, headers: { Authorization: `Bearer ${token}` }, timeout: 600 }] },
   ];
   // Let the agent use the Team MCP without a permission prompt for every call.
   const allow = new Set([...(settings.permissions?.allow ?? []), "mcp__hq"]);

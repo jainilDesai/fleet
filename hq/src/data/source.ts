@@ -99,6 +99,8 @@ export interface OfficeDataSource {
   deleteRole(key: string): void;
   /** Closes an action item; the agent is told (done: with your note; dismissed: continue without it). */
   resolveActionItem(id: string, decision: "done" | "dismissed", note?: string): void;
+  /** Your answers to an agent's AskUserQuestion: question text → chosen label(s). */
+  answerQuestion(id: string, answers: Record<string, string>): void;
 
   updateWorkflow(patch: WorkflowPatch): void;
   updateProject(patch: Partial<ProjectConfig>): void;

@@ -73,6 +73,7 @@ export function createSseSource(token: string): OfficeDataSource {
     startWork: (id) => send("startWork", id),
     completeWelcome: (input) => send("completeWelcome", input),
     resolveActionItem: (id, decision, note) => send("resolveActionItem", id, decision, note),
+    answerQuestion: (id, answers) => send("answerQuestion", id, answers),
   };
   return source;
 }

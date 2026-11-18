@@ -8,6 +8,10 @@ import type { ActivityType, AgentConfig, AgentStatus, HqConfig, OfficeSnapshot, 
 import { writePlanExport } from "./planExport";
 import { saveConfig, savePlan, type PlanFile } from "./store";
 import type { RepoInfo } from "./repo";
+import { MESSAGES_KEPT } from "./planner";
+
+/** Activity lines kept in history. */
+const ACTIVITY_KEPT = 300;
 
 type Listener = (e: OfficeEvent) => void;
 
@@ -44,8 +48,8 @@ export class Hub {
     try {
       const h = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Partial<OfficeSnapshot> & { lastActive?: Record<string, string> }) : {};
       return {
-        messages: Array.isArray(h.messages) ? h.messages.slice(0, 100) : [],
-        activity: Array.isArray(h.activity) ? h.activity.slice(0, 50) : [],
+        messages: Array.isArray(h.messages) ? h.messages.slice(0, MESSAGES_KEPT) : [],
+        activity: Array.isArray(h.activity) ? h.activity.slice(0, ACTIVITY_KEPT) : [],
         lastActive: h.lastActive && typeof h.lastActive === "object" ? h.lastActive : {},
       };
     } catch {
@@ -129,7 +133,7 @@ export class Hub {
     this.seq += 1;
     // Time-based ids: ones loaded from history.json must never clash with new ones.
     const event = { id: `a${Date.now().toString(36)}${this.seq}`, at: now(), type, agentId, text };
-    this.snap.activity = [event, ...this.snap.activity].slice(0, 50);
+    this.snap.activity = [event, ...this.snap.activity].slice(0, ACTIVITY_KEPT);
     if (agentId) this.lastActive[agentId] = event.at;
     this.historyChanged();
     this.emit({ type: "activity", event });

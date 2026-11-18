@@ -218,6 +218,8 @@ export interface Board {
   doneAt?: string;
   /** Written when it was marked done: the request, its tasks and each agent's handoff. */
   summary?: string;
+  /** Agents Done stopped (still on the team): Reopen starts them again. */
+  stoppedIds?: string[];
 }
 
 /** Why marking a board done needs your confirmation: its agents mid-turn, worktrees with uncommitted work. */
@@ -226,6 +228,8 @@ export interface BoardDoneCheck {
   title: string;
   running: string[];
   dirty: { name: string; files: number }[];
+  /** Its tasks that aren't done: "RI-T44 [blocked] Deploy". */
+  openTasks: string[];
 }
 
 /** Folders with uncommitted work left by a finished board: approve deletes them. */
@@ -312,6 +316,8 @@ export interface AgentMessage {
 export type ActivityType =
   | "task.assigned"
   | "task.started"
+  | "task.review"
+  | "task.finished"
   | "task.created"
   | "agent.needs-input"
   | "agent.answered"
@@ -460,8 +466,15 @@ export interface ActionItem {
   details: string; // steps; never secret values
   waiting: boolean; // the agent can't continue without it
   status: "open" | "done" | "dismissed";
-  /** "permission": Claude Code wants to run a tool; done = Allow, dismissed = Deny. Unset = a request from the agent. */
-  kind?: "permission";
+  /**
+   * "permission": Claude Code wants to run a tool; done = Allow, dismissed = Deny.
+   * "question": the agent asks multiple-choice questions (AskUserQuestion); you pick the answers.
+   * Unset = a request from the agent.
+   */
+  kind?: "permission" | "question";
+  /** The questions of a "question" item, and once answered, your answers (question text → choice). */
+  questions?: AskQuestion[];
+  answers?: Record<string, string>;
   /** The agent asks the user to approve or reject something (a plan, a deploy): done = approved, dismissed = rejected. */
   approval?: boolean;
   /** The lead asked to add an agent (Team MCP `add_agent`): approving adds it. */
@@ -474,6 +487,14 @@ export interface ActionItem {
 }
 
 // ---------------------------------------------------------------- Inputs
+
+/** One question of Claude Code's AskUserQuestion tool. */
+export interface AskQuestion {
+  question: string;
+  header?: string;
+  options: { label: string; description?: string }[];
+  multiSelect?: boolean;
+}
 
 export interface AddAgentRequest {
   name: string;

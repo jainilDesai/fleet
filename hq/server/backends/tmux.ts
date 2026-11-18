@@ -41,7 +41,11 @@ export const tmuxBackend: SessionBackend = {
 
   async type(name, text) {
     if (!(await tmux.hasSession(name))) return false;
-    return (await run("tmux", ["send-keys", "-t", `=${name}:`, "-l", text], { timeoutMs: 5000 })).ok;
+    // One bracketed paste: Claude Code takes it whole. Typed keys (send-keys -l) of a long text get split
+    // by its paste detection and arrive cut off.
+    const buffer = `fleet-${name}`;
+    if (!(await run("tmux", ["load-buffer", "-b", buffer, "-"], { input: text, timeoutMs: 5000 })).ok) return false;
+    return (await run("tmux", ["paste-buffer", "-p", "-d", "-b", buffer, "-t", `=${name}:`], { timeoutMs: 5000 })).ok;
   },
 
   async enter(name) {

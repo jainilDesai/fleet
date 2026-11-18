@@ -116,6 +116,84 @@ function Row({ text, color, button = "Open", onOpen, extra, below }: { text: str
 }
 
 function Item({ item, from, now }: { item: ActionItem; from?: { id: string; name: string; color: string }; now: number }) {
+  if (item.kind === "question") return <QuestionItem item={item} from={from} now={now} />;
+  return <RequestItem item={item} from={from} now={now} />;
+}
+
+/** An agent's AskUserQuestion: pick an option per question (or write your own); the answers go straight back. */
+function QuestionItem({ item, from, now }: { item: ActionItem; from?: { id: string; name: string; color: string }; now: number }) {
+  const questions = item.questions ?? [];
+  const [picked, setPicked] = useState<Record<string, string[]>>({});
+  const [other, setOther] = useState<Record<string, string>>({});
+  const answerOf = (q: string) => other[q]?.trim() || (picked[q] ?? []).join(", ");
+  const ready = questions.every((q) => answerOf(q.question));
+  const toggle = (q: string, label: string, multi?: boolean) => {
+    setOther((o) => ({ ...o, [q]: "" }));
+    setPicked((p) => {
+      const cur = p[q] ?? [];
+      return { ...p, [q]: multi ? (cur.includes(label) ? cur.filter((l) => l !== label) : [...cur, label]) : [label] };
+    });
+  };
+  return (
+    <li className="border-[3px] border-ink bg-white px-3 py-2 shadow-[0_3px_0_rgba(36,26,46,0.35)] outline outline-[3px] outline-orange">
+      <div className="flex items-start gap-2">
+        <b className="flex-1 text-[15px]">{questions.length > 1 ? `${questions.length} questions` : "Question"}</b>
+        <span className="chip shrink-0 text-[11px]" style={{ background: "#e1f0ff" }}>question</span>
+      </div>
+      <div className="mb-1 flex items-center gap-1.5 text-[12px] text-muted">
+        {from && <Dot color={from.color} size={8} />}
+        <button className="underline" onClick={() => from && ui.openAgent(from.id, "messages")}>
+          {from?.name ?? item.fromId}
+        </button>
+        {item.taskId && <span>· {item.taskId}</span>}
+        <span>· {ago(item.at, now)} ago</span>
+      </div>
+      {questions.map((q) => (
+        <fieldset key={q.question} className="mt-2">
+          <legend className="text-[14px] font-semibold">
+            {q.header && <span className="mr-1 text-muted">{q.header}:</span>}
+            {q.question}
+            {q.multiSelect && <span className="ml-1 text-[12px] font-normal text-muted">(pick any)</span>}
+          </legend>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {q.options.map((o) => (
+              <button
+                key={o.label}
+                className="btn px-2 text-[13px]"
+                aria-pressed={(picked[q.question] ?? []).includes(o.label) && !other[q.question]?.trim()}
+                title={o.description}
+                onClick={() => toggle(q.question, o.label, q.multiSelect)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <input
+            className="field mt-1 w-full text-[13px]"
+            value={other[q.question] ?? ""}
+            placeholder="Or write your own answer"
+            onChange={(e) => setOther((x) => ({ ...x, [q.question]: e.target.value }))}
+          />
+        </fieldset>
+      ))}
+      <div className="mt-2 flex items-center justify-end gap-2">
+        <button className="btn px-2 text-[12px]" onClick={() => officeActions.resolveActionItem(item.id, "dismissed")} title="The agent asks in its terminal instead">
+          Answer in terminal
+        </button>
+        <button
+          className="btn px-2 text-[12px]"
+          style={{ background: "#b8f5c4" }}
+          disabled={!ready}
+          onClick={() => officeActions.answerQuestion(item.id, Object.fromEntries(questions.map((q) => [q.question, answerOf(q.question)])))}
+        >
+          Send answers
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function RequestItem({ item, from, now }: { item: ActionItem; from?: { id: string; name: string; color: string }; now: number }) {
   const [note, setNote] = useState("");
   // A permission prompt: Allow / Deny go back to Claude Code (done = allow, dismissed = deny).
   const perm = item.kind === "permission";
@@ -156,7 +234,7 @@ function Item({ item, from, now }: { item: ActionItem; from?: { id: string; name
         <input
           className="field min-w-0 flex-1 text-[13px]"
           value={note}
-          placeholder={perm ? "Reason, sent to the agent if you deny (optional)" : approval ? "Reason, sent to the agent (optional)" : "Note for the agent (optional, no secrets)"}
+          placeholder={perm ? "Note for the agent, sent with Allow or Deny (optional)" : approval ? "Reason, sent to the agent (optional)" : "Note for the agent (optional, no secrets)"}
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !yesNo && officeActions.resolveActionItem(item.id, "done", note)}
         />

@@ -90,7 +90,8 @@ export async function fetchPrs(repo: string): Promise<{ open: GhPr[]; merged: Gh
   const [owner, name] = repo.split("/");
   const r = await run("gh", ["api", "graphql", "-f", `query=${QUERY}`, "-F", `owner=${owner}`, "-F", `name=${name}`], { timeoutMs: 30_000 });
   if (!r.ok) {
-    const msg = r.stderr.trim().split("\n")[0] || "gh api failed";
+    // The whole error, minus the echoed command (which is just the query).
+    const msg = r.stderr.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("Command failed")).join(" ").slice(0, 500) || "gh api failed";
     if (/rate limit/i.test(r.stderr + r.stdout)) throw await rateLimited(r.stderr + r.stdout);
     throw new Error(msg);
   }

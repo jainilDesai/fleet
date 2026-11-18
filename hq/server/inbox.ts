@@ -187,7 +187,7 @@ export class Inbox {
       i.kind === "message" ? `[Fleet] Message from ${this.hub.name(i.fromId)}: ${i.text}` : `[Fleet] ${i.text}`,
     );
     const fromAgent = items.some((i) => i.kind === "message" && i.fromId !== "you");
-    // Claude Code submits on newline, so everything goes on one line.
-    return (lines.join("  ·  ") + (fromAgent ? "  (Reply with the hq send_message tool only if a reply is needed.)" : "")).replace(/\s*\n\s*/g, " ");
+    // Delivered as one paste (see the tmux backend), so line breaks are kept.
+    return lines.join("\n\n") + (fromAgent ? "\n\n(Reply with the hq send_message tool only if a reply is needed.)" : "");
   }
 }

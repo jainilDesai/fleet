@@ -146,7 +146,9 @@ export class Sessions {
     this.drafts.delete(agentId);
     if (!(await this.backend.type(this.name(agentId), text))) return false;
     await new Promise((r) => setTimeout(r, 200));
-    return this.backend.enter(this.name(agentId));
+    // The text is in: a failed Enter is retried by the inbox's submit check, never by typing the text again.
+    await this.backend.enter(this.name(agentId));
+    return true;
   }
 
   async hasDraft(agentId: string): Promise<boolean> {

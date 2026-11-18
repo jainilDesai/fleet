@@ -14,6 +14,7 @@ import { deleteRole, listRoles, saveRole } from "./roles";
 import { mergeByNotice } from "./githubSync";
 import { hasIterm } from "./setup";
 import { doneBlockers } from "./boardDone";
+import { MESSAGE_MAX } from "./planner";
 import { OS, openTerminal } from "../../src/platform.js";
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "agent";
@@ -134,7 +135,7 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
 
     // You → agent: same delivery path as the lead's assign_task / send_message.
     assignTask: (taskId, agentId) => planner.assign(str(taskId, 40), str(agentId, 80), "you"),
-    sendMessage: (toId, text) => planner.message("you", str(toId, 80), str(text, 2000)),
+    sendMessage: (toId, text) => planner.message("you", str(toId, 80), str(text, MESSAGE_MAX)),
 
     addAgent: (raw) => {
       const input = (raw ?? {}) as Partial<NewAgentInput>;
@@ -207,6 +208,12 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
     resolveActionItem: (id, decision, note) => {
       const d = decision === "done" || decision === "dismissed" ? decision : null;
       if (d) planner.actions?.resolve(str(id, 40), d, typeof note === "string" ? str(note, 1000) : undefined);
+    },
+
+    answerQuestion: (id, answers) => {
+      if (!answers || typeof answers !== "object") return;
+      const clean = Object.fromEntries(Object.entries(answers as Record<string, unknown>).filter(([, a]) => typeof a === "string").map(([q, a]) => [str(q, 1000), str(a, 1000)]));
+      planner.actions?.answerQuestions(str(id, 40), clean);
     },
 
     completeWelcome: async (raw) => {
@@ -328,12 +335,17 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       const lead = team().find((a) => a.isLead);
       if (!board || board.status !== "done") return;
       planner.updateBoard(board.id, { status: "active" });
-      hub.activity("config", null, `Reopened board "${board.title}"`);
+      // The agents Done stopped come back (each starts fresh, with its handoff in History); the lead starts with the message below.
+      const back = (board.stoppedIds ?? []).filter((a) => hub.cfg(a) && a !== lead?.id);
+      for (const a of back) void sessions.start(a);
+      delete board.stoppedIds;
+      hub.activity("config", null, `Reopened board "${board.title}"${back.length ? `; restarting ${back.map((a) => hub.name(a)).join(", ")}` : ""}`);
+      const removed = (board.crewIds ?? []).filter((a) => !hub.cfg(a));
       if (lead)
         planner.message(
           "you",
           lead.id,
-          `The user reopened board ${board.id} "${board.title}". Agents added for it earlier were removed when it was done; ask with add_agent if it needs more hands. What it was and what came of it:\n\n${board.summary ?? "(no summary)"}`,
+          `The user reopened board ${board.id} "${board.title}".${back.length ? ` Restarted: ${back.map((a) => hub.name(a)).join(", ")}.` : ""}${removed.length ? ` Removed when it was done (ask with add_agent if it needs them again): ${removed.join(", ")}.` : ""} What it was and what came of it:\n\n${board.summary ?? "(no summary)"}`,
           6000,
         );
     },
@@ -345,7 +357,7 @@ export function makeCommands(hub: Hub, sessions: Sessions, planner: Planner, inb
       // A mistaken Done would stop agents mid-turn and put uncommitted work at risk: ask first.
       if (status === "done" && board && board.status !== "done" && (opts as { confirmed?: unknown } | undefined)?.confirmed !== true) {
         const check = await doneBlockers(hub, board, (a) => sessions.inspectWorkspace(a));
-        if (check.running.length || check.dirty.length) return hub.emit({ type: "board.doneCheck", check });
+        if (check.running.length || check.dirty.length || check.openTasks.length) return hub.emit({ type: "board.doneCheck", check });
       }
       planner.updateBoard(str(id, 20), { title: typeof p.title === "string" ? p.title : undefined, status });
     },

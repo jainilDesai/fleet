@@ -173,9 +173,12 @@ export class GitHubSync {
   private syncTask(pr: PullRequest) {
     const task = pr.taskId ? this.planner.task(pr.taskId) : undefined;
     if (!task || pr.closed) return;
-    if (pr.merged && task.status !== "done") this.planner.updateTask(task.id, { status: "done", prNumber: pr.number });
-    else if (!pr.merged && (task.status === "todo" || task.status === "in-progress")) this.planner.updateTask(task.id, { status: "in-review", prNumber: pr.number });
-    else if (!pr.merged && task.prNumber !== pr.number) this.planner.updateTask(task.id, { prNumber: pr.number });
+    // A PR an agent reported for another task stays there, whatever its title says.
+    if (this.hub.snap.tasks.some((t) => t.id !== task.id && t.prNumber === pr.number)) return;
+    if (task.status === "done") return; // its PR is settled; a follow-up PR never replaces it
+    const mine = !task.prNumber || task.prNumber === pr.number;
+    if (pr.merged && mine) this.planner.updateTask(task.id, { status: "done", prNumber: pr.number });
+    else if (!pr.merged && mine && (task.status === "todo" || task.status === "in-progress")) this.planner.updateTask(task.id, { status: "in-review", prNumber: pr.number });
   }
 
   private react(old: PullRequest | undefined, pr: PullRequest) {
@@ -186,7 +189,14 @@ export class GitHubSync {
     const ref = `#${pr.number} ${pr.title}`;
 
     if (!old && !pr.merged && !pr.closed) hub.activity("pr.opened", who, `${hub.name(who)} opened PR ${ref}`);
-    if (pr.closed && !old?.closed) return hub.activity("config", who, `PR #${pr.number} was closed without merging`);
+    if (pr.closed && !old?.closed) {
+      hub.activity("config", who, `PR #${pr.number} was closed without merging`);
+      // Its task would otherwise wait in review forever.
+      const task = this.hub.snap.tasks.find((t) => t.prNumber === pr.number) ?? (pr.taskId ? this.planner.task(pr.taskId) : undefined);
+      if (lead && task && task.status !== "done")
+        this.planner.notify(lead.id, `PR #${pr.number} was closed without merging; ${task.id} is still ${task.status}. Close it, reassign it, or point it at the PR that replaced it (update_task).`);
+      return;
+    }
 
     if (pr.merged && !old?.merged) {
       hub.activity("pr.merged", null, `PR ${ref} was merged`);

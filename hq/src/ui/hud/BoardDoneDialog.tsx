@@ -15,6 +15,17 @@ export function BoardDoneDialog() {
               Working right now: <b>{check.running.join(", ")}</b>. Done stops them mid-turn.
             </li>
           )}
+          {check.openTasks.length > 0 && (
+            <li>
+              {check.openTasks.length} task{check.openTasks.length > 1 ? "s" : ""} not done:
+              <ul className="list-[circle] pl-5 text-muted">
+                {check.openTasks.slice(0, 6).map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+                {check.openTasks.length > 6 && <li>and {check.openTasks.length - 6} more</li>}
+              </ul>
+            </li>
+          )}
           {check.dirty.map((d) => (
             <li key={d.name}>
               <b>{d.name}</b> has {d.files} uncommitted file{d.files > 1 ? "s" : ""}.
