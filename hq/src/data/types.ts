@@ -311,6 +311,8 @@ export interface AgentMessage {
   toId: string;
   text: string;
   delivered?: "typed" | "on-stop" | "queued"; // how HQ handed it over
+  /** An agent's reply to you from a turn that answered teammates or Fleet, not you. */
+  cause?: "team";
 }
 
 export type ActivityType =
