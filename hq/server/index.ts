@@ -82,7 +82,7 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   const hub = new Hub(repo, slug, home, config, loadPlan(home), setup);
   hub.snap.welcome = isNew;
   const sessions = new Sessions(hub, token);
-  const inbox = new Inbox(hub, { type: (id, text) => sessions.typeInto(id, text), enter: (id) => sessions.pressEnter(id) });
+  const inbox = new Inbox(hub, { type: (id, text) => sessions.typeInto(id, text), enter: (id) => sessions.pressEnter(id), draft: (id) => sessions.promptDraft(id) });
   sessions.onSessionDown = (id) => inbox.sessionDown(id);
   sessions.onSessionReattached = (id) => inbox.sessionReattached(id);
   sessions.lastHookAt = (id) => inbox.lastHookAt(id);
@@ -188,3 +188,4 @@ export { Planner } from "./planner";
 export { ActionItems } from "./actionItems";
 export { stopIdleAgents } from "./idleStop";
 export { Hub } from "./hub";
+export { Inbox } from "./inbox";
