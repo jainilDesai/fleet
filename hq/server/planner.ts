@@ -176,6 +176,15 @@ export class Planner {
 
   /** Records a message, shows it in the office, and delivers it. */
   message(fromId: string, toRef: string, text: string, max = MESSAGE_MAX) {
+    // To you: shown in Messages and as a banner; there's no terminal to deliver it to.
+    if (fromId !== "you" && /^(you|user)$/i.test(toRef.trim())) {
+      const clean = text.trim().slice(0, max);
+      if (!clean) throw new Error("Empty message");
+      this.record(fromId, "you", clean);
+      this.hub.activity("message", fromId, `${this.hub.name(fromId)} → You: ${clean.slice(0, 80)}`);
+      this.hub.alert(fromId, clean);
+      return "you";
+    }
     const toId = this.agentId(toRef);
     if (!toId) throw new Error(`No agent "${toRef}". Team: ${this.snap.config.team.map((a) => a.id).join(", ")}`);
     const clean = text.trim().slice(0, max);
@@ -194,6 +203,7 @@ export class Planner {
     if (!this.hub.cfg(fromId) || !text.trim()) return;
     this.record(fromId, "you", text.trim().slice(0, MESSAGE_MAX), cause);
     this.hub.activity("message", fromId, `${this.hub.name(fromId)} → You: ${text.trim().slice(0, 80)}`);
+    if (!cause) this.hub.alert(fromId, text.trim());
   }
 
   /** What you typed in an agent's terminal, shown in its chat in Fleet (it already has it: not delivered). */

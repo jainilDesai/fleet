@@ -174,8 +174,13 @@ const sh = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
 // A leading "-" or "[" would be read as an option; a zero-width space keeps it text.
 const text = (v, n) => String(v || ' ').slice(0, n).replace(/^[-[]/, '\u200b$&');
 
-// event: the session the banner is about (its terminal opens on click), or null for the dashboard.
-function banner(title, message, subtitle, sound, event) {
+// A banner from an agent team (Fleet HQ) for you: a message or an action item. Click opens `url`, the team's page.
+export function alertUser(title, message, subtitle, url) {
+  if (config().banners) banner(title, message, subtitle, 'Glass', null, url);
+}
+
+// event: the session the banner is about (its terminal opens on click), or null for the dashboard (`url`).
+function banner(title, message, subtitle, sound, event, url = dashboardUrl) {
   // Off macOS: notify-send when installed (no click action), else no banner; events still go to the inbox.
   if (OS !== 'mac') {
     if (NOTIFY_SEND) execFile(NOTIFY_SEND, ['--app-name=Fleet', text(title, 120), text(subtitle ? `${message}\n${subtitle}` : message, 240)], () => {});
@@ -184,7 +189,7 @@ function banner(title, message, subtitle, sound, event) {
   if (NOTIFIER) {
     const click = event?.pid
       ? `${sh(process.execPath)} ${sh(FOCUS)} ${Number(event.pid)}`
-      : dashboardUrl && `open ${sh(dashboardUrl)}`;
+      : url && `open ${sh(url)}`;
     execFile(NOTIFIER, [
       '-title', text(title, 120),
       '-message', text(message, 240),
