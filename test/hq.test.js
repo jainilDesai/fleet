@@ -320,6 +320,7 @@ test('without GitHub, agents are told there are no PRs and not to push', () => {
 // A Hub with just what Planner, ActionItems and the New work commands use.
 function teamHub() {
   const activity = [];
+  const alerts = [];
   const hub = {
     slug: 'nw-test',
     repo: { root: '/repo' },
@@ -333,11 +334,25 @@ function teamHub() {
     name: (id) => hub.snap.config.team.find((a) => a.id === id)?.name ?? id,
     cfg: (id) => hub.snap.config.team.find((a) => a.id === id),
     status: (id) => hub.snap.agents.find((a) => a.agentId === id),
+    alert: (fromId, text) => alerts.push({ fromId, text }),
   };
   const pushed = [];
   const planner = new Planner(hub, { push: (to, item) => pushed.push({ to, ...item }) });
-  return { hub, planner, pushed, activity };
+  return { hub, planner, pushed, activity, alerts };
 }
+
+test("a worker's send_message to you: in Messages and a banner, never delivered to an agent", () => {
+  const { hub, planner, pushed, alerts } = teamHub();
+  hub.snap.config.team.push(newAgent('qa', 'QA', 'QA', '#111', false));
+  assert.equal(planner.message('qa', 'you', ' Found the bug in checkout. '), 'you');
+  assert.deepEqual(hub.snap.messages.map((m) => [m.fromId, m.toId, m.text]), [['qa', 'you', 'Found the bug in checkout.']]);
+  assert.deepEqual(alerts, [{ fromId: 'qa', text: 'Found the bug in checkout.' }]);
+  assert.equal(pushed.length, 0, 'no inbox: there is no terminal to type it into');
+  assert.throws(() => planner.message('qa', 'User', '  '), /Empty message/);
+  planner.reply('cto', 'Done: PR #12 is open.');
+  planner.reply('cto', 'Assigned T2 to QA.', 'team');
+  assert.deepEqual(alerts.map((a) => a.text), ['Found the bug in checkout.', 'Done: PR #12 is open.'], "a reply to teammates isn't a banner");
+});
 
 test('New work: a board with the prompt, the crew added (numbered, capped), and the prompt sent to the lead', () =>
   withTempHome(() => {

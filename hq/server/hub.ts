@@ -9,6 +9,7 @@ import { writePlanExport } from "./planExport";
 import { saveConfig, savePlan, type PlanFile } from "./store";
 import type { RepoInfo } from "./repo";
 import { MESSAGES_KEPT } from "./planner";
+import { alertUser } from "../../src/events.js";
 
 /** Activity lines kept in history. */
 const ACTIVITY_KEPT = 300;
@@ -101,6 +102,12 @@ export class Hub {
     if (id === "you") return "You";
     if (id === "hq") return "Fleet";
     return (id && this.cfg(id)?.name) || "Someone";
+  }
+
+  /** A banner for you (macOS; Fleet's banner setting applies): clicking it opens this team's page. */
+  alert(fromId: string, text: string) {
+    const p = this.snap.config.project;
+    alertUser(this.name(fromId), text.replace(/\s+/g, " "), p.name, `http://localhost:${p.hqPort}`);
   }
 
   // ------------------------------------------------------------ mutations

@@ -249,13 +249,12 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
   server.registerTool(
     "send_message",
     {
-      description: `Send a message to another agent (id, name, or "lead"). Fleet delivers it whole: right away if they are idle, otherwise when their current turn ends. Up to ${MESSAGE_MAX} characters.`,
+      description: `Send a message to another agent (id, name, or "lead"), or to "you" (the user: shown in their chat with you and as a notification). Fleet delivers it whole: right away if they are idle, otherwise when their current turn ends. Up to ${MESSAGE_MAX} characters.`,
       inputSchema: { to: z.string(), text: z.string() },
     },
     guard(({ to, text }: { to: string; text: string }) => {
-      const toId = planner.agentId(to);
-      if (toId === me) throw new Error("That's you.");
-      planner.message(me, to, text);
+      if (planner.agentId(to) === me) throw new Error("That's you.");
+      const toId = planner.message(me, to, text);
       return ok(`Sent to ${hub.name(toId)}.${trimmed(text, MESSAGE_MAX)}`);
     }),
   );

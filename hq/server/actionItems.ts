@@ -111,6 +111,7 @@ export class ActionItems {
     this.save();
     this.hub.emit({ type: "action.updated", item: { ...item } });
     this.hub.activity("agent.needs-input", fromId, `${this.hub.name(fromId)} added an action item${waiting ? " (waiting)" : ""}: ${clean}`);
+    this.hub.alert(fromId, `${item.approval ? "Approve: " : ""}${clean}`);
     return item;
   }
 
@@ -136,6 +137,7 @@ export class ActionItems {
     this.save();
     this.hub.emit({ type: "action.updated", item: { ...item } });
     this.hub.activity("agent.needs-input", fromId, `${this.hub.name(fromId)} asks: ${item.title}`);
+    this.hub.alert(fromId, tool === "AskUserQuestion" ? `Asks: ${item.title}` : `Wants to: ${item.title}`);
     const answer = new Promise<PermissionAnswer>((done) => this.waiters.set(item.id, done as (a: PermissionAnswer | QuestionAnswer) => void));
     this.pendingTools.set(item.id, { agentId: fromId, tool });
     return { item, answer };

@@ -108,6 +108,8 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
     `Your tools: ${tools}.`,
     "Messages that start with `[Fleet]` come from Fleet: assignments from the lead, or messages from teammates. Act on them.",
     "Teammates work in their own git worktrees and cannot see your files or terminal. Talk to them only with send_message.",
+    // The lead's answers already reach the user (its transcript is read); a worker's don't unless the user asked it.
+    ...(agent.isLead ? [] : ["The user doesn't watch your terminal either. To tell them something (a finding, a result, a question that isn't a decision), send_message to \"you\"."]),
     "",
     `Project: ${cfg.project.name} (${cfg.project.repo}). You are managed by Fleet.`,
     "",
