@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -353,6 +353,25 @@ test("a worker's send_message to you: in Messages and a banner, never delivered 
   planner.reply('cto', 'Assigned T2 to QA.', 'team');
   assert.deepEqual(alerts.map((a) => a.text), ['Found the bug in checkout.', 'Done: PR #12 is open.'], "a reply to teammates isn't a banner");
 });
+
+test("permissions: an agent's own mode, else the project's; the project's is set and cleared in Settings", () =>
+  withTempHome(() => {
+    const mode = (args) => (args.includes('--permission-mode') ? args[args.indexOf('--permission-mode') + 1] : null);
+    const worker = newAgent('implementer', 'Implementer', 'Implementer', '#111', false);
+    const deployer = newAgent('deployer', 'Deployer', 'Deployer', '#222', false);
+    assert.equal(mode(launchArgs(worker)), null, "no mode anywhere: the user's Claude default");
+    assert.equal(mode(launchArgs(worker, 'bypassPermissions')), 'bypassPermissions');
+    assert.equal(deployer.permissionMode, 'default', 'the Deployer asks first by default');
+    assert.equal(mode(launchArgs(deployer, 'bypassPermissions')), 'default', 'its own mode wins over the project');
+
+    const { hub, planner } = teamHub();
+    hub.snap.config.project = { name: 'p' };
+    const cmd = makeCommands(hub, {}, planner, {});
+    cmd.updateProject({ permissionMode: 'bypassPermissions' });
+    assert.equal(hub.snap.config.project.permissionMode, 'bypassPermissions');
+    cmd.updateProject({ permissionMode: 'yolo' });
+    assert.equal(hub.snap.config.project.permissionMode, undefined, 'anything else clears it');
+  }));
 
 test('New work: a board with the prompt, the crew added (numbered, capped), and the prompt sent to the lead', () =>
   withTempHome(() => {

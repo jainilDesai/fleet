@@ -45,7 +45,7 @@ export interface AgentConfig {
   workspacePath: string | null; // an existing folder to use; null = Fleet-managed worktree
   /** MCP servers (names in sbx's registry) this agent's sandbox gets. */
   mcp?: string[];
-  /** Claude Code's --permission-mode for this agent; unset = your own default. */
+  /** Claude Code's --permission-mode for this agent; unset = the project's (ProjectConfig.permissionMode). */
   permissionMode?: PermissionMode;
   /** Skills attached to this agent only (pasted or uploaded); written to .claude/skills/fleet-<name>/. */
   skillFiles?: SkillFile[];
@@ -86,8 +86,8 @@ export interface SaveRoleInput {
 /** Limits on attached skills (checked by the server). */
 export const SKILL_LIMITS = { count: 20, bytes: 100_000 } as const;
 
-/** Claude Code permission modes Fleet can start an agent in. "default" asks before edits and commands. */
-export const PERMISSION_MODES = ["default", "acceptEdits", "auto", "plan"] as const;
+/** Claude Code permission modes Fleet can start an agent in. "default" asks before edits and commands; "bypassPermissions" never asks. */
+export const PERMISSION_MODES = ["default", "acceptEdits", "auto", "plan", "bypassPermissions"] as const;
 export type PermissionMode = (typeof PERMISSION_MODES)[number];
 
 /** An MCP server registered with Docker Sandboxes (`sbx mcp ls`). */
@@ -153,6 +153,8 @@ export interface ProjectConfig {
   officeName?: string; // the sign on the office wall; empty = "JSM HQ"
   /** A separate team New work made: the slug of the project it came from (same repo). */
   parent?: string;
+  /** Every agent's permission mode unless the agent has its own; unset = your Claude default. */
+  permissionMode?: PermissionMode;
 }
 
 export interface HqConfig {
@@ -536,6 +538,8 @@ export interface WelcomeInput {
   workers: { name: string; role: string; cli: AgentCli }[];
   reviewTool: ReviewTool;
   reviewEnabled: boolean;
+  /** Every agent's permission mode (ProjectConfig.permissionMode). */
+  permissionMode?: PermissionMode;
   /** Optional: what the project is built with. */
   stack?: StackConfig;
 }

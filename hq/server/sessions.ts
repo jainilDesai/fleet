@@ -72,7 +72,7 @@ export class Sessions {
       await writeAgentFiles(dir, agent, hub.snap.config, this.agentToken, { noGitHub: !hub.repo.github || check("gh") !== "ok" });
       if (!(await this.backend.exists(name))) {
         hub.setSession(id, { detail: "Starting Claude Code…" });
-        await this.backend.create(name, dir, { file: "claude", args: launchArgs(agent), envFile: null }, { cols: 200, rows: 50 });
+        await this.backend.create(name, dir, { file: "claude", args: launchArgs(agent, hub.snap.config.project.permissionMode), envFile: null }, { cols: 200, rows: 50 });
       }
       hub.setSession(id, { state: "running", detail: null, workspace: dir });
       hub.setStatus(id, { state: "idle", note: "Running" });

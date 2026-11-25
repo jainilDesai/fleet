@@ -1,9 +1,16 @@
 // Small shared HUD pieces.
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { AgentState, ReviewState } from "../data/types";
 import { robotCanvases } from "../office/draw/robots";
 import { reviewStyle, stateStyle } from "../theme/tokens";
+
+/** A message box's keys: Enter sends, Shift+Enter is a new line (Enter that picks an input method's word does neither). */
+export const enterSends = (send: () => void) => (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+  e.preventDefault();
+  send();
+};
 
 export function StateChip({ state, blink = true }: { state: AgentState; blink?: boolean }) {
   const st = stateStyle[state];

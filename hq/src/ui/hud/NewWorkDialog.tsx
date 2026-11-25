@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BUILT_IN_ROLES, LEAD_NAME } from "../../data/names";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, useUi } from "../../store/ui";
+import { enterSends } from "../kit";
 
 /** Matches CREW_MAX in hq/server/commands.ts. */
 const CREW_MAX = 6;
@@ -39,6 +40,7 @@ export function NewWorkDialog() {
       ...c,
       [role]: Math.max(0, Math.min(3, n, (c[role] ?? 0) + CREW_MAX - total)),
     }));
+  const canStart = !!prompt.trim() && !(!newTeam && extra && crew.length === 0);
   const submit = (startNow: boolean) => {
     officeActions.newWork({
       title: title.trim() || undefined,
@@ -94,7 +96,8 @@ export function NewWorkDialog() {
             onChange={(e) => setPrompt(e.target.value)}
             maxLength={4000}
             autoFocus
-            placeholder="Add a /health endpoint that returns ok, with a test"
+            onKeyDown={enterSends(() => canStart && submit(true))}
+            placeholder="Add a /health endpoint that returns ok, with a test (Shift+Enter for a new line)"
           />
         </label>
         <label className="mb-3 flex flex-col gap-1">
@@ -199,7 +202,7 @@ export function NewWorkDialog() {
               Save for later
             </button>
           )}
-          <button className="btn" disabled={!prompt.trim() || (!newTeam && extra && crew.length === 0)} onClick={() => submit(true)}>
+          <button className="btn" disabled={!canStart} onClick={() => submit(true)}>
             {newTeam ? "Start the team" : `Send to ${lead}`}
           </button>
         </div>
