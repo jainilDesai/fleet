@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs, looseness } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -371,6 +371,24 @@ test("permissions: an agent's own mode, else the project's; the project's is set
     assert.equal(hub.snap.config.project.permissionMode, 'bypassPermissions');
     cmd.updateProject({ permissionMode: 'yolo' });
     assert.equal(hub.snap.config.project.permissionMode, undefined, 'anything else clears it');
+  }));
+
+test("the lead loosening an agent's permissions waits for your Approve; Reject changes nothing", () =>
+  withTempHome(() => {
+    assert.ok(looseness('bypassPermissions') > looseness('auto') && looseness('auto') > looseness('acceptEdits') && looseness('acceptEdits') > looseness(undefined) && looseness(undefined) > looseness('plan'));
+    const { hub, planner } = teamHub();
+    fs.mkdirSync(path.join(process.env.HOME, '.fleet', 'projects', hub.slug), { recursive: true });
+    const actions = new ActionItems(hub, planner);
+    planner.actions = actions;
+    const deployer = newAgent('deployer', 'Deployer', 'Deployer', '#222', false);
+    hub.snap.config.team.push(deployer);
+    const ask = () => actions.add('cto', 'Approve permissions for Deployer: bypassPermissions', 'why', false, true, undefined, undefined, { agentId: 'deployer', mode: 'bypassPermissions' });
+    const rejected = ask();
+    assert.equal(rejected.approval, true);
+    actions.resolve(rejected.id, 'dismissed');
+    assert.equal(deployer.permissionMode, 'default', 'rejected: unchanged');
+    actions.resolve(ask().id, 'done');
+    assert.equal(deployer.permissionMode, 'bypassPermissions', 'approved: set');
   }));
 
 test('New work: a board with the prompt, the crew added (numbered, capped), and the prompt sent to the lead', () =>

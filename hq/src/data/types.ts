@@ -489,6 +489,8 @@ export interface ActionItem {
   addAgent?: AddAgentRequest;
   /** A finished board left uncommitted work: approving deletes those folders. */
   cleanup?: CleanupRequest;
+  /** The lead asked to loosen an agent's permission mode (Team MCP `set_permission_mode`): approving sets it. null = the project's. */
+  setPermission?: { agentId: string; mode: PermissionMode | null };
   note: string | null; // the user's note when closing it
   at: string;
   closedAt: string | null;

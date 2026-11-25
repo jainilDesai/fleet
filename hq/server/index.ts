@@ -151,6 +151,7 @@ export { GitHubSync, passedNotice } from "./githubSync";
 export { deleteRole, listRoles, rolePreset, saveRole } from "./roles";
 export { newAgent } from "./store";
 export { launchArgs } from "./adapters";
+export { looseness } from "./mcp";
 export { isApproval, parseQuestions, resolutionMessage } from "./actionItems";
 export { hookCommand, roleMd, skillText, writeSkills } from "./agentFiles";
 export { handleHook, leadBriefing } from "./hooks";

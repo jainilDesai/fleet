@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { PERMISSION_MODES } from "../src/data/types";
+import { PERMISSION_MODES, type PermissionMode } from "../src/data/types";
 import type { Hub } from "./hub";
 import { MESSAGE_MAX, NOTE_MAX, type Planner } from "./planner";
 
@@ -27,6 +27,9 @@ function guard<A>(fn: (args: A) => Result) {
     }
   };
 }
+
+/** How much an agent may do without asking you; unset (your Claude default) counts as "default". */
+export const looseness = (mode?: PermissionMode | null) => ["plan", "default", "acceptEdits", "auto", "bypassPermissions"].indexOf(mode ?? "default");
 
 function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
   const server = new McpServer({ name: "hq", version: "0.1.0" });
@@ -251,20 +254,26 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
     "set_permission_mode",
     {
       description:
-        'Lead only. Change how an agent asks before acting (Claude Code\'s permission mode): default asks the user (Allow / Deny in Action items), acceptEdits allows file edits, auto lets a classifier decide, plan only reads, bypassPermissions never asks. "project" goes back to the project\'s mode. Takes effect when the agent next starts or refreshes. The user is told.',
+        'Lead only. Change how an agent asks before acting (Claude Code\'s permission mode): default asks the user (Allow / Deny in Action items), acceptEdits allows file edits, auto lets a classifier decide, plan only reads, bypassPermissions never asks. "project" goes back to the project\'s mode. A stricter mode applies right away; a looser one asks the user to approve it first (Fleet messages you). Takes effect when the agent next starts or refreshes.',
       inputSchema: { agent: z.string().describe("id or name"), mode: z.enum([...PERMISSION_MODES, "project"]), why: z.string().describe("Why this agent needs it") },
     },
     guard(({ agent, mode, why }: { agent: string; mode: (typeof PERMISSION_MODES)[number] | "project"; why: string }) => {
       leadOnly();
       const cfg = hub.cfg(planner.agentId(agent) ?? "");
       if (!cfg) throw new Error(`No agent "${agent}".`);
-      if (mode === "project") delete cfg.permissionMode;
-      else cfg.permissionMode = mode;
+      const next = mode === "project" ? null : mode;
+      const label = next ?? "the project's mode";
+      // Loosening what an agent may do unasked (the lead's own mode included) is the user's call, never the lead's.
+      if (looseness(next ?? hub.snap.config.project.permissionMode) > looseness(cfg.permissionMode ?? hub.snap.config.project.permissionMode)) {
+        if (!planner.actions) throw new Error("Action items aren't available.");
+        const item = planner.actions.add(me, `Approve permissions for ${cfg.name}: ${label}`, `${why.trim() || "No reason given."}\n\n${cfg.name} would ask you less before acting. Applies when it next starts or refreshes.`, false, true, undefined, undefined, { agentId: cfg.id, mode: next });
+        return ok(`Asked the user (${item.id}). Fleet messages you when they approve or reject it.`);
+      }
+      if (next) cfg.permissionMode = next;
+      else delete cfg.permissionMode;
       hub.configChanged();
-      const what = `${hub.name(me)} set ${cfg.name}'s permissions to ${mode === "project" ? "the project's" : mode}: ${why.trim().slice(0, 120) || "no reason given"}`;
-      hub.activity("config", me, what);
-      hub.alert(me, what); // you see every change the lead makes to what agents may do unasked
-      return ok(`${cfg.name} is now ${mode}. It applies when ${cfg.name} next starts or refreshes.`);
+      hub.activity("config", me, `${hub.name(me)} set ${cfg.name}'s permissions to ${label}: ${why.trim().slice(0, 120) || "no reason given"}`);
+      return ok(`${cfg.name} is now ${label}. It applies when ${cfg.name} next starts or refreshes.`);
     }),
   );
 
