@@ -195,20 +195,19 @@ export function makeHandler(o: Options): HqHandler {
         send(res, 403, JSON.stringify({ error: "bad token" }), "application/json");
         return true;
       }
-      const ext = Object.keys(IMAGE_TYPES).find((k) => IMAGE_TYPES[k] === String(req.headers["content-type"] ?? "").split(";")[0].trim());
       try {
-        if (!ext) throw new Error("Only PNG, JPEG, WebP and GIF images.");
-        send(res, 200, JSON.stringify({ path: saveImage(await readBytes(req, IMAGE_MAX), ext) }), "application/json");
+        // The type comes from the bytes (saveImage), not from the request's content-type.
+        send(res, 200, JSON.stringify({ path: saveImage(o.hub.slug, await readBytes(req, IMAGE_MAX)) }), "application/json");
       } catch (err) {
         send(res, 400, JSON.stringify({ error: err instanceof Error ? err.message : "upload failed" }), "application/json");
       }
       return true;
     }
 
-    // A picture in a message. Read by <img>, so no token (like the stream); only ~/.fleet/uploads, by exact name.
+    // A picture in a message. Read by <img>, so no token (like the stream); only this project's uploads, by exact name.
     if (req.method === "GET" && url.pathname.startsWith("/api/hq/uploads/")) {
       const name = url.pathname.slice("/api/hq/uploads/".length);
-      const bytes = UPLOAD_NAME.test(name) ? await readFile(join(uploadsDir(), name)).catch(() => null) : null;
+      const bytes = UPLOAD_NAME.test(name) ? await readFile(join(uploadsDir(o.hub.slug), name)).catch(() => null) : null;
       if (!bytes) send(res, 404, "not found");
       else {
         res.writeHead(200, { "Content-Type": IMAGE_TYPES[name.split(".")[1]], "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });

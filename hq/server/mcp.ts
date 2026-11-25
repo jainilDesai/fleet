@@ -286,7 +286,7 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
     },
     guard(({ to, text, images }: { to: string; text: string; images?: string[] }) => {
       if (planner.agentId(to) === me) throw new Error("That's you.");
-      const shots = (images ?? []).map((f) => `[image: ${copyImage(f.trim())}]`);
+      const shots = (images ?? []).map((f) => `[image: ${copyImage(hub.slug, f.trim())}]`);
       const toId = planner.message(me, to, [text.slice(0, MESSAGE_MAX), ...shots].join("\n"), MESSAGE_MAX + 200 * shots.length);
       return ok(`Sent to ${hub.name(toId)}.${trimmed(text, MESSAGE_MAX)}`);
     }),

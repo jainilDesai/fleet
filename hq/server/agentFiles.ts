@@ -134,7 +134,7 @@ export function hookCommand(url: string, token: string, agentId: string, event: 
  * Hooks report state to Fleet. SessionStart also prints the role file, which Claude Code
  * adds to the session's context. Existing user hooks are kept.
  */
-export function writeSettings(dir: string, agent: AgentConfig, port: number, token: string) {
+export function writeSettings(dir: string, agent: AgentConfig, port: number, token: string, project: string) {
   const file = ".claude/settings.local.json";
   let settings: Settings = {};
   const existing = agentRead(dir, file); // a symlink reads as missing: never pull in a host file
@@ -172,8 +172,10 @@ export function writeSettings(dir: string, agent: AgentConfig, port: number, tok
   ];
   // Let the agent use the Team MCP without a permission prompt for every call.
   const allow = new Set([...(settings.permissions?.allow ?? []), "mcp__hq"]);
-  // Images in messages ("[image: <path>]") live in ~/.fleet/uploads: the agent may read them without a prompt.
-  const dirs = new Set([...((settings.permissions?.additionalDirectories as string[] | undefined) ?? []), uploadsDir()]);
+  // Images in messages ("[image: <path>]") live in the project's uploads: the agent may read them without a
+  // prompt. Only its own project's (not another project's, nor the old shared ~/.fleet/uploads).
+  const own = uploadsDir(project);
+  const dirs = new Set([...((settings.permissions?.additionalDirectories as string[] | undefined) ?? []).filter((d) => !/\/\.fleet\/(projects\/[^/]+\/)?uploads\/?$/.test(d)), own]);
   // Owner-only: the hook commands carry the agent token.
   agentWrite(dir, file, JSON.stringify({ ...settings, hooks, permissions: { ...(settings.permissions ?? {}), allow: [...allow], additionalDirectories: [...dirs] } }, null, 2) + "\n", { mode: 0o600 });
 }
@@ -229,7 +231,7 @@ export function writeSkills(dir: string, skills: SkillFile[] = []) {
 export function writeClaudeFiles(dir: string, agent: AgentConfig, cfg: HqConfig, token: string, extras: RoleExtras = {}) {
   agentWrite(dir, ROLE_FILE, roleMd(agent, cfg, extras));
   writeSkills(dir, agent.skillFiles);
-  writeSettings(dir, agent, cfg.project.hqPort, token);
+  writeSettings(dir, agent, cfg.project.hqPort, token, cfg.project.id);
   writeMcpConfig(dir, agent, cfg.project.hqPort, token);
 }
 
