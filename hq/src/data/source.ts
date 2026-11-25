@@ -75,6 +75,8 @@ export interface OfficeDataSource {
   refreshAgent(id: string): void;
   /** Ask for the agent's saved handoffs (answered with a "handoffs" event). */
   listHandoffs(id: string): void;
+  /** Saves a pasted image; resolves with its path for "[image: <path>]", or rejects with why not. */
+  uploadImage(image: Blob): Promise<string>;
   /** Ask for the project's History across its teams (answered with a "history" event). */
   listHistory(): void;
   /** Stops every running agent session. */

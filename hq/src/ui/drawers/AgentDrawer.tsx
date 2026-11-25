@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentMessage, type AgentStatus, type OfficeSnapshot } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, type AgentTab } from "../../store/ui";
-import { ago, Dot, enterSends, Portrait, ReviewChip, SectionTitle, StateChip, Tabs, useNow } from "../kit";
+import { ago, Dot, enterSends, pasteImages, Portrait, ReviewChip, SectionTitle, StateChip, Tabs, useNow } from "../kit";
 import { DrawerHeader } from "./Drawer";
-import { Markdown } from "../Markdown";
+import { DraftImages, Markdown } from "../Markdown";
 import { TerminalFallback } from "../setup/SetupChecks";
 
 export function AgentDrawer({ id, initialTab }: { id: string; initialTab?: AgentTab }) {
@@ -246,6 +246,7 @@ function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig
   const who = (id: string) =>
     id === HUMAN_ID ? { name: "You", color: "#ffec27" } : id === "hq" ? { name: "Fleet", color: "#3ee0d0" } : snap.config.team.find((a) => a.id === id);
   const running = snap.agents.find((a) => a.agentId === agent.id)?.session.state === "running";
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const send = () => {
     if (!draft.trim()) return;
     officeActions.sendMessage(agent.id, draft.trim());
@@ -296,15 +297,17 @@ function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={enterSends(send)}
-          placeholder={`Message ${agent.name}… (Shift+Enter for a new line)`}
+          onPaste={pasteImages((img) => (setPasteError(null), setDraft((d) => (d ? `${d}\n${img}` : img))), setPasteError)}
+          placeholder={`Message ${agent.name}… (Shift+Enter for a new line, paste images)`}
           aria-label={`Message ${agent.name}`}
         />
         <button className="btn" type="submit" disabled={!draft.trim()}>
           Send
         </button>
       </form>
-      <p className="bg-cream px-2 pb-1.5 text-[11px] text-muted">
-        {running ? "Delivered now if idle, otherwise when the current turn ends." : `${agent.name} isn't running; it starts and gets this message.`}
+      <DraftImages text={draft} />
+      <p className={`bg-cream px-2 pb-1.5 text-[11px] ${pasteError ? "text-red" : "text-muted"}`}>
+        {pasteError ? `Image not added: ${pasteError}` : running ? "Delivered now if idle, otherwise when the current turn ends." : `${agent.name} isn't running; it starts and gets this message.`}
       </p>
     </div>
   );

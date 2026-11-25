@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs, looseness, rootSlug, projectHistory } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs, looseness, rootSlug, projectHistory, copyImage, saveImage, UPLOAD_NAME } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -921,6 +921,28 @@ test('your question to a busy agent: its answer is posted before the messages it
     assert.deepEqual(turnReplies(file), ['Starting the next task.']);
     const notYet = write([user('Can checkout show gold stars?'), assistant(text('No: stars are plain text.'))]);
     assert.deepEqual(turnReplies(notYet, 300, marker), ['No: stars are plain text.'], 'before the hand-over is written');
+  }));
+
+test('images in messages: saved owner-only in ~/.fleet/uploads; an agent can send only image files', () =>
+  withTempHome(() => {
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    const saved = saveImage(png, 'png');
+    assert.equal(path.dirname(saved), path.join(process.env.HOME, '.fleet', 'uploads'));
+    assert.ok(UPLOAD_NAME.test(path.basename(saved)));
+    assert.equal(fs.statSync(saved).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.dirname(saved)).mode & 0o777, 0o700);
+    assert.throws(() => saveImage(png, 'svg'), /Only PNG/);
+    assert.throws(() => saveImage(Buffer.alloc(0), 'png'), /at most 10 MB/);
+
+    const shot = path.join(process.env.HOME, 'Shot.JPEG');
+    fs.writeFileSync(shot, 'jpeg');
+    const copied = copyImage(shot);
+    assert.match(path.basename(copied), /^[0-9a-f]{16}\.jpg$/);
+    assert.equal(fs.readFileSync(copied, 'utf8'), 'jpeg');
+    assert.throws(() => copyImage('Shot.png'), /absolute path/);
+    assert.throws(() => copyImage(path.join(process.env.HOME, '.fleet', 'projects', 'x', 'agent-token')), /Not a PNG/);
+    assert.throws(() => copyImage(path.join(process.env.HOME, 'nope.png')), /No such file/);
+    assert.ok(!UPLOAD_NAME.test('../agent-token.png') && !UPLOAD_NAME.test('abc.png'), 'the page serves exact upload names only');
   }));
 
 test('pasted messages cannot end the paste or type keys', () => {

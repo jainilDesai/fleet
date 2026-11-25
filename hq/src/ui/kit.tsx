@@ -1,6 +1,7 @@
 // Small shared HUD pieces.
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react";
+import { officeActions } from "../store/office";
 import type { AgentState, ReviewState } from "../data/types";
 import { robotCanvases } from "../office/draw/robots";
 import { reviewStyle, stateStyle } from "../theme/tokens";
@@ -10,6 +11,14 @@ export const enterSends = (send: () => void) => (e: KeyboardEvent<HTMLTextAreaEl
   if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
   e.preventDefault();
   send();
+};
+
+/** Pasting an image into a message box: Fleet saves it, then "[image: <path>]" goes into the text (the agent opens that file). */
+export const pasteImages = (add: (token: string) => void, onError: (why: string) => void) => (e: ClipboardEvent<HTMLTextAreaElement>) => {
+  const images = [...e.clipboardData.files].filter((f) => f.type.startsWith("image/"));
+  if (!images.length) return; // text: the normal paste
+  e.preventDefault();
+  for (const f of images) officeActions.uploadImage(f).then((path) => add(`[image: ${path}]`), (err: Error) => onError(err.message));
 };
 
 export function StateChip({ state, blink = true }: { state: AgentState; blink?: boolean }) {

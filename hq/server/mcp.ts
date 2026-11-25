@@ -8,6 +8,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { PERMISSION_MODES, type PermissionMode } from "../src/data/types";
 import type { Hub } from "./hub";
+import { copyImage } from "./uploads";
 import { MESSAGE_MAX, NOTE_MAX, type Planner } from "./planner";
 
 type Result = { content: { type: "text"; text: string }[]; isError?: boolean };
@@ -280,12 +281,13 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
   server.registerTool(
     "send_message",
     {
-      description: `Send a message to another agent (id, name, or "lead"), or to "you" (the user: shown in their chat with you and as a notification). Fleet delivers it whole: right away if they are idle, otherwise when their current turn ends. Up to ${MESSAGE_MAX} characters.`,
-      inputSchema: { to: z.string(), text: z.string() },
+      description: `Send a message to another agent (id, name, or "lead"), or to "you" (the user: shown in their chat with you and as a notification). Fleet delivers it whole: right away if they are idle, otherwise when their current turn ends. Up to ${MESSAGE_MAX} characters. images: absolute paths of up to 5 PNG/JPEG/WebP/GIF files (10 MB each), e.g. screenshots; the user sees them in the chat. A message you get may hold "[image: <path>]": open that file to see it.`,
+      inputSchema: { to: z.string(), text: z.string(), images: z.array(z.string()).max(5).optional() },
     },
-    guard(({ to, text }: { to: string; text: string }) => {
+    guard(({ to, text, images }: { to: string; text: string; images?: string[] }) => {
       if (planner.agentId(to) === me) throw new Error("That's you.");
-      const toId = planner.message(me, to, text);
+      const shots = (images ?? []).map((f) => `[image: ${copyImage(f.trim())}]`);
+      const toId = planner.message(me, to, [text.slice(0, MESSAGE_MAX), ...shots].join("\n"), MESSAGE_MAX + 200 * shots.length);
       return ok(`Sent to ${hub.name(toId)}.${trimmed(text, MESSAGE_MAX)}`);
     }),
   );
