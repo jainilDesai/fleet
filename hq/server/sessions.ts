@@ -41,8 +41,12 @@ export class Sessions {
   private idleScreens = new Map<string, number>();
   /** Agents whose prompt holds your unsent text (from the terminal): Fleet has said so once and is waiting. */
   private drafts = new Set<string>();
+  /** The `claude` args each session Fleet started was launched with (unknown for a reattached one). */
+  private startedWith = new Map<string, string>();
 
-  constructor(private hub: Hub, private agentToken: string) {}
+  constructor(private hub: Hub, private agentToken: string) {
+    hub.subscribe((e) => e.type === "config.updated" && this.checkLaunchArgs());
+  }
 
   name(agentId: string) {
     return sessionName(this.hub.slug, agentId);
@@ -66,15 +70,18 @@ export class Sessions {
 
     const name = this.name(id);
     this.onSessionDown(id);
+    this.startedWith.delete(id);
     try {
       hub.setSession(id, { state: "starting", detail: "Preparing worktree…", workspace: workspaceFor(agent, hub.slug) });
       const dir = await ensureWorkspace(agent, hub.slug, hub.repo);
       await writeAgentFiles(dir, agent, hub.snap.config, this.agentToken, { noGitHub: !hub.repo.github || check("gh") !== "ok" });
       if (!(await this.backend.exists(name))) {
         hub.setSession(id, { detail: "Starting Claude Code…" });
-        await this.backend.create(name, dir, { file: "claude", args: launchArgs(agent, hub.snap.config.project.permissionMode), envFile: null }, { cols: 200, rows: 50 });
+        const args = launchArgs(agent, hub.snap.config.project.permissionMode);
+        await this.backend.create(name, dir, { file: "claude", args, envFile: null }, { cols: 200, rows: 50 });
+        this.startedWith.set(id, JSON.stringify(args));
       }
-      hub.setSession(id, { state: "running", detail: null, workspace: dir });
+      hub.setSession(id, { state: "running", detail: null, workspace: dir, restartToApply: false });
       hub.setStatus(id, { state: "idle", note: "Running" });
       hub.activity("session", id, `${agent.name} started`);
       if (!agent.workspacePath) {
@@ -87,6 +94,20 @@ export class Sessions {
       }
     } catch (err) {
       fail(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  /**
+   * Settings changed: flags running agents whose launch args (model, permission mode, its own or the
+   * project's) no longer match what their session started with, so a mid-run change doesn't look ignored.
+   */
+  checkLaunchArgs() {
+    for (const [id, args] of this.startedWith) {
+      const agent = this.hub.cfg(id);
+      const st = this.hub.status(id);
+      if (!agent || st?.session.state !== "running") continue;
+      const stale = JSON.stringify(launchArgs(agent, this.hub.snap.config.project.permissionMode)) !== args;
+      if (stale !== !!st.session.restartToApply) this.hub.setSession(id, { restartToApply: stale });
     }
   }
 

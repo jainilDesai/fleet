@@ -175,7 +175,7 @@ export { handleHook, leadBriefing } from "./hooks";
 export { buildHandoff, contextUse, contextWindow, Refresher } from "./refresh";
 export { BoardCloser, boardAgents, boardSummary } from "./boardDone";
 export { dependencyDirs, copyEnvFiles, packagesMatch, shareDependencies } from "./deps";
-export { trustSelected } from "./sessions";
+export { Sessions, trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { namedSlug } from "./paths";
 export { projectHistory, rootSlug, seedTeam, teamName, teamSlug } from "./teams";
