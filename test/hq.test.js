@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs, looseness, rootSlug, projectHistory, copyImage, saveImage, UPLOAD_NAME } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs, looseness, rootSlug, teamName, projectHistory, copyImage, saveImage, UPLOAD_NAME } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -880,6 +880,8 @@ test("New work on a team's page makes a team of the project, not of that team; H
     seed('other', null, 'Other', [board('X', 'done', '2026-11-21T00:00:00Z')]);
     assert.equal(rootSlug('app-a-b'), 'app');
     assert.equal(rootSlug('app'), 'app');
+    assert.equal(teamName('app-a-b'), 'App · B', "a pre-0.11 team: the project's name and its board, not the team it came from");
+    assert.equal(teamName('app'), 'App');
 
     const hist = projectHistory('app-a-b', [board('B', 'done', '2026-11-20T00:00:00Z'), board('LIVE', 'active')]);
     assert.deepEqual(hist.map((p) => [p.team, p.board.id, p.own]), [['app-a-b', 'B', true], ['app', 'OLD', false], ['app-a', 'A', false]], "own done boards, every other team's boards, newest first; never another project's");

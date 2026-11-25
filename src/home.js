@@ -122,8 +122,10 @@ export async function state() {
       };
     }),
   );
-  out.sort((a, b) => b.running - a.running || a.missing - b.missing || a.name.localeCompare(b.name));
-  return { port: HOME_PORT, projects: out, total };
+  // A team shows only while it runs: a stopped one's boards are in its project's History (Open, Revive).
+  const shown = out.filter((p) => !p.parent || p.running);
+  shown.sort((a, b) => b.running - a.running || a.missing - b.missing || a.name.localeCompare(b.name));
+  return { port: HOME_PORT, projects: shown, total };
 }
 
 // Starts a command of Fleet's in the background, detached from this process, logging to ~/.fleet/<log>.
