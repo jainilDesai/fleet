@@ -84,7 +84,28 @@ export class Planner {
     this.hub.emit({ type: "board.updated", board: { ...board } });
     this.hub.planChanged();
     if (finished) this.onBoardDone?.(board);
+    // Marked done another way: its "mark it done?" item has nothing left to ask.
+    if (finished) for (const i of this.snap.actionItems ?? []) if (i.status === "open" && i.markDone === id) this.actions?.resolve(i.id, "done", "Marked done on the board.");
     return board;
+  }
+
+  /**
+   * Every task on an active board is done: ask you (an Approve item from the lead) to mark it Done, so a
+   * finished board stops its agents and a separate team shuts down. Once per board until it gets a new task.
+   */
+  suggestDone(boardId: string) {
+    const board = this.snap.boards.find((b) => b.id === boardId);
+    const tasks = this.snap.tasks.filter((t) => t.boardId === boardId);
+    const lead = this.snap.config.team.find((a) => a.isLead);
+    if (!board || board.status !== "active" || !tasks.length || tasks.some((t) => t.status !== "done") || (board.doneAsked ?? 0) >= tasks.length || !lead || !this.actions) return;
+    board.doneAsked = tasks.length;
+    this.hub.planChanged();
+    this.actions.add(
+      lead.id,
+      `Approve: mark board "${board.title}" done?`,
+      `All ${tasks.length} of its tasks are done.\n\nApprove: mark it done; its agents save a handoff and stop, and it moves to History.\nReject: keep it open.`,
+      false, true, undefined, undefined, undefined, board.id,
+    );
   }
 
   // ------------------------------------------------------------ tasks
@@ -115,6 +136,7 @@ export class Planner {
     }
     this.hub.emit({ type: "task.updated", task: { ...task } });
     this.hub.planChanged();
+    if (task.status === "done") this.suggestDone(task.boardId);
     return task;
   }
 
@@ -157,6 +179,7 @@ export class Planner {
     const words = { "in-progress": "started", blocked: "is blocked on", "in-review": "sent for review", done: "finished" }[status];
     const kind = { blocked: "agent.needs-input", "in-progress": "task.started", "in-review": "task.review", done: "task.finished" } as const;
     this.hub.activity(kind[status], agentId, `${name} ${words} ${task.id}${note ? `: ${note}` : ""}`);
+    if (status === "done") this.suggestDone(task.boardId);
     // Let the lead know when work is blocked or ready for review.
     const lead = this.snap.config.team.find((a) => a.isLead);
     if (lead && lead.id !== agentId && (status === "blocked" || status === "in-review" || status === "done"))

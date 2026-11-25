@@ -224,6 +224,8 @@ export interface Board {
   summary?: string;
   /** Agents Done stopped (still on the team): Reopen starts them again. */
   stoppedIds?: string[];
+  /** How many tasks it had when Fleet last asked you to mark it done: asks again only once it has more. */
+  doneAsked?: number;
 }
 
 /** Why marking a board done needs your confirmation: its agents mid-turn, worktrees with uncommitted work. */
@@ -491,6 +493,8 @@ export interface ActionItem {
   cleanup?: CleanupRequest;
   /** The lead asked to loosen an agent's permission mode (Team MCP `set_permission_mode`): approving sets it. null = the project's. */
   setPermission?: { agentId: string; mode: PermissionMode | null };
+  /** Every task on this board is done: approving marks the board done. */
+  markDone?: string;
   note: string | null; // the user's note when closing it
   at: string;
   closedAt: string | null;
