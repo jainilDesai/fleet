@@ -16,6 +16,9 @@ import type { Inbox } from "./inbox";
 import { handleMcp } from "./mcp";
 import type { Planner } from "./planner";
 import { log } from "./lib/log";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { IMAGE_MAX, IMAGE_TYPES, UPLOAD_NAME, saveImage, uploadsDir } from "./uploads";
 
 function safeEqual(a: string, b: string) {
   const x = Buffer.from(a);
@@ -23,7 +26,9 @@ function safeEqual(a: string, b: string) {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-function readBody(req: IncomingMessage, limit = 256 * 1024): Promise<string> {
+const readBody = (req: IncomingMessage, limit = 256 * 1024) => readBytes(req, limit).then((b) => b.toString("utf8"));
+
+function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks: Buffer[] = [];
@@ -32,7 +37,7 @@ function readBody(req: IncomingMessage, limit = 256 * 1024): Promise<string> {
       if (size > limit) reject(new Error("too large"));
       else chunks.push(c);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }
@@ -180,6 +185,33 @@ export function makeHandler(o: Options): HqHandler {
       } catch (err) {
         log.warn("command failed:", err instanceof Error ? err.message : err);
         if (!res.headersSent) send(res, 500, JSON.stringify({ error: "command failed" }), "application/json");
+      }
+      return true;
+    }
+
+    // An image you pasted: saved in ~/.fleet/uploads; the page puts "[image: <path>]" in the message.
+    if (req.method === "POST" && url.pathname === "/api/hq/upload") {
+      if (!safeEqual(String(req.headers["x-fleet-token"] ?? ""), o.pageToken)) {
+        send(res, 403, JSON.stringify({ error: "bad token" }), "application/json");
+        return true;
+      }
+      try {
+        // The type comes from the bytes (saveImage), not from the request's content-type.
+        send(res, 200, JSON.stringify({ path: saveImage(o.hub.slug, await readBytes(req, IMAGE_MAX)) }), "application/json");
+      } catch (err) {
+        send(res, 400, JSON.stringify({ error: err instanceof Error ? err.message : "upload failed" }), "application/json");
+      }
+      return true;
+    }
+
+    // A picture in a message. Read by <img>, so no token (like the stream); only this project's uploads, by exact name.
+    if (req.method === "GET" && url.pathname.startsWith("/api/hq/uploads/")) {
+      const name = url.pathname.slice("/api/hq/uploads/".length);
+      const bytes = UPLOAD_NAME.test(name) ? await readFile(join(uploadsDir(o.hub.slug), name)).catch(() => null) : null;
+      if (!bytes) send(res, 404, "not found");
+      else {
+        res.writeHead(200, { "Content-Type": IMAGE_TYPES[name.split(".")[1]], "Cache-Control": "private, max-age=31536000, immutable", "X-Content-Type-Options": "nosniff" });
+        res.end(bytes);
       }
       return true;
     }

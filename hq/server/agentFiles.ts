@@ -4,6 +4,7 @@
 import { readdirSync } from "node:fs";
 import { agentPath, agentRead, agentRemove, agentWrite } from "./lib/agentFs";
 import { run } from "./lib/exec";
+import { uploadsDir } from "./uploads";
 import { SKILL_LIMITS, type AgentConfig, type HqConfig, type SkillFile } from "../src/data/types";
 
 /** Team MCP config, passed with `claude --mcp-config` (so the project's own .mcp.json is untouched). */
@@ -109,7 +110,7 @@ export function roleMd(agent: AgentConfig, cfg: HqConfig, extras: RoleExtras = {
     "Messages that start with `[Fleet]` come from Fleet: assignments from the lead, or messages from teammates. Act on them.",
     "Teammates work in their own git worktrees and cannot see your files or terminal. Talk to them only with send_message.",
     // The lead's answers already reach the user (its transcript is read); a worker's don't unless the user asked it.
-    ...(agent.isLead ? [] : ["The user doesn't watch your terminal either. To tell them something (a finding, a result, a question that isn't a decision), send_message to \"you\"."]),
+    ...(agent.isLead ? [] : ["The user doesn't watch your terminal either. To tell them something (a finding, a result, a question that isn't a decision), send_message to \"you\"; attach screenshots with its images."]),
     "",
     `Project: ${cfg.project.name} (${cfg.project.repo}). You are managed by Fleet.`,
     "",
@@ -133,7 +134,7 @@ export function hookCommand(url: string, token: string, agentId: string, event: 
  * Hooks report state to Fleet. SessionStart also prints the role file, which Claude Code
  * adds to the session's context. Existing user hooks are kept.
  */
-export function writeSettings(dir: string, agent: AgentConfig, port: number, token: string) {
+export function writeSettings(dir: string, agent: AgentConfig, port: number, token: string, project: string) {
   const file = ".claude/settings.local.json";
   let settings: Settings = {};
   const existing = agentRead(dir, file); // a symlink reads as missing: never pull in a host file
@@ -171,8 +172,12 @@ export function writeSettings(dir: string, agent: AgentConfig, port: number, tok
   ];
   // Let the agent use the Team MCP without a permission prompt for every call.
   const allow = new Set([...(settings.permissions?.allow ?? []), "mcp__hq"]);
+  // Images in messages ("[image: <path>]") live in the project's uploads: the agent may read them without a
+  // prompt. Only its own project's (not another project's, nor the old shared ~/.fleet/uploads).
+  const own = uploadsDir(project);
+  const dirs = new Set([...((settings.permissions?.additionalDirectories as string[] | undefined) ?? []).filter((d) => !/\/\.fleet\/(projects\/[^/]+\/)?uploads\/?$/.test(d)), own]);
   // Owner-only: the hook commands carry the agent token.
-  agentWrite(dir, file, JSON.stringify({ ...settings, hooks, permissions: { ...(settings.permissions ?? {}), allow: [...allow] } }, null, 2) + "\n", { mode: 0o600 });
+  agentWrite(dir, file, JSON.stringify({ ...settings, hooks, permissions: { ...(settings.permissions ?? {}), allow: [...allow], additionalDirectories: [...dirs] } }, null, 2) + "\n", { mode: 0o600 });
 }
 
 /** Team MCP config: Fleet's URL plus this agent's identity and token. */
@@ -226,7 +231,7 @@ export function writeSkills(dir: string, skills: SkillFile[] = []) {
 export function writeClaudeFiles(dir: string, agent: AgentConfig, cfg: HqConfig, token: string, extras: RoleExtras = {}) {
   agentWrite(dir, ROLE_FILE, roleMd(agent, cfg, extras));
   writeSkills(dir, agent.skillFiles);
-  writeSettings(dir, agent, cfg.project.hqPort, token);
+  writeSettings(dir, agent, cfg.project.hqPort, token, cfg.project.id);
   writeMcpConfig(dir, agent, cfg.project.hqPort, token);
 }
 

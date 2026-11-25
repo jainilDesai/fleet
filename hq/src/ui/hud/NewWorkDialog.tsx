@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { BUILT_IN_ROLES, LEAD_NAME } from "../../data/names";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, useUi } from "../../store/ui";
-import { enterSends } from "../kit";
+import { enterSends, pasteImages } from "../kit";
+import { DraftImages } from "../Markdown";
 
 /** Matches CREW_MAX in hq/server/commands.ts. */
 const CREW_MAX = 6;
@@ -18,6 +19,7 @@ export function NewWorkDialog() {
   // Default: a team of its own (a new CTO, port and page); else the current team, as before.
   const [newTeam, setNewTeam] = useState(true);
   const [extra, setExtra] = useState(false);
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({
     Implementer: 1,
   });
@@ -97,8 +99,11 @@ export function NewWorkDialog() {
             maxLength={4000}
             autoFocus
             onKeyDown={enterSends(() => canStart && submit(true))}
+            onPaste={pasteImages((img) => (setPasteError(null), setPrompt((p) => (p ? `${p}\n${img}` : img))), setPasteError)}
             placeholder="Add a /health endpoint that returns ok, with a test (Shift+Enter for a new line)"
           />
+          <DraftImages text={prompt} />
+          {pasteError && <span className="text-[12px] text-red">Image not added: {pasteError}</span>}
         </label>
         <label className="mb-3 flex flex-col gap-1">
           <span className="text-[14px] font-semibold">

@@ -152,6 +152,7 @@ export const officeActions = {
   refreshAgent: (id: string) => source.refreshAgent(id),
   listHandoffs: (id: string) => source.listHandoffs(id),
   listHistory: () => source.listHistory(),
+  uploadImage: (image: Blob) => source.uploadImage(image),
   stopTeam: () => source.stopTeam(),
   quitFleet() {
     if (useOffice.getState().live) useOffice.setState({ quit: true });

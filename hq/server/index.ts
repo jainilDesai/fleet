@@ -173,6 +173,7 @@ export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { namedSlug } from "./paths";
 export { projectHistory, rootSlug, seedTeam, teamSlug } from "./teams";
+export { copyImage, saveImage, UPLOAD_NAME } from "./uploads";
 export { Planner } from "./planner";
 export { ActionItems } from "./actionItems";
 export { stopIdleAgents } from "./idleStop";

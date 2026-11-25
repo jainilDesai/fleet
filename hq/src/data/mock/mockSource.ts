@@ -85,6 +85,11 @@ export function createMockSource(): OfficeDataSource {
       world.emit({ type: "handoffs", agentId: id, handoffs: [] });
     },
 
+    // The demo has no server: a pasted image gets a made-up path (the chat shows it as a broken image).
+    async uploadImage(image) {
+      return `/demo/uploads/${Date.now().toString(16).padStart(16, "0")}.${image.type.split("/")[1] ?? "png"}`;
+    },
+
     listHistory() {
       const own = world.snap.boards.filter((b) => b.status === "done").map((board) => ({ team: "askwell", teamName: world.snap.config.project.name, board, own: true, url: null }));
       const other = {

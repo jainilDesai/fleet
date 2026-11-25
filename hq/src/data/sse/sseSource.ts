@@ -52,6 +52,12 @@ export function createSseSource(token: string): OfficeDataSource {
     refreshAgent: (id) => send("refreshAgent", id),
     listHandoffs: (id) => send("listHandoffs", id),
     listHistory: () => send("listHistory"),
+    uploadImage: async (image) => {
+      const r = await fetch("/api/hq/upload", { method: "POST", headers: { "content-type": image.type, "x-fleet-token": token }, body: image });
+      const body = (await r.json().catch(() => ({}))) as { path?: string; error?: string };
+      if (!r.ok || !body.path) throw new Error(body.error ?? "Couldn't save the image.");
+      return body.path;
+    },
     stopTeam: () => send("stopTeam"),
     quitFleet: () => send("quitFleet"),
     openWorkspace: (id) => send("openWorkspace", id),
