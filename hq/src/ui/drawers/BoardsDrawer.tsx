@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { Board, BoardStatus, Task, TaskStatus } from "../../data/types";
+import { useEffect, useState } from "react";
+import type { Board, BoardStatus, PastBoard, Task, TaskStatus } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, useUi, wallBoard } from "../../store/ui";
 import { Dot } from "../kit";
@@ -134,8 +134,27 @@ export function BoardsDrawer({ initialBoardId }: { initialBoardId?: string }) {
 }
 
 /** Boards marked done, newest first: the summary written when each was done, and Reopen. */
+/** New work's prompt to pick up a board of another team: what it was and what came of it. */
+const revivePrompt = (p: PastBoard) =>
+  [
+    `Pick up earlier work: "${p.board.title}" (from ${p.teamName}).`,
+    "",
+    "What it was:",
+    p.board.brief?.prompt ?? p.board.title,
+    "",
+    "What came of it:",
+    p.board.summary ?? "No summary yet: its board wasn't marked done. Check its branches and PRs.",
+  ]
+    .join("\n")
+    .slice(0, 4000);
+
+/** Every board of this project, from all its teams: this team's done ones (Reopen) and the other teams' (Revive). */
 function BoardHistory({ boards, onBack }: { boards: Board[]; onBack: () => void }) {
   const live = useOffice((s) => s.live);
+  const history = useOffice((s) => s.history);
+  useEffect(() => officeActions.listHistory(), []);
+  // Until Fleet answers: this team's own done boards.
+  const past: PastBoard[] = history ?? boards.map((board) => ({ team: "", teamName: "", board, own: true, url: null }));
   return (
     <>
       <DrawerHeader>
@@ -143,21 +162,36 @@ function BoardHistory({ boards, onBack }: { boards: Board[]; onBack: () => void 
           ← Boards
         </button>
         <b className="text-[18px]">History</b>
-        <span className="text-[14px] text-muted">{boards.length} done</span>
+        <span className="text-[14px] text-muted">{past.length} in this project</span>
       </DrawerHeader>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto bg-[#f7f3ea] p-3">
-        {boards.length === 0 && <p className="p-6 text-center text-muted">No finished boards yet. Set a board's status to Done and it moves here, with what came of it.</p>}
-        {boards.map((b) => (
-          <div key={b.id} className="mb-3 border-2 border-ink bg-white px-3 py-2 shadow-[0_3px_0_rgba(36,26,46,0.35)]">
-            <div className="flex items-center gap-2">
+        {past.length === 0 && <p className="p-6 text-center text-muted">No finished boards yet. Set a board's status to Done and it moves here, with what came of it.</p>}
+        {past.map(({ team, teamName, board: b, own, url }) => (
+          <div key={`${team}/${b.id}`} className="mb-3 border-2 border-ink bg-white px-3 py-2 shadow-[0_3px_0_rgba(36,26,46,0.35)]">
+            <div className="flex flex-wrap items-center gap-2">
               <b className="text-[15px]">{b.title}</b>
-              <span className="text-[12px] text-muted">{b.doneAt ? `done ${new Date(b.doneAt).toLocaleString()}` : "done"}</span>
-              {live && (
-                <button className="btn ml-auto px-2 text-[13px]" onClick={() => officeActions.reopenBoard(b.id)} title="Make it active again: the lead gets this summary and carries on">
-                  Reopen
-                </button>
-              )}
+              <span className="text-[12px] text-muted">
+                {b.status === "done" ? (b.doneAt ? `done ${new Date(b.doneAt).toLocaleString()}` : "done") : `${b.status} on its team`}
+              </span>
+              <span className="ml-auto flex gap-1.5">
+                {url && (
+                  <a className="btn px-2 text-[13px]" href={url} target="_blank" rel="noreferrer" title="Its team's page (that team's Fleet is running)">
+                    Open
+                  </a>
+                )}
+                {live && own && (
+                  <button className="btn px-2 text-[13px]" onClick={() => (officeActions.reopenBoard(b.id), officeActions.listHistory())} title="Make it active again: the lead gets this summary and carries on">
+                    Reopen
+                  </button>
+                )}
+                {live && !own && (
+                  <button className="btn px-2 text-[13px]" onClick={() => ui.openNewWork(revivePrompt({ team, teamName, board: b, own, url }))} title="New work on a fresh team, with this board's brief and what came of it">
+                    Revive
+                  </button>
+                )}
+              </span>
             </div>
+            {!own && <div className="text-[12px] text-muted">{teamName}</div>}
             {b.summary ? (
               <div className="mt-1 text-[13px]">
                 <Markdown text={b.summary} lines={6} />

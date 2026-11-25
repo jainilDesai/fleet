@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 // The agent-team server is built into dist/ (npm run build).
-const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs, looseness } = await import('../dist/hq.mjs');
+const { lastAssistantText, draftFromPromptLine, describePermission, branchAgent, passedNotice, rolePreset, listRoles, saveRole, deleteRole, newAgent, makeCommands, skillText, writeSkills, isApproval, resolutionMessage, roleMd, trustSelected, projectSlug, agentBranch, Planner, ActionItems, addTeamAgent, handleHook, hookCommand, buildHandoff, contextUse, contextWindow, Refresher, BoardCloser, boardAgents, dependencyDirs, packagesMatch, shareDependencies, turnReplies, parseQuestions, GitHubSync, pasteSafe, copyEnvFiles, namedSlug, teamSlug, seedTeam, launchArgs, looseness, rootSlug, projectHistory } = await import('../dist/hq.mjs');
 
 const write = (lines) => {
   const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-hq-')), 't.jsonl');
@@ -861,6 +861,38 @@ test('New work on a team of its own: a named project on the same repo, seeded wi
     assert.deepEqual(plan.boards[0].brief, { prompt: 'Fix rounding', investigate: false, crew: [{ role: 'QA', count: 1 }], startedAt: null, freshLead: false, autoStart: true });
     assert.equal(fs.readFileSync(path.join(home, 'repo-root'), 'utf8'), '/code/app\n');
     assert.deepEqual(events.at(-1), { type: 'team.started', title: 'Pricing fix', url: 'http://localhost:7790#app-pricing-fix' });
+  }));
+
+test("New work on a team's page makes a team of the project, not of that team; History shows every team's boards", () =>
+  withTempHome(async () => {
+    const tempHome = process.env.HOME;
+    const dir = (slug) => path.join(tempHome, '.fleet', 'projects', slug);
+    const seed = (slug, parent, name, boards) => {
+      fs.mkdirSync(dir(slug), { recursive: true });
+      fs.writeFileSync(path.join(dir(slug), 'config.json'), JSON.stringify({ project: { id: slug, name, ...(parent && { parent }) }, team: [] }));
+      fs.writeFileSync(path.join(dir(slug), 'plan.json'), JSON.stringify({ boards, tasks: [] }));
+    };
+    const board = (id, status, doneAt) => ({ id, title: id, status, order: 0, ...(doneAt && { doneAt }) });
+    // Before 0.11: a chain app → app-a → app-a-b (New work on each team's page).
+    seed('app', null, 'App', [board('OLD', 'done', '2026-11-01T00:00:00Z')]);
+    seed('app-a', 'app', 'App · A', [board('A', 'active')]);
+    seed('app-a-b', 'app-a', 'App · A · B', [board('B', 'done', '2026-11-20T00:00:00Z')]);
+    seed('other', null, 'Other', [board('X', 'done', '2026-11-21T00:00:00Z')]);
+    assert.equal(rootSlug('app-a-b'), 'app');
+    assert.equal(rootSlug('app'), 'app');
+
+    const hist = projectHistory('app-a-b', [board('B', 'done', '2026-11-20T00:00:00Z'), board('LIVE', 'active')]);
+    assert.deepEqual(hist.map((p) => [p.team, p.board.id, p.own]), [['app-a-b', 'B', true], ['app', 'OLD', false], ['app-a', 'A', false]], "own done boards, every other team's boards, newest first; never another project's");
+
+    const { hub, planner } = teamHub();
+    hub.slug = 'app-a-b';
+    hub.repo.root = '/code/app';
+    hub.snap.config.project = { id: 'app-a-b', name: 'App · A · B', repo: 'me/app', path: '/code/app', hqPort: 7791, parent: 'app-a' };
+    const cmd = makeCommands(hub, {}, planner, {}, undefined, () => {}, async () => 'http://localhost:7792');
+    await cmd.newWork({ title: 'Swatches', prompt: 'Add swatches', investigate: false, crew: [], startNow: true, newTeam: true });
+    const cfg = JSON.parse(fs.readFileSync(path.join(dir('app-swatches'), 'config.json'), 'utf8'));
+    assert.equal(cfg.project.parent, 'app', 'a sibling under the project');
+    assert.equal(cfg.project.name, 'App · Swatches', "named after the project, not the team it was started from");
   }));
 
 test('your question to a busy agent: its answer is posted before the messages it continues with; terminal prompts show too', () =>

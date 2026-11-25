@@ -122,8 +122,9 @@ export const ui = {
   closeSettings() {
     useUi.setState({ settings: null });
   },
-  openNewWork() {
-    useUi.setState({ newWork: true });
+  /** `prompt`: what the dialog starts with (Revive in History). */
+  openNewWork(prompt?: string) {
+    useUi.setState({ newWork: true, ...(prompt && { newWorkPrompt: prompt }) });
   },
   closeNewWork() {
     useUi.setState({ newWork: false, newWorkPrompt: "" });

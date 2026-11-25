@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { createMockSource } from "../data/mock/mockSource";
 import type { ConnectionStatus, DataPreset, OfficeDataSource, OfficeEvent, SimSpeed } from "../data/source";
 import { createSseSource } from "../data/sse/sseSource";
-import type { AgentConfig, AgentStatus, BoardDoneCheck, Handoff, OfficeSnapshot, RemoveAgentOptions, RoleInfo, SaveRoleInput, WelcomeInput, WorkspaceInfo } from "../data/types";
+import type { AgentConfig, AgentStatus, BoardDoneCheck, Handoff, OfficeSnapshot, PastBoard, RemoveAgentOptions, RoleInfo, SaveRoleInput, WelcomeInput, WorkspaceInfo } from "../data/types";
 
 export interface LoggedEvent {
   n: number;
@@ -23,6 +23,7 @@ interface OfficeState {
   workspaceInfo: Record<string, WorkspaceInfo>; // answers to inspectWorkspace
   roles: RoleInfo[] | null; // answer to listRoles
   handoffs: Record<string, Handoff[]>; // answers to listHandoffs, by agent
+  history: PastBoard[] | null; // answer to listHistory: the project's boards across its teams
   doneCheck: BoardDoneCheck | null; // a Done waiting for your confirmation
   teamStarted: { title: string; url: string } | null; // New work's separate team is up: a link to it
   connection: ConnectionStatus;
@@ -52,6 +53,7 @@ export const useOffice = create<OfficeState>(() => ({
   workspaceInfo: {},
   roles: null,
   handoffs: {},
+  history: null,
   doneCheck: null,
   teamStarted: null,
   connection: "connecting",
@@ -76,6 +78,7 @@ function reduce(snap: OfficeSnapshot, e: OfficeEvent): OfficeSnapshot {
     case "workspace.info":
     case "roles":
     case "handoffs":
+    case "history":
     case "board.doneCheck":
     case "team.started":
       return snap;
@@ -115,6 +118,7 @@ function handle(e: OfficeEvent) {
   }
   if (e.type === "roles") return void useOffice.setState({ roles: e.roles });
   if (e.type === "handoffs") return void useOffice.setState((s) => ({ handoffs: { ...s.handoffs, [e.agentId]: e.handoffs } }));
+  if (e.type === "history") return void useOffice.setState({ history: e.boards });
   if (e.type === "board.doneCheck") return void useOffice.setState({ doneCheck: e.check });
   if (e.type === "team.started") return void useOffice.setState({ teamStarted: { title: e.title, url: e.url } });
   useOffice.setState((s) => {
@@ -147,6 +151,7 @@ export const officeActions = {
   stopAgent: (id: string) => source.stopAgent(id),
   refreshAgent: (id: string) => source.refreshAgent(id),
   listHandoffs: (id: string) => source.listHandoffs(id),
+  listHistory: () => source.listHistory(),
   stopTeam: () => source.stopTeam(),
   quitFleet() {
     if (useOffice.getState().live) useOffice.setState({ quit: true });

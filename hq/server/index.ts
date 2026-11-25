@@ -100,10 +100,21 @@ export async function startHq(o: HqOptions): Promise<Hq> {
     ask: (fromId, title, details, cleanup) => planner.actions!.add(fromId, title, details, false, true, undefined, cleanup),
     notify: (id, text) => planner.notify(id, text),
   });
-  planner.onBoardDone = (b) => void closer.finish(b.id).catch((e) => log.warn("board done:", e));
-  planner.actions.onCleanup = (req, approved, fromId) => closer.cleanup(req, approved, fromId);
+  // A separate team whose boards are all done shuts down, its Fleet included (no port, no GitHub polling); its
+  // boards stay in the project's History. Not while you still have to decide about uncommitted work it left.
+  const finished = () =>
+    !!o.project && hub.snap.boards.length > 0 && hub.snap.boards.every((b) => b.status === "done") && !(hub.snap.actionItems ?? []).some((i) => i.status === "open" && i.cleanup);
+  const shutIfFinished = () => finished() && void commands.quitFleet("All of this team's work is done: its agents and its Fleet stopped. Start it again on the home page to pick the work back up.");
+  planner.onBoardDone = (b) => void closer.finish(b.id).then(shutIfFinished).catch((e) => log.warn("board done:", e));
+  planner.actions.onCleanup = async (req, approved, fromId) => {
+    await closer.cleanup(req, approved, fromId);
+    if (approved) shutIfFinished(); // kept: the lead asks you what to do with that work, so the team stays up
+  };
   // A separate team's board (seeded by New work in another project): start the work now.
   for (const b of hub.snap.boards) if (b.brief?.autoStart && !b.brief.startedAt) void commands.startWork(b.id);
+  // A team that shut down when its work was done, started again from the home page: its last board picks up again.
+  const last = finished() ? [...hub.snap.boards].sort((a, b) => (b.doneAt ?? "").localeCompare(a.doneAt ?? ""))[0] : null;
+  if (last) commands.reopenBoard(last.id);
   planner.removeAgent = async (id) => {
     const ws = await sessions.inspectWorkspace(id);
     if (ws?.exists && ws.managed && ws.changedFiles)
@@ -161,7 +172,7 @@ export { dependencyDirs, copyEnvFiles, packagesMatch, shareDependencies } from "
 export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { namedSlug } from "./paths";
-export { seedTeam, teamSlug } from "./teams";
+export { projectHistory, rootSlug, seedTeam, teamSlug } from "./teams";
 export { Planner } from "./planner";
 export { ActionItems } from "./actionItems";
 export { stopIdleAgents } from "./idleStop";

@@ -51,6 +51,7 @@ export function createSseSource(token: string): OfficeDataSource {
     stopAgent: (id) => send("stopAgent", id),
     refreshAgent: (id) => send("refreshAgent", id),
     listHandoffs: (id) => send("listHandoffs", id),
+    listHistory: () => send("listHistory"),
     stopTeam: () => send("stopTeam"),
     quitFleet: () => send("quitFleet"),
     openWorkspace: (id) => send("openWorkspace", id),

@@ -32,6 +32,7 @@ function summary(e: OfficeEvent): string {
     case "workspace.info": return `${e.info.agentId} ${e.info.path}`;
     case "roles": return `${e.roles.length} roles`;
     case "handoffs": return `${e.agentId} ${e.handoffs.length} handoffs`;
+    case "history": return `${e.boards.length} boards in history`;
     case "team.started": return `${e.title} at ${e.url}`;
     case "board.doneCheck": return `${e.check.boardId} done held: ${e.check.running.length} running, ${e.check.dirty.length} dirty`;
     case "setup.updated": return `${e.setup.checks.filter((c) => c.status !== "ok").length} checks not ok`;
