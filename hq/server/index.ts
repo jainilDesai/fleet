@@ -116,6 +116,9 @@ export async function startHq(o: HqOptions): Promise<Hq> {
     await closer.cleanup(req, approved, fromId);
     if (approved) shutIfFinished(); // kept: the lead asks you what to do with that work, so the team stays up
   };
+  planner.actions.onMarkDone = (id) => void Promise.resolve(commands.updateBoard(id, { status: "done" })).catch((e: unknown) => log.warn("mark done:", e));
+  // Boards finished before Fleet asked (or while it was down): ask now.
+  for (const b of hub.snap.boards) planner.suggestDone(b.id);
   // A separate team's board (seeded by New work in another project): start the work now.
   for (const b of hub.snap.boards) if (b.brief?.autoStart && !b.brief.startedAt) void commands.startWork(b.id);
   // A team that shut down when its work was done, started again from the home page: its last board picks up again.

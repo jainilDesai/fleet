@@ -60,6 +60,8 @@ export class ActionItems {
   onAddAgent: ((req: AddAgentRequest) => AgentConfig) | null = null;
   /** Set by index.ts: deletes (approved) or keeps the folders a finished board left behind. */
   onCleanup: ((req: CleanupRequest, approved: boolean, fromId: string) => Promise<void>) | null = null;
+  /** Set by index.ts: marks a board done the way the Boards drawer does (asks first if agents are mid-turn). */
+  onMarkDone: ((boardId: string) => void) | null = null;
 
   constructor(private hub: Hub, private planner: Planner) {
     this.file = join(projectHome(hub.slug), "action-items.json");
@@ -89,7 +91,7 @@ export class ActionItems {
     renameSync(tmp, this.file);
   }
 
-  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean, addAgent?: AddAgentRequest, cleanup?: CleanupRequest, setPermission?: ActionItem["setPermission"]): ActionItem {
+  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean, addAgent?: AddAgentRequest, cleanup?: CleanupRequest, setPermission?: ActionItem["setPermission"], markDone?: string): ActionItem {
     const clean = title.trim().replace(/\s+/g, " ").slice(0, 160);
     if (!clean) throw new Error("Give the action item a short title.");
     const item: ActionItem = {
@@ -100,10 +102,11 @@ export class ActionItems {
       details: details.trim().slice(0, 4000),
       waiting,
       status: "open",
-      ...((addAgent || cleanup || setPermission || isApproval(clean, approval)) && { approval: true }),
+      ...((addAgent || cleanup || setPermission || markDone || isApproval(clean, approval)) && { approval: true }),
       ...(addAgent && { addAgent }),
       ...(setPermission && { setPermission }),
       ...(cleanup && { cleanup }),
+      ...(markDone && { markDone }),
       note: null,
       at: new Date().toISOString(),
       closedAt: null,
@@ -223,6 +226,8 @@ export class ActionItems {
       if (decision === "done" && item.note && this.hub.cfg(item.fromId)) this.planner.message("you", item.fromId, `About "${item.title}" (allowed): ${item.note}`);
       return;
     }
+    // Fleet asked, not the lead: nothing to tell it either way.
+    if (item.markDone) return void (decision === "done" && this.hub.snap.boards.find((b) => b.id === item.markDone)?.status === "active" && this.onMarkDone?.(item.markDone));
     if (item.cleanup && this.onCleanup) return void this.onCleanup(item.cleanup, decision === "done", item.fromId);
     const perm = item.setPermission && decision === "done" && this.hub.cfg(item.setPermission.agentId);
     if (perm) {
