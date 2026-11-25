@@ -4,11 +4,12 @@
 import { homedir } from "node:os";
 import { join, sep } from "node:path";
 import type { PullRequest } from "../src/data/types";
-import { branchAgent, fetchPrs, OPEN_LIMIT, RateLimited, taskIdOf, toPullRequest } from "./github";
+import { branchAgent, OPEN_LIMIT, RateLimited, taskIdOf, toPullRequest } from "./github";
 import type { Hub } from "./hub";
 import { run } from "./lib/exec";
 import { log } from "./lib/log";
 import type { Planner } from "./planner";
+import { sharedFetchPrs } from "./prCache";
 
 const MERGE_CMD = (n: number | string) => `gh pr merge ${n} --squash --delete-branch`;
 
@@ -82,7 +83,7 @@ export class GitHubSync {
 
   /** One poll, then schedule the next at the current interval. */
   private async tick() {
-    await this.refresh();
+    await this.refresh(this.interval);
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => void this.tick(), Math.max(this.interval, this.pausedUntil - Date.now()));
   }
@@ -103,7 +104,8 @@ export class GitHubSync {
     this.interval = Math.min(MAX_POLL_MS, Math.max(MIN_POLL_MS, forBudget, low));
   }
 
-  async refresh() {
+  /** maxAgeMs: a result another Fleet process on this repo fetched within this long is used as is. */
+  async refresh(maxAgeMs = MIN_POLL_MS) {
     if (!this.repo || this.busy || Date.now() < this.pausedUntil) return;
     // Never closer together than the minimum gap (a nudge can land right after a regular poll).
     if (Date.now() - this.lastFetch < MIN_POLL_MS - 1000) return;
@@ -111,7 +113,9 @@ export class GitHubSync {
     this.busy = true;
     this.lastFetch = Date.now();
     try {
-      const { open, merged, closed, rate } = await fetchPrs(this.repo);
+      const fetched = await sharedFetchPrs(this.repo, maxAgeMs - 1000);
+      if (!fetched) return; // another process's first poll is in flight
+      const { open, merged, closed, rate } = fetched;
       if (this.lastError) log.info("GitHub reachable again");
       this.lastError = null;
       this.pace(rate);
