@@ -19,6 +19,8 @@ export interface InboxItem {
 export interface Keyboard {
   type(agentId: string, text: string): Promise<boolean>;
   enter(agentId: string): Promise<boolean>;
+  /** Unsent text at the agent's prompt ("" if none). */
+  draft(agentId: string): Promise<string>;
 }
 
 const QUIET_MS = 1000; // no hooks for this long = the prompt has settled
@@ -178,9 +180,15 @@ export class Inbox {
       this.warned.delete(agentId);
       this.save();
       this.noteFromYou(agentId, items);
-      // If the prompt didn't submit (Enter swallowed), press it once more.
+      // If the prompt didn't submit (Enter swallowed), press it once more. The hook alone can't tell: Claude Code
+      // holds a submitted prompt while slow SessionStart hooks run, and UserPromptSubmit can land seconds late.
+      // So only while our text is still at the prompt (it starts "[Fleet]"; a long paste shows as "[Pasted text #1 …]").
       await new Promise((r) => setTimeout(r, SUBMIT_CHECK_MS));
-      if ((this.lastSubmit.get(agentId) ?? 0) < typedAt && this.hub.status(agentId)?.state === "idle") {
+      if (
+        (this.lastSubmit.get(agentId) ?? 0) < typedAt &&
+        this.hub.status(agentId)?.state === "idle" &&
+        /^\[(Fleet\]|Pasted text)/.test(await this.keys.draft(agentId))
+      ) {
         log.warn(`${agentId}: no prompt submit after typing; pressing Enter again`);
         await this.keys.enter(agentId);
       }
