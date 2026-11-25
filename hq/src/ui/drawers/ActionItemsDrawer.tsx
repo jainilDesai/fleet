@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { TRUST_NOTE, type ActionItem, type AskQuestion } from "../../data/types";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
 import { ui } from "../../store/ui";
-import { ago, Dot, SectionTitle, useNow } from "../kit";
+import { ago, Dot, enterSends, SectionTitle, useNow } from "../kit";
 import { DrawerHeader } from "./Drawer";
 import { Markdown } from "../Markdown";
 import { TrustButton } from "./AgentDrawer";
@@ -136,6 +136,9 @@ function QuestionItem({ item, from, now }: { item: ActionItem; from?: { id: stri
     return ownOn ? own : chosen[0] ?? "";
   };
   const answered = questions.filter((q) => answerOf(q)).length;
+  const sendAnswers = () => {
+    if (answered === questions.length) officeActions.answerQuestion(item.id, Object.fromEntries(questions.map((q) => [q.question, answerOf(q)])));
+  };
   const choose = (q: AskQuestion, label: string) => {
     if (q.multiSelect) return setPicked((p) => ({ ...p, [q.question]: (p[q.question] ?? []).includes(label) ? (p[q.question] ?? []).filter((l) => l !== label) : [...(p[q.question] ?? []), label] }));
     setPicked((p) => ({ ...p, [q.question]: [label] }));
@@ -206,13 +209,15 @@ function QuestionItem({ item, from, now }: { item: ActionItem; from?: { id: stri
                 <span className="block text-[14px] font-semibold leading-tight">Something else</span>
               </label>
               {ownOn && (
-                <input
-                  className="field ml-6 text-[13px]"
+                <textarea
+                  className="field ml-6 resize-none text-[13px]"
                   autoFocus
+                  rows={Math.min(6, (other[q.question] ?? "").split("\n").length)}
                   aria-label={`Your answer: ${q.question}`}
                   value={other[q.question] ?? ""}
-                  placeholder="Write your answer"
+                  placeholder="Write your answer (Shift+Enter for a new line)"
                   onChange={(e) => setOther((x) => ({ ...x, [q.question]: e.target.value }))}
+                  onKeyDown={enterSends(sendAnswers)}
                 />
               )}
             </div>
@@ -230,7 +235,7 @@ function QuestionItem({ item, from, now }: { item: ActionItem; from?: { id: stri
           className="btn px-3 text-[13px] font-semibold"
           style={{ background: answered === questions.length ? "#b8f5c4" : undefined }}
           disabled={answered < questions.length}
-          onClick={() => officeActions.answerQuestion(item.id, Object.fromEntries(questions.map((q) => [q.question, answerOf(q)])))}
+          onClick={sendAnswers}
         >
           Send {questions.length > 1 ? "answers" : "answer"}
         </button>
@@ -310,12 +315,13 @@ function RequestItem({ item, from, now }: { item: ActionItem; from?: { id: strin
         </button>
       )}
       <div className="mt-2 flex items-center gap-2">
-        <input
-          className="field min-w-0 flex-1 text-[13px]"
+        <textarea
+          className="field min-w-0 flex-1 resize-none text-[13px]"
+          rows={Math.min(6, note.split("\n").length)}
           value={note}
           placeholder={perm ? "Note for the agent, sent with Allow or Deny (optional)" : approval ? "Reason, sent to the agent (optional)" : "Note for the agent (optional, no secrets)"}
           onChange={(e) => setNote(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !yesNo && officeActions.resolveActionItem(item.id, "done", note)}
+          onKeyDown={enterSends(() => !yesNo && officeActions.resolveActionItem(item.id, "done", note))}
         />
         <button className="btn px-2 text-[12px]" style={yesNo ? { background: "#b8f5c4" } : undefined} onClick={() => officeActions.resolveActionItem(item.id, "done", note)}>
           {perm ? "Allow" : approval ? "Approve" : "Done"}

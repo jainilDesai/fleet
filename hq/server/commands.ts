@@ -264,6 +264,7 @@ export function makeCommands(
       const tools: ReviewTool[] = ["coderabbit", "greptile", "copilot", "human", "custom"];
       if (tools.includes(input.reviewTool as ReviewTool)) cfg.workflow.review.tool = input.reviewTool as ReviewTool;
       if (typeof input.reviewEnabled === "boolean") cfg.workflow.review.enabled = input.reviewEnabled;
+      if ((PERMISSION_MODES as readonly unknown[]).includes(input.permissionMode)) cfg.project.permissionMode = input.permissionMode;
       hub.snap.agents = cfg.team.map((a) => Hub.freshStatus(a.id));
       hub.snap.welcome = false;
       hub.configChanged(); // saves config.json in the project's home for the first time
@@ -303,6 +304,10 @@ export function makeCommands(
       }
       const exportOn = typeof p.exportPlan === "boolean" && p.exportPlan && !project.exportPlan;
       if (typeof p.exportPlan === "boolean") project.exportPlan = p.exportPlan;
+      if ("permissionMode" in p) {
+        if ((PERMISSION_MODES as readonly unknown[]).includes(p.permissionMode)) project.permissionMode = p.permissionMode;
+        else delete project.permissionMode;
+      }
       hub.configChanged();
       if (exportOn) {
         hub.planChanged();

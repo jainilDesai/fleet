@@ -26,6 +26,7 @@ export function WelcomeModal() {
   const [reviewEnabled, setReviewEnabled] = useState((snap?.config.workflow.review.enabled ?? true) && github);
   const [reviewTool, setReviewTool] = useState<ReviewTool>(snap?.config.workflow.review.tool ?? "human");
   const [sending, setSending] = useState(false);
+  const [skipPrompts, setSkipPrompts] = useState(false);
   const roles = useRoles();
   if (!snap) return null;
 
@@ -42,6 +43,7 @@ export function WelcomeModal() {
       workers: workers.map((w) => ({ ...w, cli: "claude" })),
       reviewTool,
       reviewEnabled,
+      ...(skipPrompts && { permissionMode: "bypassPermissions" as const }),
     });
   };
 
@@ -124,6 +126,15 @@ export function WelcomeModal() {
               </select>
             </div>
             {!github && <p className="mt-1 text-[13px] text-muted">No GitHub remote or GitHub CLI, so there are no PRs to review: agents work on branches you merge locally.</p>}
+          </section>
+
+          <section>
+            <h3 className="mb-1 text-[16px] font-bold">Permissions</h3>
+            <label className="flex items-center gap-2 text-[14px]">
+              <input type="checkbox" checked={skipPrompts} onChange={(e) => setSkipPrompts(e.target.checked)} />
+              Skip permission prompts for every agent
+            </label>
+            <p className="mt-1 text-[13px] text-muted">Agents act without asking. The Deployer still asks first. Change it per agent, or for the project, in Settings.</p>
           </section>
         </div>
 

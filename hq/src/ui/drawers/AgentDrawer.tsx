@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentMessage, type AgentStatus, type OfficeSnapshot } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, type AgentTab } from "../../store/ui";
-import { ago, Dot, Portrait, ReviewChip, SectionTitle, StateChip, Tabs, useNow } from "../kit";
+import { ago, Dot, enterSends, Portrait, ReviewChip, SectionTitle, StateChip, Tabs, useNow } from "../kit";
 import { DrawerHeader } from "./Drawer";
 import { Markdown } from "../Markdown";
 import { TerminalFallback } from "../setup/SetupChecks";
@@ -290,7 +290,15 @@ function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig
           send();
         }}
       >
-        <input className="field" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={`Message ${agent.name}…`} aria-label={`Message ${agent.name}`} />
+        <textarea
+          className="field resize-none"
+          rows={Math.min(6, draft.split("\n").length)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={enterSends(send)}
+          placeholder={`Message ${agent.name}… (Shift+Enter for a new line)`}
+          aria-label={`Message ${agent.name}`}
+        />
         <button className="btn" type="submit" disabled={!draft.trim()}>
           Send
         </button>

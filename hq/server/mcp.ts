@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { PERMISSION_MODES } from "../src/data/types";
 import type { Hub } from "./hub";
 import { MESSAGE_MAX, NOTE_MAX, type Planner } from "./planner";
 
@@ -244,6 +245,27 @@ function buildServer(hub: Hub, planner: Planner, me: string): McpServer {
         return fail(err instanceof Error ? err.message : String(err));
       }
     },
+  );
+
+  server.registerTool(
+    "set_permission_mode",
+    {
+      description:
+        'Lead only. Change how an agent asks before acting (Claude Code\'s permission mode): default asks the user (Allow / Deny in Action items), acceptEdits allows file edits, auto lets a classifier decide, plan only reads, bypassPermissions never asks. "project" goes back to the project\'s mode. Takes effect when the agent next starts or refreshes. The user is told.',
+      inputSchema: { agent: z.string().describe("id or name"), mode: z.enum([...PERMISSION_MODES, "project"]), why: z.string().describe("Why this agent needs it") },
+    },
+    guard(({ agent, mode, why }: { agent: string; mode: (typeof PERMISSION_MODES)[number] | "project"; why: string }) => {
+      leadOnly();
+      const cfg = hub.cfg(planner.agentId(agent) ?? "");
+      if (!cfg) throw new Error(`No agent "${agent}".`);
+      if (mode === "project") delete cfg.permissionMode;
+      else cfg.permissionMode = mode;
+      hub.configChanged();
+      const what = `${hub.name(me)} set ${cfg.name}'s permissions to ${mode === "project" ? "the project's" : mode}: ${why.trim().slice(0, 120) || "no reason given"}`;
+      hub.activity("config", me, what);
+      hub.alert(me, what); // you see every change the lead makes to what agents may do unasked
+      return ok(`${cfg.name} is now ${mode}. It applies when ${cfg.name} next starts or refreshes.`);
+    }),
   );
 
   server.registerTool(

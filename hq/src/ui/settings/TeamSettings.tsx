@@ -9,12 +9,13 @@ import { StopTeamDialog } from "../hud/StopTeamDialog";
 import { RemoveAgentDialog } from "./RemoveAgentDialog";
 import { RolePicker, useRoles } from "./RolePicker";
 
-const PERMISSION_LABEL: Record<PermissionMode | "", string> = {
+export const PERMISSION_LABEL: Record<PermissionMode | "", string> = {
   "": "Your Claude default",
   default: "Ask first (prompts in Action items)",
   acceptEdits: "Accept edits, ask for commands",
   auto: "Auto (classifier decides)",
   plan: "Plan only (read, no changes)",
+  bypassPermissions: "Skip all permission prompts",
 };
 
 /** A role's entry in the list: the lead's (cto), or a worker role by name. */
@@ -55,6 +56,7 @@ export function TeamSettings() {
 
 function AgentRow({ agent, roles, expanded, onToggle, onRemove }: { agent: AgentConfig; roles: RoleInfo[] | null; expanded: boolean; onToggle: () => void; onRemove: () => void }) {
   const set = (patch: Parameters<typeof officeActions.updateAgent>[1]) => officeActions.updateAgent(agent.id, patch);
+  const projectMode = useOffice((s) => s.snap?.config.project.permissionMode);
   const [pending, setPending] = useState<string | null>(null); // a role picked while this agent's text was edited
   const defaults = roleDefaults(agent, agent.role, findRole(roles, agent.role));
   const edited = agent.roleMd.trim() !== defaults.roleMd.trim() || skillNames(agent.skillFiles) !== skillNames(defaults.skillFiles);
@@ -133,7 +135,7 @@ function AgentRow({ agent, roles, expanded, onToggle, onRemove }: { agent: Agent
               ))}
             </div>
           </Field>
-          <Field label="Permissions" hint="How this agent asks before acting. Prompts come to Action items as Allow / Deny. Applies on its next start.">
+          <Field label="Permissions" hint="How this agent asks before acting. Prompts come to Action items as Allow / Deny. Applies on its next start. The lead can change it too (you're told).">
             <select
               className="field"
               value={agent.permissionMode ?? ""}
@@ -142,7 +144,7 @@ function AgentRow({ agent, roles, expanded, onToggle, onRemove }: { agent: Agent
             >
               {(Object.keys(PERMISSION_LABEL) as (PermissionMode | "")[]).map((m) => (
                 <option key={m} value={m}>
-                  {PERMISSION_LABEL[m]}
+                  {m ? PERMISSION_LABEL[m] : `Project's: ${PERMISSION_LABEL[projectMode ?? ""]}`}
                 </option>
               ))}
             </select>
