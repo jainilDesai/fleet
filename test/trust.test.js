@@ -34,6 +34,7 @@ function fakeAgent({ workspacePath = null } = {}) {
     name: () => 'CTO',
     setStatus: (_id, patch) => Object.assign(st, patch),
     activity: (_type, _id, text) => calls.activity.push(text),
+    subscribe: () => () => {},
     alert: (_id, text) => calls.alerts.push(text),
   };
   const s = new Sessions(hub, 'token');

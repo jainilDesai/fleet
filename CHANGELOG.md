@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.2
+
+- **Finished boards ask to be closed.** When every task on a board is done, Action items asks
+  once: Approve marks it Done (its agents save a handoff and stop; a separate team then shuts
+  down). Asked again only after the board gets a new task. Boards already finished are asked about
+  when their Fleet starts.
+- **Restart to apply.** Change an agent's model or permission mode (or the project's) while it
+  runs, and its drawer says so, with a button that restarts it with a handoff.
+- **A banner for the folder-trust prompt.** A new agent waiting on Claude Code's "trust this
+  folder" prompt now tells you, not only on Fleet's page; nothing reaches it until you answer.
+- **One GitHub poll per repo.** Teams on the same repo share one PR fetch (cached in
+  ~/.fleet/github) instead of each spending the API budget; a rate limit pauses them all.
+- **Fewer stray Enters.** Fleet pressed Enter a second time whenever Claude Code confirmed a
+  message late, which could send text you were typing. Now only while Fleet's message is still
+  unsent at the prompt.
+
 ## 0.11.1
 
 - **The home page shows only what runs.** A team's card shows while its Fleet runs; a stopped
