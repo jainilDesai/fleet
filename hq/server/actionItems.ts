@@ -89,7 +89,7 @@ export class ActionItems {
     renameSync(tmp, this.file);
   }
 
-  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean, addAgent?: AddAgentRequest, cleanup?: CleanupRequest): ActionItem {
+  add(fromId: string, title: string, details: string, waiting: boolean, approval?: boolean, addAgent?: AddAgentRequest, cleanup?: CleanupRequest, setPermission?: ActionItem["setPermission"]): ActionItem {
     const clean = title.trim().replace(/\s+/g, " ").slice(0, 160);
     if (!clean) throw new Error("Give the action item a short title.");
     const item: ActionItem = {
@@ -100,8 +100,9 @@ export class ActionItems {
       details: details.trim().slice(0, 4000),
       waiting,
       status: "open",
-      ...((addAgent || cleanup || isApproval(clean, approval)) && { approval: true }),
+      ...((addAgent || cleanup || setPermission || isApproval(clean, approval)) && { approval: true }),
       ...(addAgent && { addAgent }),
+      ...(setPermission && { setPermission }),
       ...(cleanup && { cleanup }),
       note: null,
       at: new Date().toISOString(),
@@ -223,6 +224,12 @@ export class ActionItems {
       return;
     }
     if (item.cleanup && this.onCleanup) return void this.onCleanup(item.cleanup, decision === "done", item.fromId);
+    const perm = item.setPermission && decision === "done" && this.hub.cfg(item.setPermission.agentId);
+    if (perm) {
+      if (item.setPermission!.mode) perm.permissionMode = item.setPermission!.mode;
+      else delete perm.permissionMode;
+      this.hub.configChanged();
+    }
     if (item.addAgent && decision === "done" && this.onAddAgent) {
       const a = this.onAddAgent(item.addAgent);
       const n = item.note ? ` Note from the user: ${item.note}` : "";

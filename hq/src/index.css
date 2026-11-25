@@ -164,6 +164,10 @@ html[data-font] .font-term {
   select.field {
     height: 2.25rem;
   }
+  /* A one-line message box (Enter sends) starts as tall as an input, and grows with Shift+Enter. */
+  textarea.field {
+    min-height: 2.25rem;
+  }
   .kbd {
     font-family: var(--font-term);
     font-size: 16px;

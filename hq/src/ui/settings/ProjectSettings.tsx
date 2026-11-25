@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DEFAULT_OFFICE_NAME, OFFICE_NAME_MAX } from "../../data/names";
 import { FONT_STYLES, savedFont, setFont, type FontStyle } from "../../theme/fonts";
+import type { PermissionMode } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { Field, SectionTitle } from "../kit";
 import { CommitInput, Toggle } from "./controls";
@@ -69,6 +70,18 @@ export function ProjectSettings() {
         <p className="mt-1 text-[13px] text-muted">Checked when Fleet starts. After fixing one, press Check again.</p>
       </section>
       <section>
+        <SectionTitle>Permissions</SectionTitle>
+        <Toggle
+          checked={project.permissionMode === "bypassPermissions"}
+          // null (not undefined, which JSON drops) tells the server to clear it.
+          onChange={(v) => officeActions.updateProject({ permissionMode: (v ? "bypassPermissions" : null) as PermissionMode | undefined })}
+          label="Skip permission prompts for every agent"
+        />
+        <p className="mt-1 text-[13px] text-muted">
+          Agents run commands and edit files without asking. An agent with its own mode in Settings → Team keeps it (the Deployer asks first by default). Applies when each agent next starts. The first time, Claude Code asks you once in the agent's terminal to accept this mode.
+        </p>
+      </section>
+      <section>
         <SectionTitle>Plan</SectionTitle>
         <Toggle checked={!!project.exportPlan} onChange={(v) => officeActions.updateProject({ exportPlan: v })} label="Export plan to docs/plan.md" />
         <p className="mt-1 text-[13px] text-muted">
@@ -80,7 +93,7 @@ export function ProjectSettings() {
         <ul className="list-disc pl-5">
           <li>Fleet binds 127.0.0.1 only and rejects requests whose Host isn't localhost.</li>
           <li>This page gets a new token on every start. Agents' hooks and the Team MCP use their own token.</li>
-          <li>Fleet never approves anything for an agent: permission prompts come to Action items or the agent's terminal. Agents follow their Claude Code permission mode (Settings → Team), so a mode like auto allows edits without asking.</li>
+          <li>Fleet never approves anything for an agent: permission prompts come to Action items or the agent's terminal. Agents follow their Claude Code permission mode (Settings → Team, or the project's above), so a mode like auto or Skip permission prompts acts without asking.</li>
         </ul>
       </section>
     </div>
