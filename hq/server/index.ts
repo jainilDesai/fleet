@@ -20,7 +20,8 @@ import { Planner } from "./planner";
 import { detectRepo } from "./repo";
 import { Sessions } from "./sessions";
 import { runSetupChecks } from "./setup";
-import { loadConfig, loadPlan } from "./store";
+import { loadConfig, loadPlan, saveConfig } from "./store";
+import { rootSlug, teamName } from "./teams";
 
 export interface HqOptions {
   /** Any folder inside the repo the team works on. */
@@ -66,6 +67,11 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   config.project.id = slug;
   config.project.path = repo.root;
   config.project.hqPort = o.port;
+  if (config.project.parent) {
+    // Before 0.11 a team made from another team's page was that team's child, named after it: point it at the project.
+    const fixed = { parent: rootSlug(slug), name: teamName(slug) };
+    if (fixed.parent !== config.project.parent || fixed.name !== config.project.name) saveConfig(home, Object.assign(config, { project: { ...config.project, ...fixed } }));
+  }
   const token = agentToken(slug);
 
   log.info(`repo   ${repo.root}${repo.github ? `  (github.com/${repo.github})` : ""}`);
@@ -172,7 +178,7 @@ export { dependencyDirs, copyEnvFiles, packagesMatch, shareDependencies } from "
 export { trustSelected } from "./sessions";
 export { addTeamAgent, makeCommands, workMessage } from "./commands";
 export { namedSlug } from "./paths";
-export { projectHistory, rootSlug, seedTeam, teamSlug } from "./teams";
+export { projectHistory, rootSlug, seedTeam, teamName, teamSlug } from "./teams";
 export { copyImage, saveImage, UPLOAD_NAME } from "./uploads";
 export { Planner } from "./planner";
 export { ActionItems } from "./actionItems";

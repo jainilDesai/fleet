@@ -23,7 +23,7 @@ process.env.FLEET_LAUNCHCTL = fake;
 process.env.FLEET_LAUNCH_AGENTS = agents;
 const launchctlCalls = () => (fs.existsSync(calls) ? fs.readFileSync(calls, 'utf8').trim().split('\n') : []);
 
-const { projects, costs, ensureHome, createProject } = await import('../src/home.js');
+const { projects, costs, ensureHome, createProject, state } = await import('../src/home.js');
 const { plist, items, readItem, HOME_LABEL, labelFor } = await import('../src/autostart.js');
 
 const projectsDir = path.join(home, '.fleet', 'projects');
@@ -55,6 +55,14 @@ test('finds every project with a repo-root (or an older config.json), and marks 
       ['old', 'Old one', repo, false, null],
     ],
   );
+  fs.rmSync(projectsDir, { recursive: true });
+});
+
+test("a team shows on the home page only while it runs; its project always does", async () => {
+  const repo = gitRepo('fleet-app');
+  project('app', { 'repo-root': `${repo}\n` });
+  project('app-reviews', { 'repo-root': `${repo}\n`, 'config.json': JSON.stringify({ project: { name: 'app · Reviews', parent: 'app' } }) });
+  assert.deepEqual((await state()).projects.map((p) => p.slug), ['app'], 'a stopped team is in its project\'s History instead');
   fs.rmSync(projectsDir, { recursive: true });
 });
 

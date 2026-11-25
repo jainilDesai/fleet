@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.1
+
+- **The home page shows only what runs.** A team's card shows while its Fleet runs; a stopped
+  team's boards are in its project's Boards → History (Open, Revive). Projects always show.
+- **Teams named before 0.11 get their own name back.** New work on a team's page used to name the
+  new team after that team, cut at 80 characters, so they all read the same. History shows each
+  as "<project> · <its board>", and a team's name is corrected when it starts.
+
 ## 0.11.0
 
 - **Every agent can message you.** `send_message` takes "you", so an Implementer or QA can tell

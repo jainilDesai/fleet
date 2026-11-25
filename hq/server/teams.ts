@@ -36,6 +36,17 @@ export function rootSlug(slug: string): string {
 }
 
 /**
+ * A team's name: its project's name · its first board's title. Teams made before 0.11 from another team's page
+ * took that team's name instead (cut at 80 characters, so they all read the same); this is what they should be.
+ */
+export function teamName(slug: string): string {
+  const root = rootSlug(slug);
+  const own = configOf(slug)?.project?.name ?? slug;
+  const title = readJson<{ boards?: Board[] }>(join(projectsDir(), slug, "plan.json"))?.boards?.[0]?.title;
+  return root === slug || !title ? own : `${configOf(root)?.project?.name ?? root} · ${title}`.slice(0, 80);
+}
+
+/**
  * Every board of a project and its teams, for History: this Fleet's own done boards (`own`, from memory),
  * and every board of the project's other teams, read from their plan.json. Newest first.
  */
@@ -47,9 +58,9 @@ export function projectHistory(slug: string, ownBoards: Board[]): PastBoard[] {
   } catch {}
   const urls = new Map((running() as { slug: string }[]).map((e) => [e.slug, urlOf(e)]));
   const past = [
-    ...ownBoards.filter((b) => b.status === "done").map((board) => ({ team: slug, teamName: configOf(slug)?.project?.name ?? slug, board, own: true })),
+    ...ownBoards.filter((b) => b.status === "done").map((board) => ({ team: slug, teamName: teamName(slug), board, own: true })),
     ...slugs.flatMap((s) =>
-      (readJson<{ boards?: Board[] }>(join(projectsDir(), s, "plan.json"))?.boards ?? []).map((board) => ({ team: s, teamName: configOf(s)?.project?.name ?? s, board, own: false })),
+      (readJson<{ boards?: Board[] }>(join(projectsDir(), s, "plan.json"))?.boards ?? []).map((board) => ({ team: s, teamName: teamName(s), board, own: false })),
     ),
   ];
   return past
