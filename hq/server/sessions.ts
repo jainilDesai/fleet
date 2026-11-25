@@ -280,6 +280,8 @@ export class Sessions {
       if (st.note !== TRUST_NOTE) {
         set("needs-input", TRUST_NOTE);
         this.hub.activity("agent.needs-input", agentId, `${this.hub.name(agentId)} needs you: trust its new worktree (Trust folder, or in its terminal)`);
+        // Nothing runs (not even your first message) until this is answered, and no hook fires to say so: tell you.
+        this.hub.alert(agentId, "Asks you to trust its new worktree. Press Trust folder in Action items.");
       }
       return;
     }
