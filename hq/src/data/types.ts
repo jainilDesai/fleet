@@ -496,6 +496,17 @@ export interface ActionItem {
   closedAt: string | null;
 }
 
+/** A board in History: this team's done boards, and every board of the project's other teams. */
+export interface PastBoard {
+  team: string; // its team's slug
+  teamName: string;
+  board: Board;
+  /** On this page: Reopen. Otherwise Revive (a new team with its brief and summary). */
+  own: boolean;
+  /** Its team's page while that team's Fleet runs. */
+  url: string | null;
+}
+
 // ---------------------------------------------------------------- Inputs
 
 /** One question of Claude Code's AskUserQuestion tool. */

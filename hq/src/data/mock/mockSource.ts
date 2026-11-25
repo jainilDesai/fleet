@@ -85,6 +85,18 @@ export function createMockSource(): OfficeDataSource {
       world.emit({ type: "handoffs", agentId: id, handoffs: [] });
     },
 
+    listHistory() {
+      const own = world.snap.boards.filter((b) => b.status === "done").map((board) => ({ team: "askwell", teamName: world.snap.config.project.name, board, own: true, url: null }));
+      const other = {
+        team: "askwell-pricing",
+        teamName: `${world.snap.config.project.name} · Pricing page`,
+        board: { id: "PP", title: "Pricing page", status: "done" as const, order: 0, doneAt: new Date(Date.now() - 86_400_000).toISOString(), summary: "Pricing page shipped in PR #41 (demo).", brief: { prompt: "Build the pricing page with three plans", investigate: false, crew: [], startedAt: null, freshLead: false } },
+        own: false,
+        url: null,
+      };
+      world.emit({ type: "history", boards: [other, ...own] });
+    },
+
     stopAgent(id) {
       const st = world.status(id);
       if (!st) return;

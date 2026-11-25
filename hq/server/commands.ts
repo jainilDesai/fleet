@@ -14,7 +14,7 @@ import { deleteRole, listRoles, saveRole } from "./roles";
 import { mergeByNotice } from "./githubSync";
 import { hasIterm } from "./setup";
 import { doneBlockers } from "./boardDone";
-import { seedTeam, startTeam, teamSlug, waitForTeam, type TeamBrief } from "./teams";
+import { projectHistory, rootSlug, seedTeam, startTeam, teamSlug, waitForTeam, type TeamBrief } from "./teams";
 import { MESSAGE_MAX } from "./planner";
 import { OS, openTerminal } from "../../src/platform.js";
 
@@ -102,9 +102,10 @@ export function makeCommands(
 
   /** New work on a team of its own: a second Fleet on this repo, its own CTO, port and page. */
   const newTeam = async (brief: TeamBrief) => {
-    const slug = teamSlug(hub.slug, brief.title);
+    const root = rootSlug(hub.slug); // New work on a team's page is still the project's: a sibling team, not a nested one
+    const slug = teamSlug(root, brief.title);
     try {
-      seedTeam(hub, slug, brief);
+      seedTeam(hub, slug, brief, root);
     } catch (err) {
       return hub.activity("config", null, `Couldn't set up a team for "${brief.title}": ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -135,9 +136,9 @@ export function makeCommands(
     startAgent: (id) => sessions.start(str(id, 80)),
     stopAgent: (id) => sessions.stop(str(id, 80)),
     stopTeam,
-    quitFleet: async () => {
+    quitFleet: async (why) => {
       await stopTeam();
-      hub.activity("session", null, "Fleet was quit from the browser.");
+      hub.activity("session", null, typeof why === "string" ? why.slice(0, 200) : "Fleet was quit from the browser.");
       // Later than the reply, and than history.json's 1 s save. Exit 0, so launchd and systemd don't restart it;
       // Fleet's exit handler (src/server.js) removes its registry entry and watcher lock.
       setTimeout(() => exit(0), 1500);
@@ -365,6 +366,8 @@ export function makeCommands(
     },
 
     /** Boards → History → Reopen: active again, and the lead gets the board's summary. */
+    listHistory: () => hub.emit({ type: "history", boards: projectHistory(hub.slug, hub.snap.boards) }),
+
     reopenBoard: (id) => {
       const board = hub.snap.boards.find((b) => b.id === str(id, 20));
       const lead = team().find((a) => a.isLead);

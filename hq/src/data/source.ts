@@ -12,7 +12,7 @@ import type {
   NewWorkInput,
   OfficeSnapshot,
   RemoveAgentOptions,
-  RoleInfo, Handoff,
+  RoleInfo, Handoff, PastBoard,
   SaveRoleInput,
   SetupState,
   WelcomeInput,
@@ -29,6 +29,7 @@ export type OfficeEvent =
   | { type: "workspace.info"; info: WorkspaceInfo }
   | { type: "roles"; roles: RoleInfo[] }
   | { type: "handoffs"; agentId: string; handoffs: Handoff[] }
+  | { type: "history"; boards: PastBoard[] }
   | { type: "board.doneCheck"; check: BoardDoneCheck }
   | { type: "team.started"; title: string; url: string }
   | { type: "config.updated"; config: HqConfig }
@@ -74,6 +75,8 @@ export interface OfficeDataSource {
   refreshAgent(id: string): void;
   /** Ask for the agent's saved handoffs (answered with a "handoffs" event). */
   listHandoffs(id: string): void;
+  /** Ask for the project's History across its teams (answered with a "history" event). */
+  listHistory(): void;
   /** Stops every running agent session. */
   stopTeam(): void;
   /** Stops every running agent session, then Fleet itself. */
