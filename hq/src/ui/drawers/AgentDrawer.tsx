@@ -44,6 +44,18 @@ export function AgentDrawer({ id, initialTab }: { id: string; initialTab?: Agent
           {status.note === TRUST_NOTE && !agent.workspacePath && <TrustButton id={agent.id} />}
         </div>
       )}
+      {status.session.restartToApply && status.session.state === "running" && (
+        <div className="flex items-center gap-2 border-b-[3px] border-ink bg-[#fff3c4] px-3 py-1.5 text-[14px]">
+          <span className="flex-1">Its settings changed since this session started. They apply when it restarts.</span>
+          <button
+            className="btn shrink-0 px-2 text-[12px]"
+            onClick={() => officeActions.refreshAgent(agent.id)}
+            title="Save a handoff of what it did, then start a fresh session with the new settings that carries on from the handoff. Waits for the current turn to end."
+          >
+            Restart to apply
+          </button>
+        </div>
+      )}
       {status.session.terminalError && <TerminalFallback error={status.session.terminalError} />}
       <div className="border-b-[3px] border-ink px-3 py-2">
         <Tabs

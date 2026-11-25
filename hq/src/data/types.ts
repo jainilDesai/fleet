@@ -191,6 +191,8 @@ export interface SessionInfo {
   sandbox: { cpus: number; memoryGb: number } | null; // what the existing sandbox actually has
   /** "Open in terminal" failed (e.g. no Automation permission): the error and the command to run yourself. */
   terminalError?: { message: string; command: string; hint?: string } | null;
+  /** Its model or permission mode changed since this session started: they apply on the next start. */
+  restartToApply?: boolean;
 }
 
 /** The note an agent gets while Claude Code asks to trust its new worktree (the UI shows Trust folder for it). */
