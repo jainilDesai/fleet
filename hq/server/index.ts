@@ -161,10 +161,11 @@ export async function startHq(o: HqOptions): Promise<Hq> {
 export { describePermission, lastAssistantText, turnReplies } from "./hooks";
 export { draftFromPromptLine } from "./backends/tmuxCli";
 export { pasteSafe } from "./backends/tmux";
-export { branchAgent } from "./github";
+export { branchAgent, RateLimited } from "./github";
 export { projectSlug } from "./paths";
 export { agentBranch } from "./workspace";
 export { GitHubSync, passedNotice } from "./githubSync";
+export { LEASE_MS, sharedFetchPrs } from "./prCache";
 export { deleteRole, listRoles, rolePreset, saveRole } from "./roles";
 export { newAgent } from "./store";
 export { launchArgs } from "./adapters";
