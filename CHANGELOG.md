@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.11.0
+
+- **Every agent can message you.** `send_message` takes "you", so an Implementer or QA can tell
+  you something on its own; it shows in that agent's chat. Before, only the CTO's answers, or an
+  answer to something you asked, reached you; the rest stayed in the agent's terminal.
+- **Notifications.** A macOS banner (FleetView's, same on/off setting) when an agent messages
+  you, asks a question, wants an approval or a permission. Clicking it opens that team's page.
+- **Shift+Enter for a new line** in every message box: agent chat, New work, Action item notes
+  and your own answers. Enter sends; the box grows as you write.
+- **Skip permission prompts.** A new mode, for the whole project (when you create the team, or
+  in Settings → Project) or per agent (Settings → Team, where "Project's: …" is the default). The
+  Deployer keeps asking first. The CTO can make an agent ask more with `set_permission_mode`;
+  asking less waits for your Approve in Action items.
+- **One History per project.** Boards → History shows the done boards of every team on the
+  project, not only this page's, with **Open** for a team that's running and **Revive** to start
+  New work on a fresh team from a board's brief and what came of it.
+- **Teams stay under the project.** New work on a team's page makes a team of the project, named
+  "<project> · <title>", instead of a team of that team. Teams made the old way are found too.
+- **A finished team shuts down.** When a team's last board is Done, its agents and its Fleet
+  stop: no port taken, no GitHub polling. Start it on the home page and its last board reopens.
+- **Images.** Paste a screenshot into an agent's message box or into New work: Fleet saves it in
+  the project's own folder and the agent opens it. Agents can send you screenshots, shown in the
+  chat. Only real PNG, JPEG, WebP and GIF files, up to 10 MB.
+- **Fixes:** GitHub errors in the log show the real error instead of the echoed query.
+
 ## 0.10.1
 
 - **Every answer to you shows in the agent's chat.** A question you type straight into an agent's
