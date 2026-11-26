@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.5
+
+- **Claude Code's own notices no longer show as messages from you.** When a background command
+  finished, Claude Code's `<task-notification>` (and a sub-agent's `<agent-message>` report)
+  appeared in the agent's chat as "From You (typed in its terminal)". Fleet now tells them apart
+  from what you type.
+
 ## 0.11.4
 
 - **Inbox.** A new button in the top bar lists every message an agent sent you, from any agent,
