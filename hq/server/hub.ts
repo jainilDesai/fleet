@@ -9,6 +9,7 @@ import { writePlanExport } from "./planExport";
 import { saveConfig, savePlan, type PlanFile } from "./store";
 import type { RepoInfo } from "./repo";
 import { MESSAGES_KEPT } from "./planner";
+import { keepMessages } from "../src/data/messages";
 import { alertUser } from "../../src/events.js";
 
 /** Activity lines kept in history. */
@@ -49,7 +50,7 @@ export class Hub {
     try {
       const h = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Partial<OfficeSnapshot> & { lastActive?: Record<string, string> }) : {};
       return {
-        messages: Array.isArray(h.messages) ? h.messages.slice(0, MESSAGES_KEPT) : [],
+        messages: Array.isArray(h.messages) ? keepMessages(h.messages, MESSAGES_KEPT, MESSAGES_KEPT) : [],
         activity: Array.isArray(h.activity) ? h.activity.slice(0, ACTIVITY_KEPT) : [],
         lastActive: h.lastActive && typeof h.lastActive === "object" ? h.lastActive : {},
       };
