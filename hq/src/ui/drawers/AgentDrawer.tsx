@@ -1,5 +1,6 @@
+import { isYours } from "../../data/messages";
 import { useEffect, useState } from "react";
-import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentMessage, type AgentStatus, type OfficeSnapshot } from "../../data/types";
+import { HUMAN_ID, TRUST_NOTE, type AgentConfig, type AgentStatus, type OfficeSnapshot } from "../../data/types";
 import { officeActions, useOffice } from "../../store/office";
 import { ui, type AgentTab } from "../../store/ui";
 import { ago, Dot, enterSends, pasteImages, Portrait, ReviewChip, SectionTitle, StateChip, Tabs, useNow } from "../kit";
@@ -229,8 +230,8 @@ function TaskTab({ snap, agent, taskId }: { snap: OfficeSnapshot; agent: AgentCo
 
 const TEAM_KEY = "fleet.leadTeamActivity";
 
-/** Your conversation with the agent: your messages and its replies to them (not its turns for teammates or Fleet). */
-const withYou = (m: AgentMessage) => (m.fromId === HUMAN_ID || m.toId === HUMAN_ID) && m.cause !== "team";
+/** Your conversation with the agent: everything between you and it, its updates after a teammate's report included. */
+const withYou = isYours;
 
 function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig }) {
   const now = useNow(1000);
@@ -284,10 +285,11 @@ function MessagesTab({ snap, agent }: { snap: OfficeSnapshot; agent: AgentConfig
             const out = m.fromId === agent.id;
             const other = who(out ? m.toId : m.fromId);
             return (
-              <li key={m.id} className={`border-2 border-ink px-2.5 py-1.5 ${out ? "ml-8 bg-white" : "mr-8 bg-cream-2"}`}>
+              <li key={m.id} className={`border-2 border-ink px-2.5 py-1.5 ${out ? "ml-8 bg-white" : "mr-8 bg-cream-2"} ${m.cause === "team" ? "opacity-80" : ""}`}>
                 <div className="flex items-center gap-1.5 text-[13px] text-muted">
                   {other && <Dot color={other.color} size={8} />}
                   {out ? `To ${other?.name ?? "?"}` : `From ${other?.name ?? "?"}`}
+                  {m.cause === "team" && <span title="Written after a teammate's report, not in answer to you">· update</span>}
                   <span className="ml-auto font-term text-[15px]">{ago(m.at, now)}</span>
                 </div>
                 <Markdown text={m.text} />

@@ -5,6 +5,7 @@ export type DrawerState =
   | { kind: "boards"; boardId?: string }
   | { kind: "prs" }
   | { kind: "actions" }
+  | { kind: "inbox" }
   | null;
 
 export type AgentTab = "task" | "messages" | "history";
@@ -40,9 +41,20 @@ interface UiState {
   newWork: boolean;
   /** The first task from the home page's New project (#new-work=<prompt>), put in the New work dialog. */
   newWorkPrompt: string;
+  /** Messages to you newer than this are unread in the Inbox (ISO time; "" = none read yet). */
+  inboxReadAt: string;
 }
 
 const WIDTH_KEY = "fleet.drawerWidth";
+const INBOX_KEY = "fleet.inboxReadAt";
+
+function savedInboxRead(): string {
+  try {
+    return localStorage.getItem(INBOX_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
 export const DRAWER_MIN = 420;
 export const DRAWER_DEFAULT = 520;
 
@@ -82,6 +94,7 @@ export const useUi = create<UiState>(() => ({
   debugOpen: false,
   drawerWidth: savedWidth(),
   drawerMaximized: false,
+  inboxReadAt: savedInboxRead(),
   newWork: typeof location !== "undefined" && /^#new-work(=|$)/.test(location.hash),
   newWorkPrompt: typeof location !== "undefined" && location.hash.startsWith("#new-work=") ? safeDecode(location.hash.slice("#new-work=".length)) : "",
 }));
@@ -103,6 +116,19 @@ export const ui = {
   },
   openActions() {
     useUi.setState({ drawer: { kind: "actions" } });
+  },
+  openInbox() {
+    useUi.setState({ drawer: { kind: "inbox" } });
+  },
+  /** Messages to you up to `at` count as read (remembered in this browser; each project's page is its own). */
+  markInboxRead(at: string) {
+    if (at <= useUi.getState().inboxReadAt) return;
+    useUi.setState({ inboxReadAt: at });
+    try {
+      localStorage.setItem(INBOX_KEY, at);
+    } catch {
+      /* private window: until reload */
+    }
   },
   openPrs() {
     useUi.setState({ drawer: { kind: "prs" } });

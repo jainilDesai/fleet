@@ -1,6 +1,7 @@
 // The office store: the only place that talks to the data source.
 // Components and the PixiJS scene read from here.
 
+import { keepMessages } from "../data/messages";
 import { create } from "zustand";
 import { createMockSource } from "../data/mock/mockSource";
 import type { ConnectionStatus, DataPreset, OfficeDataSource, OfficeEvent, SimSpeed } from "../data/source";
@@ -103,7 +104,7 @@ function reduce(snap: OfficeSnapshot, e: OfficeEvent): OfficeSnapshot {
     case "env.removed":
       return { ...snap, environments: snap.environments.filter((x) => x.name !== e.name) };
     case "message":
-      return { ...snap, messages: [e.message, ...snap.messages].slice(0, 100) };
+      return { ...snap, messages: keepMessages([e.message, ...snap.messages], 100, 300) };
     case "activity":
       return { ...snap, activity: [e.event, ...snap.activity].slice(0, 50) };
     case "action.updated":

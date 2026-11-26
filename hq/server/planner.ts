@@ -1,6 +1,7 @@
 // Boards, tasks, assignments and messages. Used by both the Team MCP tools
 // (agents) and the browser commands (you), so both follow the same rules.
 
+import { keepMessages } from "../src/data/messages";
 import type { Board, Task, TaskStatus } from "../src/data/types";
 import type { Hub } from "./hub";
 import type { ActionItems } from "./actionItems";
@@ -245,7 +246,7 @@ export class Planner {
   private record(fromId: string, toId: string, text: string, cause?: "team") {
     this.seq += 1;
     const msg = { id: `m${Date.now().toString(36)}${this.seq}`, at: now(), fromId, toId, text, ...(cause && { cause }) };
-    this.snap.messages = [msg, ...this.snap.messages].slice(0, MESSAGES_KEPT);
+    this.snap.messages = keepMessages([msg, ...this.snap.messages], MESSAGES_KEPT, MESSAGES_KEPT);
     this.hub.historyChanged();
     this.hub.emit({ type: "message", message: msg });
   }

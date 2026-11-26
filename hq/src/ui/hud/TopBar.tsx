@@ -3,6 +3,7 @@ import type { SimSpeed } from "../../data/source";
 import { officeActions, selectAttention, useOffice } from "../../store/office";
 import { ui, useUi, wallBoard } from "../../store/ui";
 import { Logo } from "../Logo";
+import { unreadForYou } from "../../data/messages";
 
 const SPEEDS: SimSpeed[] = [1, 2, 4];
 
@@ -56,6 +57,8 @@ export function TopBar() {
   const hasDev = useOffice((s) => s.presets !== null);
   const planBoardId = useUi((s) => s.planBoardId);
   const attention = selectAttention(snap).total;
+  const readAt = useUi((s) => s.inboxReadAt);
+  const unread = snap ? unreadForYou(snap.messages, readAt) : 0;
   const debugOpen = useUi((s) => s.debugOpen);
   const live = useOffice((s) => s.live);
   const quit = useOffice((s) => s.quit);
@@ -143,6 +146,14 @@ export function TopBar() {
         </button>
       )}
       <div className="flex gap-1.5">
+        <button
+          className="btn text-[14px]"
+          style={unread ? { background: "#ffec27" } : undefined}
+          onClick={() => ui.openInbox()}
+          title="Every message an agent sent you, from any agent"
+        >
+          Inbox{unread ? ` · ${unread}` : ""}
+        </button>
         <button
           className="btn text-[14px]"
           style={attention ? { background: "#ffec27" } : undefined}

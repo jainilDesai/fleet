@@ -5,6 +5,7 @@ import { AgentDrawer } from "./AgentDrawer";
 import { BoardsDrawer } from "./BoardsDrawer";
 import { PrDrawer } from "./PrDrawer";
 import { ActionItemsDrawer } from "./ActionItemsDrawer";
+import { InboxDrawer } from "./InboxDrawer";
 
 export function DrawerHeader({ children }: { children: ReactNode }) {
   return (
@@ -122,6 +123,7 @@ export function DrawerHost() {
           {drawer.kind === "agent" && <AgentDrawer id={drawer.id} initialTab={drawer.tab} />}
           {drawer.kind === "prs" && <PrDrawer />}
           {drawer.kind === "actions" && <ActionItemsDrawer />}
+          {drawer.kind === "inbox" && <InboxDrawer />}
         </motion.aside>
       )}
     </AnimatePresence>
