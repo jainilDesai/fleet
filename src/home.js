@@ -47,7 +47,8 @@ export function projects() {
     if (!repo) return [];
     // `parent`: a separate team New work made on another project's repo (started with --project).
     const parent = config?.project?.parent ?? null;
-    return [{ slug, dir, repo, name: config?.project?.name ?? path.basename(repo), missing: !fs.existsSync(repo), parent }];
+    // `port`: where it last ran; its agents' hooks and Team MCP still call that port.
+    return [{ slug, dir, repo, name: config?.project?.name ?? path.basename(repo), missing: !fs.existsSync(repo), parent, port: config?.project?.hqPort ?? null }];
   });
 }
 
@@ -213,23 +214,33 @@ const safeEqual = (a, b) => {
   return A.length === B.length && crypto.timingSafeEqual(A, B);
 };
 
-// Agents' hooks and Team MCP still pointing at this port (their project moved off it while they
-// ran) reach their project here: the agent token says which one.
-function forward(req, res) {
+// The project an agent's request belongs to, by its agent token, and that project's running copy.
+export function agentTarget(req) {
   const auth = String(req.headers.authorization ?? '');
   const p = projects().find((x) => {
     const t = read(path.join(x.dir, 'agent-token'))?.trim();
     return t && safeEqual(auth, `Bearer ${t}`);
   });
-  const copy = p && running().find((e) => e.slug === p.slug && e.port !== HOME_PORT);
-  if (!copy) return send(res, p ? 503 : 401, { error: p ? 'project not running' : 'unauthorized' });
-  const up = http.request({ host: '127.0.0.1', port: copy.port, path: req.url, method: req.method, headers: { ...req.headers, host: `127.0.0.1:${copy.port}` } }, (r) => {
+  return { project: p ?? null, copy: (p && running().find((e) => e.slug === p.slug && e.port !== HOME_PORT)) ?? null };
+}
+
+// Passes the request on to the Fleet copy on `port`, as is (a held permission request included).
+export function proxy(req, res, port) {
+  const up = http.request({ host: '127.0.0.1', port, path: req.url, method: req.method, headers: { ...req.headers, host: `127.0.0.1:${port}` } }, (r) => {
     res.writeHead(r.statusCode, r.headers);
     r.pipe(res);
   });
   up.on('error', () => (res.headersSent ? res.end() : send(res, 502, { error: 'project unreachable' })));
   res.on('close', () => up.destroy()); // the agent stopped waiting (a held permission request)
   req.pipe(up);
+}
+
+// Agents' hooks and Team MCP still pointing at this port (their project moved off it while they
+// ran) reach their project here: the agent token says which one.
+function forward(req, res) {
+  const { project, copy } = agentTarget(req);
+  if (!copy) return send(res, project ? 503 : 401, { error: project ? 'project not running' : 'unauthorized' });
+  proxy(req, res, copy.port);
 }
 
 // public/ files the home page needs: its page, assets, manifest, icons and service worker.

@@ -131,7 +131,7 @@ test('fleet outside a repo starts the home page; a project copy takes the next p
   delete env.FLEET_PLATFORM; // the real platform: these are real processes
   const notRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-norepo-'));
   const repo = gitRepo('fleet-toy');
-  let child;
+  let child, other;
   try {
     const out = execFileSync(process.execPath, [bin, '--no-open'], { cwd: notRepo, env, encoding: 'utf8' });
     assert.match(out, new RegExp(`Fleet home at http://localhost:${PORT}`));
@@ -195,7 +195,40 @@ test('fleet outside a repo starts the home page; a project copy takes the next p
     assert.equal(badJson, 400);
     assert.equal((await get(PORT, '/api/home')).status, 200, 'still answering');
     assert.equal((await hook(`Bearer ${token}`)).status, 404, "forwarded: the project doesn't know agent 'nobody'");
+
+    // A project copy passes agents of another running project (still calling the port it took over) to that project.
+    const seen = [];
+    other = http.createServer((q, s) => (seen.push([q.url, q.headers.authorization]), s.writeHead(299).end()));
+    await new Promise((r) => other.listen(PORT + 5, '127.0.0.1', r));
+    project('other', { 'repo-root': `${repo}\n`, 'agent-token': 'tok-other\n', 'config.json': JSON.stringify({ project: { name: 'other', parent: summary.slug } }) });
+    fs.writeFileSync(path.join(home, '.fleet', 'running', `${process.pid}.json`), JSON.stringify({ slug: 'other', repo, port: PORT + 5, pid: process.pid, team: true }));
+    const copyHook = (auth) => get(PORT + 1, '/hook/qa/Stop', { method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' }, body: '{}' });
+    assert.equal((await copyHook('Bearer tok-other')).status, 299, "another project's agent reaches its own Fleet");
+    assert.deepEqual(seen, [['/hook/qa/Stop', 'Bearer tok-other']]);
+    assert.equal((await copyHook(`Bearer ${token}`)).status, 204, 'its own agents are its own: not forwarded');
+    assert.equal(seen.length, 1);
+    assert.equal((await copyHook('Bearer wrong')).status, 401, 'an unknown token is refused, not forwarded');
+    fs.rmSync(path.join(home, '.fleet', 'running', `${process.pid}.json`));
+
+    // A restart takes back the port it last ran on, where its still-running agents call it.
+    const pageToken = (await (await get(PORT + 1, '/')).text()).match(/__FLEET_PAGE_TOKEN__ = "([0-9a-f]+)"/)[1];
+    const welcome = { projectName: 'app', lead: { name: 'CTO', cli: 'claude' }, workers: [{ name: 'QA', role: 'QA', cli: 'claude' }], reviewTool: 'human', reviewEnabled: false };
+    await get(PORT + 1, '/api/hq/cmd', { method: 'POST', headers: { 'content-type': 'application/json', 'x-fleet-token': pageToken }, body: JSON.stringify({ cmd: 'completeWelcome', args: [welcome] }) });
+    const cfgFile = path.join(projectsDir, summary.slug, 'config.json');
+    assert.ok(await waitFor(async () => fs.existsSync(cfgFile)), 'the welcome saved its config');
+    child.kill();
+    await waitFor(async () => !(await get(PORT + 1, '/api/summary').catch(() => null))?.ok);
+    const cfg = JSON.parse(fs.readFileSync(cfgFile, 'utf8'));
+    cfg.project.hqPort = PORT + 7; // where it ran before
+    fs.writeFileSync(cfgFile, JSON.stringify(cfg));
+    log = '';
+    child = spawn(process.execPath, [bin, '--repo', repo, '--no-open'], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    child.stdout.on('data', (d) => (log += d));
+    child.stderr.on('data', (d) => (log += d));
+    assert.ok(await waitFor(async () => /Fleet running at/.test(log)), log);
+    assert.match(log, new RegExp(`Fleet running at http://localhost:${PORT + 7}`), 'its last port, not the first free one');
   } finally {
+    other?.close();
     child?.kill();
     const pid = Number(fs.readFileSync(path.join(home, '.fleet', 'home.pid'), 'utf8'));
     if (pid) process.kill(pid);
