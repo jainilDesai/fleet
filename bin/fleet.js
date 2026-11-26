@@ -254,27 +254,31 @@ if (already) {
   process.exit(0);
 }
 if (!portGiven) {
+  // The port this project last ran on, if it's free: agents still running from then call it.
+  const last = home.projects().find((p) => (project ? p.slug === project : p.repo === r && !p.parent))?.port;
   try {
-    port = await freePort(port);
+    port = last && last !== HOME_PORT && (await freePort(last)) === last ? last : await freePort(port);
   } catch (e) {
     fail(e.message);
   }
-  if (port !== HOME_PORT + 1) console.log(`Port ${HOME_PORT + 1} is in use, so Fleet uses ${port}.`);
+  if (port !== HOME_PORT + 1 && port !== last) console.log(`Port ${HOME_PORT + 1} is in use, so Fleet uses ${port}.`);
 }
 if (port === HOME_PORT && !pinnedHere) console.warn(`Port ${HOME_PORT} is the home page's; it can't start while this Fleet uses it.`);
 
 const { start } = await import('../src/server.js');
-const server = start({ port, repo: r, project });
+const server = start({ port, repo: r, project, nextFree: !portGiven });
 server.hqReady.catch((e) => {
   console.error(`Could not start the agent team: ${e.message}`);
   process.exit(1);
 });
 server.on('listening', () => {
+  port = server.address().port; // nextFree may have moved it
   const url = `http://localhost:${port}`;
   console.log(`Fleet running at ${url}`);
   if (!has('--no-open')) openBrowser(url);
 });
 server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE' && !portGiven) return; // start() takes the next free port
   console.error(e.code === 'EADDRINUSE' ? `Port ${port} is in use. Try --port <n>.` : e.message);
   process.exit(1);
 });

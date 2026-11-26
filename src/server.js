@@ -9,7 +9,8 @@ import { launch, focus } from './terminal.js';
 import { summarize } from './summarize.js';
 import { observe, recentEvents, reloadEvents, config, setConfig, setDashboardUrl } from './events.js';
 import { scan, history, summarizeSession, reloadHistory } from './history.js';
-import { running, register, unregister, urlOf, homeUrl, claimWatcher, releaseWatcher } from './registry.js';
+import { running, register, unregister, urlOf, homeUrl, claimWatcher, releaseWatcher, freePort } from './registry.js';
+import { agentTarget, proxy } from './home.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
@@ -30,11 +31,14 @@ const TYPES = {
 // it carries a per-run token, and the Host check stops DNS-rebinding pages from reaching us.
 const TOKEN = crypto.randomBytes(24).toString('hex');
 
-export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd(), project } = {}) {
+// `nextFree`: if the port is taken by the time it listens (two Fleets starting at once), take the next free one.
+export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd(), project, nextFree = false } = {}) {
   const clients = new Set();
   let last = '';
   // The agent team for `repo` (built into dist/hq.mjs). Its routes are tried before Fleet's own.
-  const hqReady = import(HQ_BUNDLE).then((m) => m.startHq({ repo, port, pageToken: TOKEN, project }));
+  // It starts once the port is ours: its agents' hooks and Team MCP are written with that port.
+  let listening;
+  const hqReady = new Promise((r) => (listening = r)).then(() => import(HQ_BUNDLE).then((m) => m.startHq({ repo, port, pageToken: TOKEN, project })));
 
   const snapshot = () => ({ at: Date.now(), sessions: liveSessions(), events: recentEvents(), config: config() });
 
@@ -71,8 +75,14 @@ export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd(), p
     if (!allowedHost) return send(res, 403, { error: 'bad host' });
 
     try {
+      const hq = await hqReady;
+      // Agents still running from when another project had this port: hand them to their own Fleet.
+      if ((url.pathname.startsWith('/hook/') || url.pathname === '/mcp') && req.headers.authorization !== `Bearer ${hq.agentToken}`) {
+        const { project: p, copy } = agentTarget(req);
+        if (p && p.slug !== hq.slug && copy && copy.port !== port) return proxy(req, res, copy.port);
+      }
       // Agents' hooks and Team MCP authenticate with their own token, so they come before Fleet's POST check.
-      if (await (await hqReady).handle(req, res, url)) return;
+      if (await hq.handle(req, res, url)) return;
       if (req.method === 'GET' && url.pathname === '/api/stream') {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
         last = JSON.stringify(snapshot());
@@ -124,6 +134,18 @@ export function start({ port = 7788, host = '127.0.0.1', repo = process.cwd(), p
   });
 
   server.hqReady = hqReady;
+  server.once('listening', () => listening());
+  let tries = 0;
+  server.on('error', async (e) => {
+    if (!nextFree || e.code !== 'EADDRINUSE') return;
+    if (++tries > 20) return server.emit('error', new Error('Ports keep being taken while Fleet starts. Pass --port <n>.'));
+    try {
+      port = await freePort(port + 1);
+      server.listen(port, host);
+    } catch (err) {
+      server.emit('error', err);
+    }
+  });
   server.listen(port, host);
   // In ~/.fleet/running/ while it serves (fleet --list, the switcher); out again when it exits.
   Promise.all([hqReady, new Promise((r) => server.once('listening', r))])

@@ -41,6 +41,8 @@ export interface Hq {
   name(): string;
   /** A separate team made by New work (`fleet --project`), not the repo's main project. */
   team: boolean;
+  /** Its agents' token: Fleet's server passes requests with another project's token on to that project. */
+  agentToken: string;
   /** What the home page shows for this project (GET /api/summary). No secrets. */
   summary(): { slug: string; name: string; repo: string; agents: number; agentsRunning: number; needsYou: number; openPrs: number };
   stop(): void;
@@ -66,6 +68,8 @@ export async function startHq(o: HqOptions): Promise<Hq> {
   const { config, isNew } = loadConfig(home, repo, o.port);
   config.project.id = slug;
   config.project.path = repo.root;
+  // Saved, so a restart takes this port back: agents that keep running call the port they started with.
+  if (config.project.hqPort !== o.port && !isNew) saveConfig(home, Object.assign(config, { project: { ...config.project, hqPort: o.port } }));
   config.project.hqPort = o.port;
   if (config.project.parent) {
     // Before 0.11 a team made from another team's page was that team's child, named after it: point it at the project.
@@ -142,6 +146,7 @@ export async function startHq(o: HqOptions): Promise<Hq> {
     slug,
     name: () => hub.snap.config.project.name,
     team: !!o.project,
+    agentToken: token,
     summary: () => ({
       slug,
       name: hub.snap.config.project.name,
