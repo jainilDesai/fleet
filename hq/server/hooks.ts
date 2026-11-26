@@ -164,10 +164,12 @@ export function handleHook(hub: Hub, inbox: Inbox, agentId: string, event: strin
     case "UserPromptSubmit": {
       turnOpen.set(agentId, true);
       // You typed it in the agent's terminal (not a message Fleet delivered, not a /command): it shows in
-      // the agent's chat in Fleet, and so does the answer.
+      // the agent's chat in Fleet, and so does the answer. Claude Code also submits its own notices as a
+      // prompt, one tag block like <task-notification>…</task-notification> or <agent-message …>…: not yours.
       const p = body.prompt?.trim() ?? "";
+      const notice = /^<([a-z][a-z-]*)[\s>][\s\S]*<\/\1>$/.test(p);
       let typedPrompt = "";
-      if (p && !p.startsWith("/") && !/\[Fleet\]/.test(p.slice(0, 400))) {
+      if (p && !notice && !p.startsWith("/") && !/\[Fleet\]/.test(p.slice(0, 400))) {
         inbox.expectReply(agentId);
         typedPrompt = p;
       }

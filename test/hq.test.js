@@ -916,6 +916,10 @@ test('your question to a busy agent: its answer is posted before the messages it
     assert.equal(typed.typedPrompt, 'Can checkout show gold stars?');
     assert.equal(handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: '[Fleet] Message from You: hi' }).typedPrompt, undefined, "Fleet's own delivery");
     assert.equal(handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: '/compact' }).typedPrompt, undefined);
+    const notice = '<task-notification> <task-id>bx1</task-id> <status>failed</status> <summary>Background command "Start dev server" failed with exit code 144</summary> </task-notification>';
+    assert.equal(handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: notice }).typedPrompt, undefined, "Claude Code's own notice, not you");
+    assert.equal(handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: '<agent-message from="a1">\n[Subagent hand-back] report\n</agent-message>' }).typedPrompt, undefined, "a sub-agent's report, not you");
+    assert.equal(handleHook(hub, inbox, 'planner', 'UserPromptSubmit', { prompt: 'Why does <Button> render twice?' }).typedPrompt, 'Why does <Button> render twice?', 'yours, even with a tag in it');
 
     const marker = '[Fleet] Message from CTO: next task please';
     const file = write([user('Can checkout show gold stars?'), assistant(text('No: stars are plain text.'), toolUse), toolResult, user(`Stop hook feedback:\n${marker}`), assistant(text('Starting the next task.'))]);
