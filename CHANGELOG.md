@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.4
+
+- **Inbox.** A new button in the top bar lists every message an agent sent you, from any agent,
+  newest first, with an unread count; Reply opens that agent's chat. Before, a worker's message
+  showed only in that worker's chat.
+- **The lead's updates are no longer hidden.** What the CTO writes after a teammate's report
+  (often the update you were waiting for) was shown only under Team activity. It now shows in its
+  chat and the Inbox, marked "update".
+- **Your conversation stays.** Messages to and from you are kept apart from the team's traffic,
+  so a busy team no longer pushes them out of view.
+
 ## 0.11.3
 
 - **Agents keep reaching their Fleet after a restart.** An agent calls the port its Fleet had when
