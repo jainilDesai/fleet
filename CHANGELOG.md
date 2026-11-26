@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.11.3
+
+- **Agents keep reaching their Fleet after a restart.** An agent calls the port its Fleet had when
+  the agent started; a restarted Fleet took the first free port, so agents still running talked
+  to another project's Fleet and their replies, task updates and permission prompts were lost.
+  Now a restart takes back its last port when free, and every Fleet passes another project's
+  agents on to their own Fleet.
+- **Fleets starting together no longer fail with "port in use".** The later one takes the next
+  free port.
+
 ## 0.11.2
 
 - **Finished boards ask to be closed.** When every task on a board is done, Action items asks
